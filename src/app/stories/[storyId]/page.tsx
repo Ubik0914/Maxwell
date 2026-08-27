@@ -34,7 +34,11 @@ export default async function StoryGraphPage({
         frontierCount={graph.frontier.length}
       />
       <div className="flex-1">
-        <StoryGraph nodes={graph.nodes} edges={graph.edges} />
+        <StoryGraph
+          nodes={graph.nodes}
+          edges={graph.edges}
+          storyId={graph.story.id}
+        />
       </div>
     </div>
   );

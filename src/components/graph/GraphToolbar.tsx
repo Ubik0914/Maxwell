@@ -1,12 +1,15 @@
 "use client";
 
 import { useReactFlow } from "@xyflow/react";
+import { CreateTaskDialog } from "@/components/graph/CreateTaskDialog";
 
-export function GraphToolbar() {
+export function GraphToolbar({ storyId }: { storyId: string }) {
   const { fitView, zoomIn, zoomOut, setViewport } = useReactFlow();
 
   return (
     <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 shadow-sm">
+      <CreateTaskDialog storyId={storyId} />
+      <span className="text-gray-300">|</span>
       <button
         type="button"
         onClick={() => fitView()}
