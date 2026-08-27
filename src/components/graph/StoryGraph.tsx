@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -26,6 +26,7 @@ import {
   updateNodePositionAction,
   createEdgeAction,
 } from "@/features/graph/actions";
+import { useGraphRealtime } from "@/features/graph/hooks/useGraphRealtime";
 
 const nodeTypes: NodeTypes = {
   START: StartNode,
@@ -82,7 +83,24 @@ export function StoryGraph({
     setFlowEdges(toFlowEdges(edges));
   }, [edges, setFlowEdges]);
 
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
+  const handleStoryStatusChange = useCallback(() => {
+    // Story status isn't part of this component's own state (it lives
+    // in the sibling StoryHeader, a Server Component) — a refresh picks
+    // up the new status along with the stats/frontier count it also owns.
+    router.refresh();
+  }, [router]);
+
+  useGraphRealtime({
+    storyId,
+    setFlowNodes,
+    setFlowEdges,
+    onStoryStatusChange: handleStoryStatusChange,
+  });
+
+  // Selection reads from flowNodes (not the `nodes` prop) so a Realtime
+  // update to the selected node is reflected immediately in TaskPanel.
+  const selectedNode =
+    flowNodes.find((n) => n.id === selectedNodeId)?.data ?? null;
 
   async function handleConnect(connection: Connection) {
     if (!connection.source || !connection.target) return;
