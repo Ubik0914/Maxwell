@@ -2,17 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { GraphNode, TaskStatus } from "@/domain/graph/types";
-import { updateTaskAction, deleteTaskAction } from "@/features/graph/actions";
+import type { GraphNode } from "@/domain/graph/types";
+import {
+  updateTaskAction,
+  updateTaskStatusAction,
+  deleteTaskAction,
+} from "@/features/graph/actions";
 import { DeleteConfirmDialog } from "@/components/graph/DeleteConfirmDialog";
-
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  BLOCKED: "Blocked",
-  READY: "Ready",
-  IN_PROGRESS: "In Progress",
-  DONE: "Done",
-  CANCELLED: "Cancelled",
-};
 
 const PRIORITY_LABEL: Record<number, string> = {
   1: "Low",
@@ -22,8 +18,8 @@ const PRIORITY_LABEL: Record<number, string> = {
 };
 
 /**
- * Status is intentionally read-only here — only the Status Engine
- * (Phase 14, updateTaskStatusAction) may change it. Every other field
+ * Status goes through updateTaskStatusAction (the Status Engine), which
+ * rejects BLOCKED->IN_PROGRESS with TASK_BLOCKED — everything else here
  * saves itself on change/blur except Description, which uses an explicit
  * Save button (per spec: free text shouldn't autosave per keystroke).
  *
@@ -110,12 +106,46 @@ export function TaskPanel({
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium tracking-wide text-gray-500 uppercase">
+        <label
+          htmlFor="panel-status"
+          className="text-xs font-medium tracking-wide text-gray-500 uppercase"
+        >
           Status
-        </span>
-        <span className="text-sm text-gray-900">
-          {node.status ? STATUS_LABEL[node.status] : "—"}
-        </span>
+        </label>
+        <select
+          id="panel-status"
+          value={node.status ?? "READY"}
+          onChange={(e) => {
+            const value = e.target.value as
+              | "READY"
+              | "IN_PROGRESS"
+              | "DONE"
+              | "CANCELLED";
+            startTransition(async () => {
+              const result = await updateTaskStatusAction({
+                taskId: node.id,
+                status: value,
+              });
+              if (!result.success) {
+                setError(result.error.message);
+                return;
+              }
+              setError(null);
+              router.refresh();
+            });
+          }}
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+        >
+          {node.status === "BLOCKED" && (
+            <option value="BLOCKED" disabled>
+              Blocked
+            </option>
+          )}
+          <option value="READY">Ready</option>
+          <option value="IN_PROGRESS">In progress</option>
+          <option value="DONE">Done</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
       </div>
 
       <div className="flex flex-col gap-1">

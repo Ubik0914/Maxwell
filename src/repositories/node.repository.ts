@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import type { GraphNode } from "@/domain/graph/types";
+import type { GraphNode, TaskStatus } from "@/domain/graph/types";
 
 type Client = SupabaseClient<Database, "dag">;
 type NodeRow = Database["dag"]["Tables"]["nodes"]["Row"];
@@ -135,4 +135,20 @@ export async function updatePosition(
     .eq("id", id);
 
   if (error) throw error;
+}
+
+export async function updateStatus(
+  supabase: Client,
+  id: string,
+  status: TaskStatus,
+): Promise<GraphNode> {
+  const { data, error } = await supabase
+    .from("nodes")
+    .update({ status })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return toGraphNode(data);
 }

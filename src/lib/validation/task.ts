@@ -43,6 +43,14 @@ export const updateNodePositionSchema = z.object({
   y: z.number().finite(),
 });
 
+export const updateTaskStatusSchema = z.object({
+  taskId: z.string().uuid(),
+  // BLOCKED is deliberately excluded — only the Status Engine may set
+  // it, never the client directly.
+  status: z.enum(["READY", "IN_PROGRESS", "DONE", "CANCELLED"]),
+});
+
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type UpdateNodePositionInput = z.infer<typeof updateNodePositionSchema>;
+export type UpdateTaskStatusInput = z.infer<typeof updateTaskStatusSchema>;
