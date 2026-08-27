@@ -3,6 +3,7 @@ import type { Database } from "@/types/database";
 import * as nodeRepository from "@/repositories/node.repository";
 import * as edgeRepository from "@/repositories/edge.repository";
 import { getCurrentFrontier } from "@/domain/graph/frontier";
+import { validateConnection, type ValidationError } from "@/domain/graph/connection";
 import type { GraphNode, GraphEdge } from "@/domain/graph/types";
 
 type Client = SupabaseClient<Database, "dag">;
@@ -83,4 +84,44 @@ export async function getGraph(
     stats: computeStats(nodes),
     frontier: getCurrentFrontier(nodes),
   };
+}
+
+export interface ConnectNodesInput {
+  storyId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+}
+
+export type ConnectNodesResult =
+  | { success: true; edge: GraphEdge }
+  | { success: false; error: ValidationError };
+
+/**
+ * Validates the proposed edge against the DAG rules (Phase 13) before
+ * inserting it. The DB's own UNIQUE/CHECK constraints are only a
+ * fallback for a race between this read and the insert — this is the
+ * actual authority on self-edge/duplicate/START/GOAL/cycle rejection.
+ */
+export async function connectNodes(
+  supabase: Client,
+  input: ConnectNodesInput,
+): Promise<ConnectNodesResult> {
+  const [nodes, edges] = await Promise.all([
+    nodeRepository.findByStoryId(supabase, input.storyId),
+    edgeRepository.findByStoryId(supabase, input.storyId),
+  ]);
+
+  const validation = validateConnection(
+    input.sourceNodeId,
+    input.targetNodeId,
+    nodes,
+    edges,
+  );
+
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+
+  const edge = await edgeRepository.createEdge(supabase, input);
+  return { success: true, edge };
 }
