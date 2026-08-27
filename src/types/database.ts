@@ -233,7 +233,18 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_story: {
+        Args: {
+          p_workspace_id: string;
+          p_title: string;
+          p_description: string | null;
+          p_start_state: string;
+          p_goal_state: string;
+        };
+        Returns: string;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

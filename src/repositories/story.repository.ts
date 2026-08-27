@@ -79,3 +79,33 @@ export async function listStoriesForWorkspace(
     stats: statsByStory.get(story.id) ?? emptyStats(),
   }));
 }
+
+export interface CreateStoryInput {
+  workspaceId: string;
+  title: string;
+  description?: string;
+  startState: string;
+  goalState: string;
+}
+
+/**
+ * Creates the story together with its START/GOAL nodes and the
+ * START -> GOAL edge as a single atomic operation via the dag.create_story
+ * RPC (a PL/pgSQL function body is one transaction, so a failure partway
+ * through rolls back everything — no "story without nodes" state).
+ */
+export async function createStory(
+  supabase: Client,
+  input: CreateStoryInput,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("create_story", {
+    p_workspace_id: input.workspaceId,
+    p_title: input.title,
+    p_description: input.description ?? null,
+    p_start_state: input.startState,
+    p_goal_state: input.goalState,
+  });
+
+  if (error) throw error;
+  return data;
+}
