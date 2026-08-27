@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { TaskStatus } from "@/domain/graph/types";
 import type { FlowNode } from "@/components/graph/types";
 import { NodeShell, StatusDot } from "@/components/graph/nodes/NodeShell";
+import { NodeBranchButton } from "@/components/graph/nodes/NodeBranchButton";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   BLOCKED: "Blocked",
@@ -54,7 +55,7 @@ const STATUS_STYLE: Record<
   },
 };
 
-export function TaskNode({ data }: NodeProps<FlowNode>) {
+export function TaskNode({ id, data }: NodeProps<FlowNode>) {
   const status = data.status ?? "READY";
   const style = STATUS_STYLE[status];
 
@@ -81,6 +82,7 @@ export function TaskNode({ data }: NodeProps<FlowNode>) {
         )}
       </div>
       <Handle type="source" position={Position.Right} />
+      <NodeBranchButton nodeId={id} />
     </NodeShell>
   );
 }

@@ -20,5 +20,21 @@ export const insertTaskOnEdgeSchema = z.object({
     .optional(),
 });
 
+export const branchTaskFromNodeSchema = z.object({
+  sourceNodeId: z.string().uuid(),
+  targetNodeId: z.string().uuid(),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Title is required")
+    .max(200, "Title must be 200 characters or fewer"),
+  description: z
+    .string()
+    .trim()
+    .max(5000, "Description must be 5000 characters or fewer")
+    .optional(),
+});
+
 export type CreateEdgeInput = z.infer<typeof createEdgeSchema>;
 export type InsertTaskOnEdgeInput = z.infer<typeof insertTaskOnEdgeSchema>;
+export type BranchTaskFromNodeInput = z.infer<typeof branchTaskFromNodeSchema>;

@@ -5,6 +5,7 @@ import * as edgeRepository from "@/repositories/edge.repository";
 import * as storyRepository from "@/repositories/story.repository";
 import { getCurrentFrontier } from "@/domain/graph/frontier";
 import { validateConnection, type ValidationError } from "@/domain/graph/connection";
+import { validateBranch } from "@/domain/graph/branch";
 import {
   calculateTaskAvailability,
   recalculateDownstream,
@@ -177,6 +178,13 @@ export interface InsertTaskOnEdgeInput {
   description?: string;
 }
 
+export interface BranchTaskFromNodeInput {
+  sourceNodeId: string;
+  targetNodeId: string;
+  title: string;
+  description?: string;
+}
+
 /**
  * Splits an existing A->B edge into A->NewTask->B (the RPC is one
  * atomic transaction for the delete+insert+insert+insert).
@@ -202,6 +210,56 @@ export async function branchTaskOnEdge(
   const newNodeId = await edgeRepository.branchTaskOnEdge(supabase, input);
   await settleAfterSplice(supabase, newNodeId);
   return newNodeId;
+}
+
+export type BranchFromNodeResult =
+  | { success: true; nodeId: string }
+  | { success: false; error: ValidationError };
+
+/**
+ * Branches from a node rather than from one of its edges: the caller
+ * names both ends, so the new task can rejoin further downstream than
+ * the next task along.
+ *
+ * That freedom is why this validates first and branchTaskOnEdge doesn't
+ * have to — an edge's own endpoints are always a safe pair, but an
+ * arbitrary one can be pointed back upstream, and the new task would
+ * close a cycle. The RPC works on ids alone and can't see the shape of
+ * the graph, so the check belongs here.
+ */
+export async function branchTaskFromNode(
+  supabase: Client,
+  input: BranchTaskFromNodeInput,
+): Promise<BranchFromNodeResult> {
+  const source = await nodeRepository.findById(supabase, input.sourceNodeId);
+  if (!source) {
+    return {
+      success: false,
+      error: {
+        code: "NODE_NOT_FOUND",
+        message: "One of the selected tasks no longer exists.",
+      },
+    };
+  }
+
+  const [nodes, edges] = await Promise.all([
+    nodeRepository.findByStoryId(supabase, source.storyId),
+    edgeRepository.findByStoryId(supabase, source.storyId),
+  ]);
+
+  const validation = validateBranch(
+    input.sourceNodeId,
+    input.targetNodeId,
+    nodes,
+    edges,
+  );
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+
+  const newNodeId = await edgeRepository.branchTaskFromNode(supabase, input);
+  await settleAfterSplice(supabase, newNodeId);
+  return { success: true, nodeId: newNodeId };
 }
 
 /**
