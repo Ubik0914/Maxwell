@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -54,8 +54,19 @@ function toFlowEdges(edges: GraphEdge[]): Edge[] {
     type: "custom",
     source: edge.sourceNodeId,
     target: edge.targetNodeId,
-    animated: true,
   }));
+}
+
+/**
+ * An edge "flows" once its source has actually produced something to
+ * flow downstream: Start (the always-ready origin) or a Done task.
+ * Anything upstream of unfinished work stays a static line, so the
+ * animation tracks real progress through the DAG instead of just
+ * decorating every connection uniformly.
+ */
+function isFlowingSource(node: FlowNode | undefined): boolean {
+  if (!node) return false;
+  return node.data.type === "START" || node.data.status === "DONE";
 }
 
 export function StoryGraph({
@@ -104,6 +115,17 @@ export function StoryGraph({
   const selectedNode =
     flowNodes.find((n) => n.id === selectedNodeId)?.data ?? null;
 
+  // Recomputed from flowNodes on every render (not baked into flowEdges'
+  // own state) so a Realtime status change to DONE re-animates that
+  // node's outgoing edges immediately, without a separate sync effect.
+  const displayEdges = useMemo(() => {
+    const nodeById = new Map(flowNodes.map((n) => [n.id, n]));
+    return flowEdges.map((edge) => ({
+      ...edge,
+      animated: isFlowingSource(nodeById.get(edge.source)),
+    }));
+  }, [flowEdges, flowNodes]);
+
   async function handleConnect(connection: Connection) {
     if (!connection.source || !connection.target) return;
 
@@ -125,7 +147,7 @@ export function StoryGraph({
       <div className="relative h-full w-full bg-bg">
         <ReactFlow
           nodes={flowNodes}
-          edges={flowEdges}
+          edges={displayEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           colorMode="dark"
