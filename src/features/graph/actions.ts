@@ -331,6 +331,7 @@ export async function updateTaskStatusAction(input: {
   ActionResult<{
     task: GraphNode;
     affectedTasks: GraphNode[];
+    storyStatus: "ACTIVE" | "COMPLETED" | "ARCHIVED";
   }>
 > {
   const parsed = updateTaskStatusSchema.safeParse(input);
@@ -360,7 +361,11 @@ export async function updateTaskStatusAction(input: {
     }
     return {
       success: true,
-      data: { task: result.task, affectedTasks: result.affectedTasks },
+      data: {
+        task: result.task,
+        affectedTasks: result.affectedTasks,
+        storyStatus: result.storyStatus,
+      },
     };
   } catch {
     return {

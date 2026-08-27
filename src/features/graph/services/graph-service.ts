@@ -2,9 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import * as nodeRepository from "@/repositories/node.repository";
 import * as edgeRepository from "@/repositories/edge.repository";
+import * as storyRepository from "@/repositories/story.repository";
 import { getCurrentFrontier } from "@/domain/graph/frontier";
 import { validateConnection, type ValidationError } from "@/domain/graph/connection";
 import { calculateTaskAvailability } from "@/domain/graph/availability";
+import { calculateStoryStatus } from "@/domain/graph/story-status";
 import type { GraphNode, GraphEdge, TaskStatus } from "@/domain/graph/types";
 
 type Client = SupabaseClient<Database, "dag">;
@@ -138,7 +140,12 @@ export interface StatusChangeError {
 }
 
 export type ChangeTaskStatusResult =
-  | { success: true; task: GraphNode; affectedTasks: GraphNode[] }
+  | {
+      success: true;
+      task: GraphNode;
+      affectedTasks: GraphNode[];
+      storyStatus: "ACTIVE" | "COMPLETED" | "ARCHIVED";
+    }
   | { success: false; error: StatusChangeError };
 
 /**
@@ -210,5 +217,26 @@ export async function changeTaskStatus(
     }
   }
 
-  return { success: true, task: updated, affectedTasks };
+  // Story Completion: re-derive ACTIVE/COMPLETED from the current graph.
+  // Never touches an ARCHIVED story — Archive is a separate, user-driven
+  // state outside the DAG-completion rule's business.
+  let storyStatus = await storyRepository.getStatus(supabase, updated.storyId);
+  if (storyStatus && storyStatus !== "ARCHIVED") {
+    const nextStoryStatus = calculateStoryStatus(allNodes, allEdges);
+    if (nextStoryStatus !== storyStatus) {
+      await storyRepository.updateStatus(
+        supabase,
+        updated.storyId,
+        nextStoryStatus,
+      );
+      storyStatus = nextStoryStatus;
+    }
+  }
+
+  return {
+    success: true,
+    task: updated,
+    affectedTasks,
+    storyStatus: storyStatus ?? "ACTIVE",
+  };
 }

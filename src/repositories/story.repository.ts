@@ -109,3 +109,31 @@ export async function createStory(
   if (error) throw error;
   return data;
 }
+
+export async function getStatus(
+  supabase: Client,
+  storyId: string,
+): Promise<"ACTIVE" | "COMPLETED" | "ARCHIVED" | null> {
+  const { data, error } = await supabase
+    .from("stories")
+    .select("status")
+    .eq("id", storyId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.status ?? null;
+}
+
+/** Never call with ARCHIVED — Story Completion only toggles ACTIVE/COMPLETED. */
+export async function updateStatus(
+  supabase: Client,
+  storyId: string,
+  status: "ACTIVE" | "COMPLETED",
+): Promise<void> {
+  const { error } = await supabase
+    .from("stories")
+    .update({ status })
+    .eq("id", storyId);
+
+  if (error) throw error;
+}
