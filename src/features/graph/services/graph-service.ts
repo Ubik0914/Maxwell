@@ -5,7 +5,10 @@ import * as edgeRepository from "@/repositories/edge.repository";
 import * as storyRepository from "@/repositories/story.repository";
 import { getCurrentFrontier } from "@/domain/graph/frontier";
 import { validateConnection, type ValidationError } from "@/domain/graph/connection";
-import { calculateTaskAvailability } from "@/domain/graph/availability";
+import {
+  calculateTaskAvailability,
+  recalculateDownstream,
+} from "@/domain/graph/availability";
 import { calculateStoryStatus } from "@/domain/graph/story-status";
 import type { GraphNode, GraphEdge, TaskStatus } from "@/domain/graph/types";
 
@@ -126,7 +129,111 @@ export async function connectNodes(
   }
 
   const edge = await edgeRepository.createEdge(supabase, input);
+  const allEdges = [...edges, edge];
+
+  // A new edge can retroactively un-satisfy its target if the target
+  // was already DONE/IN_PROGRESS from a previously-empty or -satisfied
+  // incoming set (e.g. it had no dependencies until now, or this is a
+  // second dependency that isn't met) - and that can cascade further
+  // downstream too.
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const affected = recalculateDownstream(input.sourceNodeId, nodes, allEdges);
+  for (const node of affected) {
+    if (node.status) {
+      const saved = await nodeRepository.updateStatus(
+        supabase,
+        node.id,
+        node.status,
+      );
+      nodesById.set(saved.id, saved);
+    }
+  }
+
+  // A demotion above can un-satisfy GOAL if it landed on one of its
+  // direct sources - re-derive Story Completion the same way
+  // changeTaskStatus does, so the story doesn't stay COMPLETED past a
+  // dependency this edge just invalidated.
+  const storyStatus = await storyRepository.getStatus(supabase, input.storyId);
+  if (storyStatus && storyStatus !== "ARCHIVED" && affected.length > 0) {
+    const nextStoryStatus = calculateStoryStatus(
+      [...nodesById.values()],
+      allEdges,
+    );
+    if (nextStoryStatus !== storyStatus) {
+      await storyRepository.updateStatus(
+        supabase,
+        input.storyId,
+        nextStoryStatus,
+      );
+    }
+  }
+
   return { success: true, edge };
+}
+
+export interface InsertTaskOnEdgeInput {
+  edgeId: string;
+  title: string;
+  description?: string;
+}
+
+/**
+ * Splits an existing A->B edge into A->NewTask->B (the RPC is one
+ * atomic transaction for the delete+insert+insert+insert). The new
+ * task's own initial status is computed correctly by the RPC itself
+ * (READY only if its source is actually satisfied), but B's status can
+ * still go stale here: if B was DONE/IN_PROGRESS because A was DONE,
+ * it now depends on NewTask instead - which never starts DONE - so it
+ * needs the same downstream recalculation as a manually-created edge.
+ */
+export async function insertTaskOnEdge(
+  supabase: Client,
+  input: InsertTaskOnEdgeInput,
+): Promise<string> {
+  const newNodeId = await edgeRepository.insertTaskOnEdge(supabase, input);
+
+  const newNode = await nodeRepository.findById(supabase, newNodeId);
+  if (!newNode) return newNodeId;
+
+  const [nodes, edges] = await Promise.all([
+    nodeRepository.findByStoryId(supabase, newNode.storyId),
+    edgeRepository.findByStoryId(supabase, newNode.storyId),
+  ]);
+
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const affected = recalculateDownstream(newNodeId, nodes, edges);
+  for (const node of affected) {
+    if (node.status) {
+      const saved = await nodeRepository.updateStatus(
+        supabase,
+        node.id,
+        node.status,
+      );
+      nodesById.set(saved.id, saved);
+    }
+  }
+
+  if (affected.length > 0) {
+    const storyStatus = await storyRepository.getStatus(
+      supabase,
+      newNode.storyId,
+    );
+    if (storyStatus && storyStatus !== "ARCHIVED") {
+      const nextStoryStatus = calculateStoryStatus(
+        [...nodesById.values()],
+        edges,
+      );
+      if (nextStoryStatus !== storyStatus) {
+        await storyRepository.updateStatus(
+          supabase,
+          newNode.storyId,
+          nextStoryStatus,
+        );
+      }
+    }
+  }
+
+  return newNodeId;
 }
 
 export interface ChangeTaskStatusInput {
@@ -149,13 +256,10 @@ export type ChangeTaskStatusResult =
   | { success: false; error: StatusChangeError };
 
 /**
- * Applies a manual status change, then recalculates the direct
- * downstream TASK nodes that are still in a dependency-derived state
- * (READY/BLOCKED — a node the user already moved to IN_PROGRESS/DONE/
- * CANCELLED is left alone). A single downstream pass is enough: only a
- * transition to DONE can newly satisfy a dependency, and satisfaction
- * only cares about DONE, not READY/BLOCKED, so the effect never needs
- * to cascade past direct children.
+ * Applies a manual status change, then recalculates every downstream
+ * TASK node whose dependency-derived state may now be stale (see
+ * recalculateDownstream) - not just direct children: a demotion can
+ * itself invalidate further descendants.
  */
 export async function changeTaskStatus(
   supabase: Client,
@@ -170,14 +274,29 @@ export async function changeTaskStatus(
     };
   }
 
-  if (input.status === "IN_PROGRESS" && current.status === "BLOCKED") {
-    return {
-      success: false,
-      error: {
-        code: "TASK_BLOCKED",
-        message: "Complete the blocking tasks before starting this task.",
-      },
-    };
+  if (input.status === "IN_PROGRESS" || input.status === "DONE") {
+    const [nodesBefore, edgesBefore] = await Promise.all([
+      nodeRepository.findByStoryId(supabase, current.storyId),
+      edgeRepository.findByStoryId(supabase, current.storyId),
+    ]);
+
+    // Checked against the true dependency-derived availability, not the
+    // stored status field: a task's stored status can itself be stale
+    // (e.g. a dependency reverted after this task was already READY),
+    // so trusting it here would let the same TASK_BLOCKED guard be
+    // sidestepped by going through READY first.
+    if (
+      calculateTaskAvailability(current.id, nodesBefore, edgesBefore) ===
+      "BLOCKED"
+    ) {
+      return {
+        success: false,
+        error: {
+          code: "TASK_BLOCKED",
+          message: "Complete the blocking tasks before starting this task.",
+        },
+      };
+    }
   }
 
   const updated = await nodeRepository.updateStatus(
@@ -191,38 +310,31 @@ export async function changeTaskStatus(
     edgeRepository.findByStoryId(supabase, updated.storyId),
   ]);
 
-  const outgoingTargetIds = allEdges
-    .filter((edge) => edge.sourceNodeId === updated.id)
-    .map((edge) => edge.targetNodeId);
-
   const affectedTasks: GraphNode[] = [];
-
-  for (const targetId of outgoingTargetIds) {
-    const target = allNodes.find((node) => node.id === targetId);
-    if (!target || target.type !== "TASK") continue;
-    if (target.status !== "READY" && target.status !== "BLOCKED") continue;
-
-    const nextStatus = calculateTaskAvailability(
-      target.id,
-      allNodes,
-      allEdges,
-    );
-    if (nextStatus !== target.status) {
+  const nodesById = new Map(allNodes.map((node) => [node.id, node]));
+  nodesById.set(updated.id, updated);
+  for (const node of recalculateDownstream(updated.id, allNodes, allEdges)) {
+    if (node.status) {
       const saved = await nodeRepository.updateStatus(
         supabase,
-        target.id,
-        nextStatus,
+        node.id,
+        node.status,
       );
       affectedTasks.push(saved);
+      nodesById.set(saved.id, saved);
     }
   }
+  // Reflects `updated` and every recalculated node's new status, so
+  // Story Completion below (which can depend on any of them, not just
+  // `updated`) never judges against pre-recalculation data.
+  const currentNodes = [...nodesById.values()];
 
   // Story Completion: re-derive ACTIVE/COMPLETED from the current graph.
   // Never touches an ARCHIVED story — Archive is a separate, user-driven
   // state outside the DAG-completion rule's business.
   let storyStatus = await storyRepository.getStatus(supabase, updated.storyId);
   if (storyStatus && storyStatus !== "ARCHIVED") {
-    const nextStoryStatus = calculateStoryStatus(allNodes, allEdges);
+    const nextStoryStatus = calculateStoryStatus(currentNodes, allEdges);
     if (nextStoryStatus !== storyStatus) {
       await storyRepository.updateStatus(
         supabase,
