@@ -2,11 +2,14 @@
 
 import { useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { Edge } from "@xyflow/react";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/database";
 import type { GraphNode } from "@/domain/graph/types";
-import type { FlowNode, FlowNodeData } from "@/components/graph/types";
+import type {
+  FlowEdge,
+  FlowNode,
+  FlowNodeData,
+} from "@/components/graph/types";
 
 type NodeRow = Database["dag"]["Tables"]["nodes"]["Row"];
 type EdgeRow = Database["dag"]["Tables"]["edges"]["Row"];
@@ -35,12 +38,15 @@ function nodeRowToFlowNode(row: NodeRow): FlowNode {
   };
 }
 
-function edgeRowToFlowEdge(row: EdgeRow): Edge {
+function edgeRowToFlowEdge(row: EdgeRow): FlowEdge {
   return {
     id: row.id,
     type: "custom",
     source: row.source_node_id,
     target: row.target_node_id,
+    // Placeholder only: StoryGraph derives the real energy state for
+    // every edge on each render (see its displayEdges).
+    data: { live: false, damped: false, surgeId: null },
   };
 }
 
@@ -59,7 +65,7 @@ export function useGraphRealtime({
 }: {
   storyId: string;
   setFlowNodes: Dispatch<SetStateAction<FlowNode[]>>;
-  setFlowEdges: Dispatch<SetStateAction<Edge[]>>;
+  setFlowEdges: Dispatch<SetStateAction<FlowEdge[]>>;
   onStoryStatusChange: (status: StoryStatus) => void;
 }) {
   useEffect(() => {
