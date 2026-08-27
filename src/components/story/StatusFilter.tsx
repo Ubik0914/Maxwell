@@ -9,7 +9,7 @@ const FILTERS = [
 
 export function StatusFilter({ current }: { current: string }) {
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       {FILTERS.map((filter) => (
         <Link
           key={filter.value}
