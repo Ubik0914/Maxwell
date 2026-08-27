@@ -4,7 +4,8 @@ import * as nodeRepository from "@/repositories/node.repository";
 import * as edgeRepository from "@/repositories/edge.repository";
 import { getCurrentFrontier } from "@/domain/graph/frontier";
 import { validateConnection, type ValidationError } from "@/domain/graph/connection";
-import type { GraphNode, GraphEdge } from "@/domain/graph/types";
+import { calculateTaskAvailability } from "@/domain/graph/availability";
+import type { GraphNode, GraphEdge, TaskStatus } from "@/domain/graph/types";
 
 type Client = SupabaseClient<Database, "dag">;
 
@@ -124,4 +125,90 @@ export async function connectNodes(
 
   const edge = await edgeRepository.createEdge(supabase, input);
   return { success: true, edge };
+}
+
+export interface ChangeTaskStatusInput {
+  taskId: string;
+  status: TaskStatus;
+}
+
+export interface StatusChangeError {
+  code: "TASK_NOT_FOUND" | "TASK_BLOCKED";
+  message: string;
+}
+
+export type ChangeTaskStatusResult =
+  | { success: true; task: GraphNode; affectedTasks: GraphNode[] }
+  | { success: false; error: StatusChangeError };
+
+/**
+ * Applies a manual status change, then recalculates the direct
+ * downstream TASK nodes that are still in a dependency-derived state
+ * (READY/BLOCKED — a node the user already moved to IN_PROGRESS/DONE/
+ * CANCELLED is left alone). A single downstream pass is enough: only a
+ * transition to DONE can newly satisfy a dependency, and satisfaction
+ * only cares about DONE, not READY/BLOCKED, so the effect never needs
+ * to cascade past direct children.
+ */
+export async function changeTaskStatus(
+  supabase: Client,
+  input: ChangeTaskStatusInput,
+): Promise<ChangeTaskStatusResult> {
+  const current = await nodeRepository.findById(supabase, input.taskId);
+
+  if (!current || current.type !== "TASK") {
+    return {
+      success: false,
+      error: { code: "TASK_NOT_FOUND", message: "Task not found." },
+    };
+  }
+
+  if (input.status === "IN_PROGRESS" && current.status === "BLOCKED") {
+    return {
+      success: false,
+      error: {
+        code: "TASK_BLOCKED",
+        message: "Complete the blocking tasks before starting this task.",
+      },
+    };
+  }
+
+  const updated = await nodeRepository.updateStatus(
+    supabase,
+    input.taskId,
+    input.status,
+  );
+
+  const [allNodes, allEdges] = await Promise.all([
+    nodeRepository.findByStoryId(supabase, updated.storyId),
+    edgeRepository.findByStoryId(supabase, updated.storyId),
+  ]);
+
+  const outgoingTargetIds = allEdges
+    .filter((edge) => edge.sourceNodeId === updated.id)
+    .map((edge) => edge.targetNodeId);
+
+  const affectedTasks: GraphNode[] = [];
+
+  for (const targetId of outgoingTargetIds) {
+    const target = allNodes.find((node) => node.id === targetId);
+    if (!target || target.type !== "TASK") continue;
+    if (target.status !== "READY" && target.status !== "BLOCKED") continue;
+
+    const nextStatus = calculateTaskAvailability(
+      target.id,
+      allNodes,
+      allEdges,
+    );
+    if (nextStatus !== target.status) {
+      const saved = await nodeRepository.updateStatus(
+        supabase,
+        target.id,
+        nextStatus,
+      );
+      affectedTasks.push(saved);
+    }
+  }
+
+  return { success: true, task: updated, affectedTasks };
 }

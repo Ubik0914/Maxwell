@@ -5,6 +5,7 @@ import {
   createTaskSchema,
   updateTaskSchema,
   updateNodePositionSchema,
+  updateTaskStatusSchema,
 } from "@/lib/validation/task";
 import {
   createEdgeSchema,
@@ -15,6 +16,7 @@ import * as nodeRepository from "@/repositories/node.repository";
 import * as edgeRepository from "@/repositories/edge.repository";
 import * as graphService from "@/features/graph/services/graph-service";
 import type { ActionResult } from "@/types/action-result";
+import type { GraphNode } from "@/domain/graph/types";
 
 async function requireUser() {
   const supabase = await createClient();
@@ -317,6 +319,55 @@ export async function insertTaskOnEdgeAction(input: {
       error: {
         code: ErrorCode.INTERNAL_ERROR,
         message: "Failed to insert task.",
+      },
+    };
+  }
+}
+
+export async function updateTaskStatusAction(input: {
+  taskId: string;
+  status: "READY" | "IN_PROGRESS" | "DONE" | "CANCELLED";
+}): Promise<
+  ActionResult<{
+    task: GraphNode;
+    affectedTasks: GraphNode[];
+  }>
+> {
+  const parsed = updateTaskStatusSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.VALIDATION_ERROR,
+        message: parsed.error.issues[0]?.message ?? "Invalid status",
+      },
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    const result = await graphService.changeTaskStatus(supabase, parsed.data);
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+    return {
+      success: true,
+      data: { task: result.task, affectedTasks: result.affectedTasks },
+    };
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to update status.",
       },
     };
   }
