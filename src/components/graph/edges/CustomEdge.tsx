@@ -105,7 +105,7 @@ export function CustomEdge({
       {isInsertOpen && (
         <EdgeLabelRenderer>
           <div
-            style={{ position: "absolute", pointerEvents: "all" }}
+            style={{ pointerEvents: "all" }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
           >
             <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl">

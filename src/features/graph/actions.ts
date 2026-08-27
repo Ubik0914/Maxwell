@@ -301,7 +301,7 @@ export async function insertTaskOnEdgeAction(input: {
   }
 
   try {
-    const nodeId = await edgeRepository.insertTaskOnEdge(supabase, parsed.data);
+    const nodeId = await graphService.insertTaskOnEdge(supabase, parsed.data);
     return { success: true, data: { id: nodeId } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
