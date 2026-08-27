@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { CloseIcon } from "@/components/icons";
 
 /**
  * The one way this app puts something in front of the graph.
@@ -61,9 +62,9 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="shrink-0 text-text-faint transition-colors hover:text-text"
+            className="-m-1.5 shrink-0 rounded-full p-1.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
           >
-            ×
+            <CloseIcon />
           </button>
         </div>
         <div className="mt-4">{children}</div>

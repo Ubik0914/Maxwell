@@ -17,6 +17,7 @@ import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Spinner } from "@/components/Spinner";
 import { Modal } from "@/components/Modal";
+import { CloseIcon, PlusIcon } from "@/components/icons";
 
 /** Sparks are staggered across the travel time so the flow reads as a
  *  stream rather than as a metronome. */
@@ -136,19 +137,21 @@ export function CustomEdge({
           <button
             type="button"
             onClick={() => setIsInsertOpen(true)}
+            aria-label="Insert task"
             title="Insert task"
-            className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-xs text-text-muted shadow-sm hover:border-accent hover:text-accent"
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-sm transition-colors hover:border-accent hover:text-accent"
           >
-            +
+            <PlusIcon className="h-3 w-3" />
           </button>
           <button
             type="button"
             onClick={handleDelete}
             disabled={isPending}
+            aria-label="Delete connection"
             title="Delete connection"
-            className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-xs text-text-muted shadow-sm hover:border-danger hover:text-danger"
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-sm transition-colors hover:border-danger hover:text-danger"
           >
-            ×
+            <CloseIcon className="h-3 w-3" />
           </button>
         </div>
       </EdgeLabelRenderer>
