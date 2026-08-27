@@ -137,3 +137,92 @@ export async function updateStatus(
 
   if (error) throw error;
 }
+
+export interface StoryDetail {
+  id: string;
+  workspaceId: string;
+  title: string;
+  description: string | null;
+  status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function findById(
+  supabase: Client,
+  id: string,
+): Promise<StoryDetail | null> {
+  const { data, error } = await supabase
+    .from("stories")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    workspaceId: data.workspace_id,
+    title: data.title,
+    description: data.description,
+    status: data.status,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+export interface UpdateStoryInput {
+  title?: string;
+  description?: string | null;
+}
+
+export async function updateStory(
+  supabase: Client,
+  id: string,
+  input: UpdateStoryInput,
+): Promise<StoryDetail> {
+  const patch: Database["dag"]["Tables"]["stories"]["Update"] = {};
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.description !== undefined) patch.description = input.description;
+
+  const { data, error } = await supabase
+    .from("stories")
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: data.id,
+    workspaceId: data.workspace_id,
+    title: data.title,
+    description: data.description,
+    status: data.status,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+export async function archiveStory(
+  supabase: Client,
+  id: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("stories")
+    .update({ status: "ARCHIVED" })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+/** nodes/edges cascade-delete via their story_id FK (ON DELETE CASCADE). */
+export async function deleteStory(
+  supabase: Client,
+  id: string,
+): Promise<void> {
+  const { error } = await supabase.from("stories").delete().eq("id", id);
+  if (error) throw error;
+}
