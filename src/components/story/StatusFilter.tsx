@@ -18,10 +18,10 @@ export function StatusFilter({ current }: { current: string }) {
               ? "/stories"
               : `/stories?status=${filter.value}`
           }
-          className={`rounded-full px-3 py-1 text-sm ${
+          className={`rounded-full border px-3 py-1 text-sm transition ${
             current === filter.value
-              ? "bg-gray-900 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-border text-text-muted hover:border-border-strong hover:text-text"
           }`}
         >
           {filter.label}

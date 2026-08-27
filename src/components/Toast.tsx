@@ -71,10 +71,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={toast.id}
             role="alert"
-            className={`animate-toast-in pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg select-text ${
+            className={`animate-toast-in pointer-events-auto rounded-md border px-4 py-2 text-sm shadow-lg select-text ${
               toast.variant === "error"
-                ? "bg-red-600 text-white"
-                : "bg-gray-900 text-white"
+                ? "border-danger/40 bg-danger text-inverse"
+                : "border-success/40 bg-surface text-success"
             }`}
           >
             {toast.message}

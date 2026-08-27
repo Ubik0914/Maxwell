@@ -76,14 +76,14 @@ export function TaskPanel({
   }
 
   return (
-    <div className="absolute top-0 right-0 flex h-full w-80 flex-col gap-4 overflow-y-auto border-l border-gray-200 bg-white p-6 shadow-xl">
+    <div className="absolute top-0 right-0 flex h-full w-80 flex-col gap-4 overflow-y-auto border-l border-border bg-surface p-6 shadow-xl">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">{node.title}</h2>
+        <h2 className="text-lg font-semibold text-text">{node.title}</h2>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="text-gray-400 hover:text-gray-600"
+          className="text-text-faint hover:text-text"
         >
           ×
         </button>
@@ -92,7 +92,7 @@ export function TaskPanel({
       <div className="flex flex-col gap-1">
         <label
           htmlFor="panel-title"
-          className="text-xs font-medium tracking-wide text-gray-500 uppercase"
+          className="text-xs font-medium tracking-wide text-text-faint uppercase"
         >
           Title
         </label>
@@ -106,14 +106,14 @@ export function TaskPanel({
             save({ taskId: node.id, title })
           }
           maxLength={200}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
         />
       </div>
 
       <div className="flex flex-col gap-1">
         <label
           htmlFor="panel-status"
-          className="text-xs font-medium tracking-wide text-gray-500 uppercase"
+          className="text-xs font-medium tracking-wide text-text-faint uppercase"
         >
           Status
         </label>
@@ -138,7 +138,7 @@ export function TaskPanel({
               router.refresh();
             });
           }}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
         >
           {node.status === "BLOCKED" && (
             <option value="BLOCKED" disabled>
@@ -155,7 +155,7 @@ export function TaskPanel({
       <div className="flex flex-col gap-1">
         <label
           htmlFor="panel-description"
-          className="text-xs font-medium tracking-wide text-gray-500 uppercase"
+          className="text-xs font-medium tracking-wide text-text-faint uppercase"
         >
           Description
         </label>
@@ -165,7 +165,7 @@ export function TaskPanel({
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           maxLength={5000}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
         />
         <button
           type="button"
@@ -173,7 +173,7 @@ export function TaskPanel({
             save({ taskId: node.id, description: description || null })
           }
           disabled={isPending || description === (node.description ?? "")}
-          className="flex items-center gap-1.5 self-start rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          className="flex items-center gap-1.5 self-start rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-inverse hover:bg-accent-hover disabled:opacity-50"
         >
           {isPending && <Spinner className="h-3 w-3" />}
           Save
@@ -183,7 +183,7 @@ export function TaskPanel({
       <div className="flex flex-col gap-1">
         <label
           htmlFor="panel-assignee"
-          className="text-xs font-medium tracking-wide text-gray-500 uppercase"
+          className="text-xs font-medium tracking-wide text-text-faint uppercase"
         >
           Assignee
         </label>
@@ -196,14 +196,14 @@ export function TaskPanel({
             save({ taskId: node.id, assigneeId: assigneeId || null })
           }
           placeholder="User ID"
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
         />
       </div>
 
       <div className="flex flex-col gap-1">
         <label
           htmlFor="panel-priority"
-          className="text-xs font-medium tracking-wide text-gray-500 uppercase"
+          className="text-xs font-medium tracking-wide text-text-faint uppercase"
         >
           Priority
         </label>
@@ -215,7 +215,7 @@ export function TaskPanel({
             setPriority(value);
             save({ taskId: node.id, priority: value || null });
           }}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
         >
           <option value={0}>—</option>
           {Object.entries(PRIORITY_LABEL).map(([value, label]) => (
@@ -229,7 +229,7 @@ export function TaskPanel({
       <div className="flex flex-col gap-1">
         <label
           htmlFor="panel-due-date"
-          className="text-xs font-medium tracking-wide text-gray-500 uppercase"
+          className="text-xs font-medium tracking-wide text-text-faint uppercase"
         >
           Due Date
         </label>
@@ -241,14 +241,14 @@ export function TaskPanel({
             setDueDate(e.target.value);
             save({ taskId: node.id, dueDate: e.target.value || null });
           }}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
         />
       </div>
 
       <button
         type="button"
         onClick={() => setIsDeleteOpen(true)}
-        className="mt-auto rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+        className="mt-auto rounded-md border border-danger/40 px-4 py-2 text-sm font-medium text-danger hover:bg-danger-soft"
       >
         Delete Task
       </button>

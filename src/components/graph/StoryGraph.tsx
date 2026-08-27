@@ -121,12 +121,13 @@ export function StoryGraph({
 
   return (
     <ReactFlowProvider>
-      <div className="relative h-full w-full">
+      <div className="relative h-full w-full bg-bg">
         <ReactFlow
           nodes={flowNodes}
           edges={flowEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          colorMode="dark"
           fitView
           deleteKeyCode={null}
           onNodesChange={onNodesChange}
@@ -148,7 +149,7 @@ export function StoryGraph({
           }}
           onPaneClick={() => setSelectedNodeId(null)}
         >
-          <Background />
+          <Background color="var(--border-strong)" gap={24} />
         </ReactFlow>
         <GraphToolbar storyId={storyId} />
         {selectedNode && (

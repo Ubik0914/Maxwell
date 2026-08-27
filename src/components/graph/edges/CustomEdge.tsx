@@ -86,7 +86,7 @@ export function CustomEdge({
             type="button"
             onClick={() => setIsInsertOpen(true)}
             title="Insert task"
-            className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:bg-gray-50"
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-xs text-text-muted shadow-sm hover:border-accent hover:text-accent"
           >
             +
           </button>
@@ -95,7 +95,7 @@ export function CustomEdge({
             onClick={handleDelete}
             disabled={isPending}
             title="Delete connection"
-            className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:bg-red-50 hover:text-red-600"
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-xs text-text-muted shadow-sm hover:border-danger hover:text-danger"
           >
             ×
           </button>
@@ -106,18 +106,18 @@ export function CustomEdge({
         <EdgeLabelRenderer>
           <div
             style={{ position: "absolute", pointerEvents: "all" }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
           >
-            <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-text">
                   Insert Task
                 </h2>
                 <button
                   type="button"
                   onClick={() => setIsInsertOpen(false)}
                   aria-label="Close"
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-text-faint hover:text-text"
                 >
                   ×
                 </button>
@@ -127,7 +127,7 @@ export function CustomEdge({
                 <div className="flex flex-col gap-1">
                   <label
                     htmlFor="insert-task-title"
-                    className="text-sm font-medium text-gray-700"
+                    className="text-sm font-medium text-text-muted"
                   >
                     Title *
                   </label>
@@ -137,7 +137,7 @@ export function CustomEdge({
                     onChange={(e) => setTitle(e.target.value)}
                     required
                     maxLength={200}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                    className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
                   />
                 </div>
 
@@ -145,14 +145,14 @@ export function CustomEdge({
                   <button
                     type="button"
                     onClick={() => setIsInsertOpen(false)}
-                    className="rounded-md px-4 py-2 text-sm font-medium text-gray-600"
+                    className="rounded-md px-4 py-2 text-sm font-medium text-text-muted hover:text-text"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse hover:bg-accent-hover disabled:opacity-50"
                   >
                     {isPending && <Spinner />}
                     Insert

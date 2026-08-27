@@ -1,32 +1,76 @@
 @import "tailwindcss";
 
+/*
+ * Dark is the default (and only) theme. Tokens live as plain custom
+ * properties on :root and are re-exposed as Tailwind color utilities
+ * below (--color-bg -> bg-bg, text-bg, border-bg, ...), so every
+ * component styles itself via the token names (bg-surface, text-muted,
+ * border-border, ...) instead of hardcoded gray/white utilities. That
+ * indirection is what let the earlier "light-only" bug happen in the
+ * first place — changing the palette now only means editing this block.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0d14;
+  --surface: #121722;
+  --surface-hover: #1a2130;
+  --border: #232b3d;
+  --border-strong: #3a4560;
+  --text: #e7ebf5;
+  --text-muted: #9aa4bc;
+  --text-faint: #5b6480;
+  --inverse: #04060a;
+
+  --accent: #22d3ee;
+  --accent-hover: #67e3f7;
+  --accent-soft: rgba(34, 211, 238, 0.12);
+
+  --danger: #f87171;
+  --danger-hover: #fca5a5;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.14);
+
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-inverse: var(--inverse);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/*
- * The app's design (Tailwind gray-900 text on white/gray-50 surfaces
- * throughout) assumes a light theme; it isn't dark-mode aware. Forcing
- * color-scheme: light here stops the browser from auto-darkening
- * unstyled surfaces to match prefers-color-scheme: dark, which was
- * leaving dark text unreadable on a dark background. Full dark mode
- * support is out of this MVP's scope.
- */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
   /* UI chrome (labels, buttons, nav) isn't meant to be selected like
      document text. Inputs/textareas opt back in below since form
