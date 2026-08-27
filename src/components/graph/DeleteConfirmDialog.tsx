@@ -1,5 +1,8 @@
 "use client";
 
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { Spinner } from "@/components/Spinner";
+
 export function DeleteConfirmDialog({
   title,
   isPending,
@@ -11,6 +14,8 @@ export function DeleteConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  useEscapeKey(onCancel, true);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
@@ -32,9 +37,10 @@ export function DeleteConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={isPending}
-            className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {isPending ? "Deleting..." : "Delete"}
+            {isPending && <Spinner />}
+            Delete
           </button>
         </div>
       </div>

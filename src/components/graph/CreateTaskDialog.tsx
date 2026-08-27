@@ -3,6 +3,8 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createTaskAction } from "@/features/graph/actions";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { Spinner } from "@/components/Spinner";
 
 export function CreateTaskDialog({ storyId }: { storyId: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,6 +13,7 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  useEscapeKey(() => setIsOpen(false), isOpen);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -107,7 +110,7 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
               </div>
 
               {error && (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-red-600 select-text">
                   {error}
                 </p>
               )}
@@ -123,9 +126,10 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                 >
-                  {isPending ? "Creating..." : "Create"}
+                  {isPending && <Spinner />}
+                  Create
                 </button>
               </div>
             </form>

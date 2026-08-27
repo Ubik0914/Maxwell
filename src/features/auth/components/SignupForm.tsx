@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signupAction } from "@/features/auth/actions";
+import { Spinner } from "@/components/Spinner";
 import type { ActionResult } from "@/types/action-result";
 
 type SignupData = { requiresEmailConfirmation: boolean };
@@ -93,7 +94,7 @@ export function SignupForm() {
       </div>
 
       {state && !state.success && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-red-600 select-text">
           {state.error.message}
         </p>
       )}
@@ -101,9 +102,10 @@ export function SignupForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+        className="flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
       >
-        {isPending ? "Signing up..." : "Sign up"}
+        {isPending && <Spinner />}
+        Sign up
       </button>
 
       <p className="text-center text-sm text-gray-600">
