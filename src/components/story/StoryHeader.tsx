@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "@/components/icons";
 
 const STORY_STATUS_TONE: Record<string, string> = {
   ACTIVE: "text-accent",
@@ -57,10 +58,11 @@ export function StoryHeader({
       <div className="flex min-w-0 items-center gap-2.5">
         <Link
           href="/stories"
-          className="shrink-0 text-sm text-text-faint transition-colors hover:text-accent"
+          title="Back to stories"
+          className="flex shrink-0 items-center gap-1 text-sm text-text-faint transition-colors hover:text-accent"
         >
-          <span aria-hidden="true">←</span>
-          <span className="ml-1 hidden sm:inline">Stories</span>
+          <ArrowLeftIcon />
+          <span className="hidden sm:inline">Stories</span>
           <span className="sr-only">Back to stories</span>
         </Link>
         <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-text sm:text-base">

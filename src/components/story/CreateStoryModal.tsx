@@ -5,6 +5,7 @@ import { createStoryAction } from "@/features/story/actions";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Spinner } from "@/components/Spinner";
 import { Modal } from "@/components/Modal";
+import { PlusIcon } from "@/components/icons";
 import type { ActionResult } from "@/types/action-result";
 
 const initialState: ActionResult<null> | null = null;
@@ -22,9 +23,10 @@ export function CreateStoryModal({ workspaceId }: { workspaceId: string }) {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
+        className="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
       >
-        + New Story
+        <PlusIcon />
+        New Story
       </button>
 
       {isOpen && (

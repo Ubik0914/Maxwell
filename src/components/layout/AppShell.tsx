@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { logoutAction } from "@/features/auth/actions";
+import { Skeleton } from "@/components/Skeleton";
 
 function StoriesIcon() {
   return (
@@ -36,13 +37,23 @@ function MembersIcon() {
   );
 }
 
+/**
+ * The chrome around every signed-in page.
+ *
+ * `workspaceName`/`userEmail` are optional so a route's loading.tsx can
+ * render the very same shell with placeholders in their place — the nav
+ * and the wordmark are static and correct from the first frame, and
+ * only the two data-dependent strings have to wait. That's what keeps a
+ * navigation from looking like a frozen screen followed by a full
+ * repaint.
+ */
 export function AppShell({
   workspaceName,
   userEmail,
   children,
 }: {
-  workspaceName: string;
-  userEmail: string;
+  workspaceName?: string;
+  userEmail?: string;
   children: ReactNode;
 }) {
   return (
@@ -52,11 +63,19 @@ export function AppShell({
           Maxwell
         </span>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm sm:gap-4">
-          <Link href="/workspaces" className="text-text hover:text-accent">
-            {workspaceName}
-          </Link>
+          {workspaceName ? (
+            <Link href="/workspaces" className="text-text hover:text-accent">
+              {workspaceName}
+            </Link>
+          ) : (
+            <Skeleton className="h-4 w-24" />
+          )}
           <span className="hidden text-border-strong sm:inline">|</span>
-          <span className="text-text-muted">{userEmail}</span>
+          {userEmail ? (
+            <span className="text-text-muted">{userEmail}</span>
+          ) : (
+            <Skeleton className="h-4 w-36" />
+          )}
           <form action={logoutAction}>
             <button
               type="submit"

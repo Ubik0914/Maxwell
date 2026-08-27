@@ -179,21 +179,49 @@ export interface InsertTaskOnEdgeInput {
 
 /**
  * Splits an existing A->B edge into A->NewTask->B (the RPC is one
- * atomic transaction for the delete+insert+insert+insert). The new
- * task's own initial status is computed correctly by the RPC itself
- * (READY only if its source is actually satisfied), but B's status can
- * still go stale here: if B was DONE/IN_PROGRESS because A was DONE,
- * it now depends on NewTask instead - which never starts DONE - so it
- * needs the same downstream recalculation as a manually-created edge.
+ * atomic transaction for the delete+insert+insert+insert).
  */
 export async function insertTaskOnEdge(
   supabase: Client,
   input: InsertTaskOnEdgeInput,
 ): Promise<string> {
   const newNodeId = await edgeRepository.insertTaskOnEdge(supabase, input);
+  await settleAfterSplice(supabase, newNodeId);
+  return newNodeId;
+}
 
+/**
+ * Adds a parallel A->NewTask->B beside an existing A->B, which stays.
+ * The new task becomes a second prerequisite for B, rejoining the path
+ * it branched from.
+ */
+export async function branchTaskOnEdge(
+  supabase: Client,
+  input: InsertTaskOnEdgeInput,
+): Promise<string> {
+  const newNodeId = await edgeRepository.branchTaskOnEdge(supabase, input);
+  await settleAfterSplice(supabase, newNodeId);
+  return newNodeId;
+}
+
+/**
+ * Brings the graph back into a consistent state after a node has been
+ * spliced onto an edge, whichever way round.
+ *
+ * The new task's own initial status is computed correctly by the RPC
+ * (READY only if its source is actually satisfied), but B's can go
+ * stale either way: an insert makes B depend on NewTask instead of A,
+ * and a branch gives B a second prerequisite on top of A — and NewTask
+ * never starts DONE. So a B that was DONE/IN_PROGRESS has to fall back
+ * to BLOCKED, exactly as it would for a manually-created edge, and the
+ * story's own status follows from that.
+ */
+async function settleAfterSplice(
+  supabase: Client,
+  newNodeId: string,
+): Promise<void> {
   const newNode = await nodeRepository.findById(supabase, newNodeId);
-  if (!newNode) return newNodeId;
+  if (!newNode) return;
 
   const [nodes, edges] = await Promise.all([
     nodeRepository.findByStoryId(supabase, newNode.storyId),
@@ -232,8 +260,6 @@ export async function insertTaskOnEdge(
       }
     }
   }
-
-  return newNodeId;
 }
 
 export interface ChangeTaskStatusInput {

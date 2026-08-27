@@ -12,6 +12,7 @@ import { DeleteConfirmDialog } from "@/components/graph/DeleteConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Spinner } from "@/components/Spinner";
+import { CloseIcon, TrashIcon } from "@/components/icons";
 
 const PRIORITY_LABEL: Record<number, string> = {
   1: "Low",
@@ -83,9 +84,9 @@ export function TaskPanel({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="text-text-faint hover:text-text"
+          className="-m-1.5 shrink-0 rounded-full p-1.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
         >
-          ×
+          <CloseIcon />
         </button>
       </div>
 
@@ -248,8 +249,9 @@ export function TaskPanel({
       <button
         type="button"
         onClick={() => setIsDeleteOpen(true)}
-        className="mt-auto rounded-md border border-danger/40 px-4 py-2 text-sm font-medium text-danger hover:bg-danger-soft"
+        className="mt-auto flex items-center justify-center gap-2 rounded-md border border-danger/40 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger-soft"
       >
+        <TrashIcon />
         Delete Task
       </button>
 

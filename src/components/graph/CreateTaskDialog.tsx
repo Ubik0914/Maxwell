@@ -6,6 +6,8 @@ import { createTaskAction } from "@/features/graph/actions";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Spinner } from "@/components/Spinner";
 import { Modal } from "@/components/Modal";
+import { ToolbarButton } from "@/components/graph/ToolbarButton";
+import { PlusIcon } from "@/components/icons";
 
 export function CreateTaskDialog({ storyId }: { storyId: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,13 +52,13 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
 
   return (
     <>
-      <button
-        type="button"
+      <ToolbarButton
+        label="New task"
+        tone="accent"
         onClick={() => setIsOpen(true)}
-        className="text-sm text-text-muted hover:text-accent"
       >
-        + Task
-      </button>
+        <PlusIcon />
+      </ToolbarButton>
 
       {isOpen && (
         <Modal
