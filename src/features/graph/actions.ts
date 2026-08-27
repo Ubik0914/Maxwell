@@ -6,8 +6,13 @@ import {
   updateTaskSchema,
   updateNodePositionSchema,
 } from "@/lib/validation/task";
+import {
+  createEdgeSchema,
+  insertTaskOnEdgeSchema,
+} from "@/lib/validation/edge";
 import { ErrorCode } from "@/lib/errors/codes";
 import * as nodeRepository from "@/repositories/node.repository";
+import * as edgeRepository from "@/repositories/edge.repository";
 import type { ActionResult } from "@/types/action-result";
 
 async function requireUser() {
@@ -180,6 +185,141 @@ export async function updateNodePositionAction(input: {
       error: {
         code: ErrorCode.INTERNAL_ERROR,
         message: "Failed to save position.",
+      },
+    };
+  }
+}
+
+export async function createEdgeAction(input: {
+  storyId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+}): Promise<ActionResult<{ id: string }>> {
+  const parsed = createEdgeSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.VALIDATION_ERROR,
+        message: parsed.error.issues[0]?.message ?? "Invalid input",
+      },
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    const edge = await edgeRepository.createEdge(supabase, parsed.data);
+    return { success: true, data: { id: edge.id } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (
+      message.includes("edges_source_node_id_target_node_id_key") ||
+      message.includes("duplicate key")
+    ) {
+      return {
+        success: false,
+        error: {
+          code: ErrorCode.EDGE_ALREADY_EXISTS,
+          message: "This connection already exists.",
+        },
+      };
+    }
+    if (message.includes("edges_no_self_loop")) {
+      return {
+        success: false,
+        error: {
+          code: ErrorCode.VALIDATION_ERROR,
+          message: "A task cannot connect to itself.",
+        },
+      };
+    }
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to connect tasks.",
+      },
+    };
+  }
+}
+
+export async function deleteEdgeAction(
+  edgeId: string,
+): Promise<ActionResult<null>> {
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    await edgeRepository.deleteEdge(supabase, edgeId);
+    return { success: true, data: null };
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to delete connection.",
+      },
+    };
+  }
+}
+
+export async function insertTaskOnEdgeAction(input: {
+  edgeId: string;
+  title: string;
+  description?: string;
+}): Promise<ActionResult<{ id: string }>> {
+  const parsed = insertTaskOnEdgeSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.VALIDATION_ERROR,
+        message: parsed.error.issues[0]?.message ?? "Invalid input",
+      },
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    const nodeId = await edgeRepository.insertTaskOnEdge(supabase, parsed.data);
+    return { success: true, data: { id: nodeId } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("EDGE_NOT_FOUND")) {
+      return {
+        success: false,
+        error: {
+          code: ErrorCode.EDGE_NOT_FOUND,
+          message: "This connection no longer exists.",
+        },
+      };
+    }
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to insert task.",
       },
     };
   }
