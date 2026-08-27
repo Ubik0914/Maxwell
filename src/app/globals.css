@@ -99,6 +99,45 @@ textarea,
   animation: toast-in 180ms ease-out;
 }
 
+/*
+ * "Flowing" border: a bright segment sweeps continuously around a
+ * node's edge, on top of its static glow. Used only on nodes that
+ * represent active/live flow (Start, Goal, Ready/In-progress tasks) -
+ * Blocked/Done/Cancelled stay static, which doubles as a visual cue
+ * that nothing is moving through them right now.
+ */
+@keyframes node-flow {
+  to {
+    background-position: 300% 50%;
+  }
+}
+
+.node-flow {
+  position: relative;
+}
+
+.node-flow::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--flow-color, var(--accent)) 12%,
+    transparent 24%
+  );
+  background-size: 300% 100%;
+  animation: node-flow 2.6s linear infinite;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
