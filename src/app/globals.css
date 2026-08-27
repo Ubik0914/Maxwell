@@ -100,42 +100,31 @@ textarea,
 }
 
 /*
- * "Flowing" border: a bright segment sweeps continuously around a
- * node's edge, on top of its static glow. Used only on nodes that
- * represent active/live flow (Start, Goal, Ready/In-progress tasks) -
- * Blocked/Done/Cancelled stay static, which doubles as a visual cue
- * that nothing is moving through them right now.
+ * Graph edges (dependency arrows between nodes): a bright dash train
+ * flows continuously from source to target, on top of a dim static
+ * line, giving the DAG a sense of live throughput. React Flow marks
+ * every edge with `animated: true` (see StoryGraph's toFlowEdges) as
+ * "react-flow__edge.animated" and ships its own dashdraw keyframe;
+ * these rules override its color/width/speed to match the accent
+ * palette instead of the library's default gray.
  */
-@keyframes node-flow {
+.react-flow__edge-path {
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+  filter: drop-shadow(0 0 4px var(--accent-soft));
+  animation: edge-flow 0.8s linear infinite;
+}
+
+@keyframes edge-flow {
   to {
-    background-position: 300% 50%;
+    stroke-dashoffset: -24;
   }
-}
-
-.node-flow {
-  position: relative;
-}
-
-.node-flow::before {
-  content: "";
-  position: absolute;
-  inset: -1.5px;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--flow-color, var(--accent)) 12%,
-    transparent 24%
-  );
-  background-size: 300% 100%;
-  animation: node-flow 2.6s linear infinite;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

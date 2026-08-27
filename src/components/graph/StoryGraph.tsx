@@ -54,6 +54,7 @@ function toFlowEdges(edges: GraphEdge[]): Edge[] {
     type: "custom",
     source: edge.sourceNodeId,
     target: edge.targetNodeId,
+    animated: true,
   }));
 }
 
