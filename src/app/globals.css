@@ -101,29 +101,30 @@ textarea,
 
 /*
  * Graph edges (dependency arrows between nodes): a bright dash train
- * flows continuously from source to target, on top of a dim static
- * line, giving the DAG a sense of live throughput. React Flow marks
- * every edge with `animated: true` (see StoryGraph's toFlowEdges) as
- * "react-flow__edge.animated" and ships its own dashdraw keyframe;
- * these rules override its color/width/speed to match the accent
- * palette instead of the library's default gray.
+ * flows continuously from source to target once that source has
+ * actually produced something to flow (Start, or a Done task - see
+ * StoryGraph's isFlowingSource/displayEdges), on top of a dim static
+ * line elsewhere. React Flow marks a flowing edge "react-flow__edge
+ * .animated" and ships its own dashdraw keyframe; these rules override
+ * its color/width/speed to match the accent palette instead of the
+ * library's default thin gray.
  */
 .react-flow__edge-path {
   stroke: var(--border-strong);
-  stroke-width: 1.5;
+  stroke-width: 3;
 }
 
 .react-flow__edge.animated .react-flow__edge-path {
   stroke: var(--accent);
-  stroke-width: 2;
-  stroke-dasharray: 6 6;
-  filter: drop-shadow(0 0 4px var(--accent-soft));
+  stroke-width: 4;
+  stroke-dasharray: 10 8;
+  filter: drop-shadow(0 0 5px var(--accent-soft));
   animation: edge-flow 0.8s linear infinite;
 }
 
 @keyframes edge-flow {
   to {
-    stroke-dashoffset: -24;
+    stroke-dashoffset: -36;
   }
 }
 
