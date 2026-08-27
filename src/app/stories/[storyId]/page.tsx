@@ -27,7 +27,7 @@ export default async function StoryGraphPage({
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen flex-col bg-bg">
       <StoryHeader
         story={graph.story}
         stats={graph.stats}

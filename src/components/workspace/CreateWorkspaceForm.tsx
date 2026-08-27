@@ -16,9 +16,9 @@ export function CreateWorkspaceForm() {
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-2 rounded-lg border border-dashed border-gray-300 p-4"
+      className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-4"
     >
-      <label htmlFor="name" className="text-sm font-medium text-gray-700">
+      <label htmlFor="name" className="text-sm font-medium text-text-muted">
         Workspace Name
       </label>
       <input
@@ -27,11 +27,11 @@ export function CreateWorkspaceForm() {
         type="text"
         required
         maxLength={100}
-        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+        className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
       />
 
       {state && !state.success && (
-        <p role="alert" className="text-sm text-red-600 select-text">
+        <p role="alert" className="text-sm text-danger select-text">
           {state.error.message}
         </p>
       )}
@@ -39,7 +39,7 @@ export function CreateWorkspaceForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="flex items-center gap-2 self-start rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+        className="flex items-center gap-2 self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse transition hover:bg-accent-hover disabled:opacity-50"
       >
         {isPending && <Spinner />}
         Create Workspace

@@ -17,7 +17,7 @@ export function LoginForm() {
   return (
     <form action={formAction} className="flex w-full max-w-sm flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="text-sm font-medium text-gray-700">
+        <label htmlFor="email" className="text-sm font-medium text-text-muted">
           Email
         </label>
         <input
@@ -26,13 +26,13 @@ export function LoginForm() {
           type="email"
           required
           autoComplete="email"
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
         />
       </div>
       <div className="flex flex-col gap-1">
         <label
           htmlFor="password"
-          className="text-sm font-medium text-gray-700"
+          className="text-sm font-medium text-text-muted"
         >
           Password
         </label>
@@ -42,12 +42,12 @@ export function LoginForm() {
           type="password"
           required
           autoComplete="current-password"
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
         />
       </div>
 
       {state && !state.success && (
-        <p role="alert" className="text-sm text-red-600 select-text">
+        <p role="alert" className="text-sm text-danger select-text">
           {state.error.message}
         </p>
       )}
@@ -55,15 +55,15 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+        className="flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse transition hover:bg-accent-hover disabled:opacity-50"
       >
         {isPending && <Spinner />}
         Log in
       </button>
 
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-text-muted">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-medium text-gray-900 underline">
+        <Link href="/signup" className="font-medium text-accent underline">
           Sign up
         </Link>
       </p>

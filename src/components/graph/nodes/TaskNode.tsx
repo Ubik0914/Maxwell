@@ -18,18 +18,52 @@ const STATUS_ICON: Record<TaskStatus, string> = {
   CANCELLED: "✗",
 };
 
+const STATUS_STYLE: Record<
+  TaskStatus,
+  { border: string; text: string; glow: string }
+> = {
+  BLOCKED: {
+    border: "border-border",
+    text: "text-text-faint",
+    glow: "shadow-none",
+  },
+  READY: {
+    border: "border-accent",
+    text: "text-accent",
+    glow: "shadow-[0_0_12px_var(--accent-soft)]",
+  },
+  IN_PROGRESS: {
+    border: "border-warning",
+    text: "text-warning",
+    glow: "shadow-[0_0_12px_var(--warning-soft)]",
+  },
+  DONE: {
+    border: "border-success",
+    text: "text-success",
+    glow: "shadow-[0_0_12px_var(--success-soft)]",
+  },
+  CANCELLED: {
+    border: "border-border-strong",
+    text: "text-text-faint",
+    glow: "shadow-none",
+  },
+};
+
 export function TaskNode({ data }: NodeProps<FlowNode>) {
   const status = data.status ?? "READY";
+  const style = STATUS_STYLE[status];
 
   return (
-    <div className="w-56 rounded-lg border border-gray-300 bg-white px-4 py-3 shadow-sm">
+    <div
+      className={`w-56 rounded-lg border bg-surface px-4 py-3 ${style.border} ${style.glow}`}
+    >
       <Handle type="target" position={Position.Left} />
-      <p className="text-sm font-medium text-gray-900">{data.title}</p>
-      <p className="mt-1 text-xs text-gray-600">
+      <p className="text-sm font-medium text-text">{data.title}</p>
+      <p className={`mt-1 text-xs ${style.text}`}>
         {STATUS_ICON[status]} {STATUS_LABEL[status].toUpperCase()}
       </p>
       {data.dueDate && (
-        <p className="mt-1 text-xs text-gray-400">{data.dueDate}</p>
+        <p className="mt-1 text-xs text-text-faint">{data.dueDate}</p>
       )}
       <Handle type="source" position={Position.Right} />
     </div>

@@ -52,23 +52,21 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="text-sm text-gray-600 hover:text-gray-900"
+        className="text-sm text-text-muted hover:text-accent"
       >
         + Task
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">
-                New Task
-              </h2>
+              <h2 className="text-lg font-semibold text-text">New Task</h2>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
                 aria-label="Close"
-                className="text-gray-400 hover:text-gray-600"
+                className="text-text-faint hover:text-text"
               >
                 ×
               </button>
@@ -78,7 +76,7 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
               <div className="flex flex-col gap-1">
                 <label
                   htmlFor="task-title"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium text-text-muted"
                 >
                   Title *
                 </label>
@@ -88,14 +86,14 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
                   onChange={(e) => setTitle(e.target.value)}
                   required
                   maxLength={200}
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
                 <label
                   htmlFor="task-description"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium text-text-muted"
                 >
                   Description
                 </label>
@@ -105,12 +103,12 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
                   maxLength={5000}
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
                 />
               </div>
 
               {error && (
-                <p role="alert" className="text-sm text-red-600 select-text">
+                <p role="alert" className="text-sm text-danger select-text">
                   {error}
                 </p>
               )}
@@ -119,14 +117,14 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-gray-600"
+                  className="rounded-md px-4 py-2 text-sm font-medium text-text-muted hover:text-text"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  className="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse hover:bg-accent-hover disabled:opacity-50"
                 >
                   {isPending && <Spinner />}
                   Create

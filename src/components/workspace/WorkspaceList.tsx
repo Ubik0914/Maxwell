@@ -8,7 +8,7 @@ export function WorkspaceList({
 }) {
   if (memberships.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-text-faint">
         You don&apos;t belong to any workspace yet.
       </p>
     );
@@ -23,12 +23,12 @@ export function WorkspaceList({
           >
             <button
               type="submit"
-              className="flex w-full flex-col items-start gap-1 rounded-lg border border-gray-200 px-4 py-3 text-left transition hover:border-gray-400"
+              className="flex w-full flex-col items-start gap-1 rounded-lg border border-border bg-surface px-4 py-3 text-left transition hover:border-accent"
             >
-              <span className="font-medium text-gray-900">
+              <span className="font-medium text-text">
                 {membership.name}
               </span>
-              <span className="text-xs uppercase tracking-wide text-gray-500">
+              <span className="text-xs uppercase tracking-wide text-text-faint">
                 {membership.role}
               </span>
             </button>

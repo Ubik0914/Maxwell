@@ -17,7 +17,7 @@ function formatRelativeTime(dateString: string): string {
 export function StoryList({ stories }: { stories: StoryListItem[] }) {
   if (stories.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-gray-300 px-6 py-16 text-center text-gray-500">
+      <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-border px-6 py-16 text-center text-text-faint">
         <p>No stories yet.</p>
         <p>Define a goal and build the path toward it.</p>
       </div>
@@ -30,13 +30,13 @@ export function StoryList({ stories }: { stories: StoryListItem[] }) {
         <Link
           key={story.id}
           href={`/stories/${story.id}`}
-          className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4 transition hover:border-gray-400"
+          className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 transition hover:border-accent hover:shadow-[0_0_16px_var(--accent-soft)]"
         >
-          <h2 className="font-medium text-gray-900">{story.title}</h2>
-          <span className="w-fit rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tracking-wide text-gray-600 uppercase">
+          <h2 className="font-medium text-text">{story.title}</h2>
+          <span className="w-fit rounded-full border border-border px-2 py-0.5 text-xs font-medium tracking-wide text-text-muted uppercase">
             {story.status}
           </span>
-          <dl className="flex flex-col gap-1 text-sm text-gray-600">
+          <dl className="flex flex-col gap-1 text-sm text-text-muted">
             <div className="flex justify-between">
               <dt>✓ Done</dt>
               <dd>{story.stats.done}</dd>
@@ -50,7 +50,7 @@ export function StoryList({ stories }: { stories: StoryListItem[] }) {
               <dd>{story.stats.blocked}</dd>
             </div>
           </dl>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-text-faint">
             {formatRelativeTime(story.updatedAt)}
           </span>
         </Link>
