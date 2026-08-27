@@ -12,11 +12,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+ * The app's design (Tailwind gray-900 text on white/gray-50 surfaces
+ * throughout) assumes a light theme; it isn't dark-mode aware. Forcing
+ * color-scheme: light here stops the browser from auto-darkening
+ * unstyled surfaces to match prefers-color-scheme: dark, which was
+ * leaving dark text unreadable on a dark background. Full dark mode
+ * support is out of this MVP's scope.
+ */
+:root {
+  color-scheme: light;
 }
 
 body {
