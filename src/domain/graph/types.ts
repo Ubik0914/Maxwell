@@ -1,0 +1,37 @@
+export type NodeType = "START" | "TASK" | "GOAL";
+
+export type TaskStatus =
+  | "BLOCKED"
+  | "READY"
+  | "IN_PROGRESS"
+  | "DONE"
+  | "CANCELLED";
+
+export type Priority = 1 | 2 | 3 | 4;
+
+/**
+ * Domain-level graph node. Deliberately decoupled from both the raw
+ * (snake_case) DB row shape and from @xyflow/react's Node type — the
+ * Repository layer maps DB rows into this, and the Graph rendering layer
+ * (Phase 10) maps this into React Flow nodes.
+ */
+export interface GraphNode {
+  id: string;
+  storyId: string;
+  type: NodeType;
+  title: string;
+  description: string | null;
+  status: TaskStatus | null;
+  assigneeId: string | null;
+  priority: Priority | null;
+  dueDate: string | null;
+  positionX: number;
+  positionY: number;
+}
+
+export interface GraphEdge {
+  id: string;
+  storyId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+}
