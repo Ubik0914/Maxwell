@@ -9,6 +9,7 @@ import {
   deleteTaskAction,
 } from "@/features/graph/actions";
 import { DeleteConfirmDialog } from "@/components/graph/DeleteConfirmDialog";
+import { useToast } from "@/components/Toast";
 
 const PRIORITY_LABEL: Record<number, string> = {
   1: "Low",
@@ -35,12 +36,12 @@ export function TaskPanel({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { showError } = useToast();
   const [title, setTitle] = useState(node.title);
   const [description, setDescription] = useState(node.description ?? "");
   const [assigneeId, setAssigneeId] = useState(node.assigneeId ?? "");
   const [priority, setPriority] = useState(node.priority ?? 0);
   const [dueDate, setDueDate] = useState(node.dueDate ?? "");
-  const [error, setError] = useState<string | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -48,10 +49,9 @@ export function TaskPanel({
     startTransition(async () => {
       const result = await updateTaskAction(patch);
       if (!result.success) {
-        setError(result.error.message);
+        showError(result.error.message);
         return;
       }
-      setError(null);
       router.refresh();
     });
   }
@@ -60,7 +60,7 @@ export function TaskPanel({
     startTransition(async () => {
       const result = await deleteTaskAction(node.id);
       if (!result.success) {
-        setError(result.error.message);
+        showError(result.error.message);
         setIsDeleteOpen(false);
         return;
       }
@@ -127,10 +127,9 @@ export function TaskPanel({
                 status: value,
               });
               if (!result.success) {
-                setError(result.error.message);
+                showError(result.error.message);
                 return;
               }
-              setError(null);
               router.refresh();
             });
           }}
@@ -239,12 +238,6 @@ export function TaskPanel({
           className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
         />
       </div>
-
-      {error && (
-        <p role="alert" className="text-sm text-red-600">
-          {error}
-        </p>
-      )}
 
       <button
         type="button"

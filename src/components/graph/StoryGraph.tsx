@@ -27,6 +27,7 @@ import {
   createEdgeAction,
 } from "@/features/graph/actions";
 import { useGraphRealtime } from "@/features/graph/hooks/useGraphRealtime";
+import { useToast } from "@/components/Toast";
 
 const nodeTypes: NodeTypes = {
   START: StartNode,
@@ -66,8 +67,8 @@ export function StoryGraph({
   storyId: string;
 }) {
   const router = useRouter();
+  const { showError } = useToast();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<FlowNode>(
     toFlowNodes(nodes),
   );
@@ -112,28 +113,15 @@ export function StoryGraph({
     });
 
     if (!result.success) {
-      setConnectionError(result.error.message);
+      showError(result.error.message);
       return;
     }
-    setConnectionError(null);
     router.refresh();
   }
 
   return (
     <ReactFlowProvider>
       <div className="relative h-full w-full">
-        {connectionError && (
-          <div className="absolute top-2 left-1/2 z-50 -translate-x-1/2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-sm">
-            {connectionError}
-            <button
-              type="button"
-              onClick={() => setConnectionError(null)}
-              className="ml-2 font-medium hover:underline"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
         <ReactFlow
           nodes={flowNodes}
           edges={flowEdges}

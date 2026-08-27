@@ -12,6 +12,7 @@ import {
   deleteEdgeAction,
   insertTaskOnEdgeAction,
 } from "@/features/graph/actions";
+import { useToast } from "@/components/Toast";
 
 /**
  * Renders the edge path plus a small floating "+" (insert a task on
@@ -27,6 +28,7 @@ export function CustomEdge({
   targetPosition,
 }: EdgeProps) {
   const router = useRouter();
+  const { showError } = useToast();
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -38,14 +40,13 @@ export function CustomEdge({
 
   const [isInsertOpen, setIsInsertOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleDelete() {
     startTransition(async () => {
       const result = await deleteEdgeAction(id);
       if (!result.success) {
-        setError(result.error.message);
+        showError(result.error.message);
         return;
       }
       router.refresh();
@@ -57,10 +58,9 @@ export function CustomEdge({
     startTransition(async () => {
       const result = await insertTaskOnEdgeAction({ edgeId: id, title });
       if (!result.success) {
-        setError(result.error.message);
+        showError(result.error.message);
         return;
       }
-      setError(null);
       setTitle("");
       setIsInsertOpen(false);
       router.refresh();
@@ -137,12 +137,6 @@ export function CustomEdge({
                     className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
                   />
                 </div>
-
-                {error && (
-                  <p role="alert" className="text-sm text-red-600">
-                    {error}
-                  </p>
-                )}
 
                 <div className="flex justify-end gap-2">
                   <button
