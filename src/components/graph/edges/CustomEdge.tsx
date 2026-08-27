@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   BaseEdge,
@@ -9,14 +9,10 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import type { FlowEdge } from "@/components/graph/types";
-import {
-  deleteEdgeAction,
-  insertTaskOnEdgeAction,
-} from "@/features/graph/actions";
+import { deleteEdgeAction } from "@/features/graph/actions";
 import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-import { Spinner } from "@/components/Spinner";
-import { Modal } from "@/components/Modal";
+import { EdgeSpliceDialog } from "@/components/graph/edges/EdgeSpliceDialog";
 import { CloseIcon, PlusIcon } from "@/components/icons";
 
 /** Sparks are staggered across the travel time so the flow reads as a
@@ -37,9 +33,10 @@ const SPARK_DURATION = "2.4s";
  * so they keep following it while a node is being dragged, with no
  * geometry duplicated here.
  *
- * A small "+" (insert a task on this edge) / "x" (delete this edge)
- * control sits at the midpoint, held back at low opacity so the canvas
- * stays about the graph until you reach for it.
+ * A small "+" (add a task here, in series or in parallel — see
+ * EdgeSpliceDialog) / "x" (delete this edge) control sits at the
+ * midpoint, held back at low opacity so the canvas stays about the
+ * graph until you reach for it.
  */
 export function CustomEdge({
   id,
@@ -65,10 +62,9 @@ export function CustomEdge({
   const isLive = data?.live ?? false;
   const surgeId = data?.surgeId ?? null;
 
-  const [isInsertOpen, setIsInsertOpen] = useState(false);
-  const [title, setTitle] = useState("");
+  const [isSpliceOpen, setIsSpliceOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  useEscapeKey(() => setIsInsertOpen(false), isInsertOpen);
+  useEscapeKey(() => setIsSpliceOpen(false), isSpliceOpen);
 
   function handleDelete() {
     startTransition(async () => {
@@ -77,20 +73,6 @@ export function CustomEdge({
         showError(result.error.message);
         return;
       }
-      router.refresh();
-    });
-  }
-
-  function handleInsertSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    startTransition(async () => {
-      const result = await insertTaskOnEdgeAction({ edgeId: id, title });
-      if (!result.success) {
-        showError(result.error.message);
-        return;
-      }
-      setTitle("");
-      setIsInsertOpen(false);
       router.refresh();
     });
   }
@@ -136,9 +118,9 @@ export function CustomEdge({
         >
           <button
             type="button"
-            onClick={() => setIsInsertOpen(true)}
-            aria-label="Insert task"
-            title="Insert task"
+            onClick={() => setIsSpliceOpen(true)}
+            aria-label="Add task"
+            title="Add task"
             className="flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-sm transition-colors hover:border-accent hover:text-accent"
           >
             <PlusIcon className="h-3 w-3" />
@@ -156,50 +138,11 @@ export function CustomEdge({
         </div>
       </EdgeLabelRenderer>
 
-      {isInsertOpen && (
-        <Modal
-          title="Insert Task"
-          subtitle="A new node is spliced into this connection."
-          onClose={() => setIsInsertOpen(false)}
-        >
-          <form onSubmit={handleInsertSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="insert-task-title"
-                className="text-sm font-medium text-text-muted"
-              >
-                Title *
-              </label>
-              <input
-                id="insert-task-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                autoFocus
-                maxLength={200}
-                className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsInsertOpen(false)}
-                className="rounded-md px-4 py-2 text-sm font-medium text-text-muted hover:text-text"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse hover:bg-accent-hover disabled:opacity-50"
-              >
-                {isPending && <Spinner />}
-                Insert
-              </button>
-            </div>
-          </form>
-        </Modal>
+      {isSpliceOpen && (
+        <EdgeSpliceDialog
+          edgeId={id}
+          onClose={() => setIsSpliceOpen(false)}
+        />
       )}
     </>
   );

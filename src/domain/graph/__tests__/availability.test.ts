@@ -152,4 +152,40 @@ describe("recalculateDownstream", () => {
     const affected = recalculateDownstream("A", nodes, edges);
     expect(affected).toEqual([expect.objectContaining({ id: "B", status: "READY" })]);
   });
+
+  // Branching an edge (dag.branch_task_on_edge) leaves A->B in place and
+  // adds A->N->B beside it, so B gains a second prerequisite that has
+  // only just been created. The two cases below are what GraphService
+  // relies on to settle the graph afterwards.
+  it("blocks a target that a parallel branch gave a second, unfinished prerequisite", () => {
+    const nodes = [
+      node({ id: "A", status: "DONE" }),
+      node({ id: "N", status: "READY" }),
+      node({ id: "B", status: "READY" }),
+    ];
+    const edges = [edge("A", "B"), edge("A", "N"), edge("N", "B")];
+
+    // B was READY on the strength of A alone; the new parallel path
+    // means it now has to wait for N as well.
+    const affected = recalculateDownstream("N", nodes, edges);
+
+    expect(affected).toEqual([
+      expect.objectContaining({ id: "B", status: "BLOCKED" }),
+    ]);
+  });
+
+  it("re-opens an already-DONE target when a parallel branch is added before it", () => {
+    const nodes = [
+      node({ id: "A", status: "DONE" }),
+      node({ id: "N", status: "READY" }),
+      node({ id: "B", status: "DONE" }),
+    ];
+    const edges = [edge("A", "B"), edge("A", "N"), edge("N", "B")];
+
+    const affected = recalculateDownstream("N", nodes, edges);
+
+    expect(affected).toEqual([
+      expect.objectContaining({ id: "B", status: "BLOCKED" }),
+    ]);
+  });
 });

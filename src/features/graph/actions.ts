@@ -275,12 +275,23 @@ export async function deleteEdgeAction(
   }
 }
 
+/**
+ * The two things a connection's "+" can do, sharing everything but the
+ * splice itself:
+ *   insert — A->B becomes A->NewTask->B (the old edge goes)
+ *   branch — A->NewTask->B is added beside A->B, which stays, so the
+ *            new task is a parallel prerequisite rejoining at B
+ */
+export type EdgeSpliceMode = "insert" | "branch";
+
 export async function insertTaskOnEdgeAction(input: {
   edgeId: string;
   title: string;
   description?: string;
+  mode?: EdgeSpliceMode;
 }): Promise<ActionResult<{ id: string }>> {
-  const parsed = insertTaskOnEdgeSchema.safeParse(input);
+  const { mode = "insert", ...splice } = input;
+  const parsed = insertTaskOnEdgeSchema.safeParse(splice);
 
   if (!parsed.success) {
     return {
@@ -301,7 +312,10 @@ export async function insertTaskOnEdgeAction(input: {
   }
 
   try {
-    const nodeId = await graphService.insertTaskOnEdge(supabase, parsed.data);
+    const nodeId =
+      mode === "branch"
+        ? await graphService.branchTaskOnEdge(supabase, parsed.data)
+        : await graphService.insertTaskOnEdge(supabase, parsed.data);
     return { success: true, data: { id: nodeId } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
@@ -318,7 +332,10 @@ export async function insertTaskOnEdgeAction(input: {
       success: false,
       error: {
         code: ErrorCode.INTERNAL_ERROR,
-        message: "Failed to insert task.",
+        message:
+          mode === "branch"
+            ? "Failed to branch this connection."
+            : "Failed to insert task.",
       },
     };
   }

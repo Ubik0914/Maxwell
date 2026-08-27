@@ -51,9 +51,11 @@ test("sign up, build a graph, and complete the story", async ({ page }) => {
 
   // Insert Task A on the START -> GOAL edge
   await page.hover(".react-flow__edge");
-  await page.click('button[title="Insert task"]');
+  await page.click('button[aria-label="Add task"]');
   await page.fill("#insert-task-title", "Task A");
-  await page.click('button:has-text("Insert")');
+  // The dialog's mode chooser carries an "Insert" button of its own, so
+  // the submit is addressed by role rather than by its label.
+  await page.click('#insert-task-form button[type="submit"]');
   await expect(page.getByText("Task A")).toBeVisible();
 
   // Add Task B via the toolbar

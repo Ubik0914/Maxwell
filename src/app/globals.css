@@ -405,6 +405,44 @@ textarea,
   }
 }
 
+/* --- Loading: the shell is here, the content is still arriving --------- */
+
+/*
+ * A slow sweep across a placeholder, not a blinking block: navigation
+ * between the story list and a graph goes to the server, and without
+ * this the screen simply holds the previous page and looks frozen. The
+ * sweep is the proof that something is in flight.
+ */
+.skeleton {
+  background-color: var(--surface);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--surface-hover) 45%,
+    transparent 90%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-sweep 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+/* The canvas's own dot grid, so a loading graph screen sits on the same
+   ground the real one does instead of on a blank panel. React Flow
+   draws this at a 24px gap once it mounts. */
+.canvas-grid {
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+
 /* --- Modals: the graph recedes, the panel condenses -------------------- */
 
 .modal-backdrop {
