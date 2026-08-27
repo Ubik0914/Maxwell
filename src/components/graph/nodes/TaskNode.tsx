@@ -20,7 +20,7 @@ const STATUS_ICON: Record<TaskStatus, string> = {
 
 const STATUS_STYLE: Record<
   TaskStatus,
-  { border: string; text: string; glow: string }
+  { border: string; text: string; glow: string; flowColor?: string }
 > = {
   BLOCKED: {
     border: "border-border",
@@ -31,11 +31,13 @@ const STATUS_STYLE: Record<
     border: "border-accent",
     text: "text-accent",
     glow: "shadow-[0_0_12px_var(--accent-soft)]",
+    flowColor: "var(--accent)",
   },
   IN_PROGRESS: {
     border: "border-warning",
     text: "text-warning",
     glow: "shadow-[0_0_12px_var(--warning-soft)]",
+    flowColor: "var(--warning)",
   },
   DONE: {
     border: "border-success",
@@ -55,7 +57,14 @@ export function TaskNode({ data }: NodeProps<FlowNode>) {
 
   return (
     <div
-      className={`w-56 rounded-lg border bg-surface px-4 py-3 ${style.border} ${style.glow}`}
+      className={`w-56 rounded-lg border bg-surface px-4 py-3 ${style.border} ${style.glow} ${
+        style.flowColor ? "node-flow" : ""
+      }`}
+      style={
+        style.flowColor
+          ? ({ "--flow-color": style.flowColor } as React.CSSProperties)
+          : undefined
+      }
     >
       <Handle type="target" position={Position.Left} />
       <p className="text-sm font-medium text-text">{data.title}</p>
