@@ -244,6 +244,14 @@ export type Database = {
         };
         Returns: string;
       };
+      insert_task_on_edge: {
+        Args: {
+          p_edge_id: string;
+          p_title: string;
+          p_description: string | null;
+        };
+        Returns: string;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

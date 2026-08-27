@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   ReactFlowProvider,
   Background,
   useNodesState,
   useEdgesState,
+  type Connection,
   type Edge,
+  type EdgeTypes,
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -16,14 +19,22 @@ import type { FlowNode, FlowNodeData } from "@/components/graph/types";
 import { StartNode } from "@/components/graph/nodes/StartNode";
 import { TaskNode } from "@/components/graph/nodes/TaskNode";
 import { GoalNode } from "@/components/graph/nodes/GoalNode";
+import { CustomEdge } from "@/components/graph/edges/CustomEdge";
 import { GraphToolbar } from "@/components/graph/GraphToolbar";
 import { TaskPanel } from "@/components/graph/TaskPanel";
-import { updateNodePositionAction } from "@/features/graph/actions";
+import {
+  updateNodePositionAction,
+  createEdgeAction,
+} from "@/features/graph/actions";
 
 const nodeTypes: NodeTypes = {
   START: StartNode,
   TASK: TaskNode,
   GOAL: GoalNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  custom: CustomEdge,
 };
 
 function toFlowNodes(nodes: GraphNode[]): FlowNode[] {
@@ -38,6 +49,7 @@ function toFlowNodes(nodes: GraphNode[]): FlowNode[] {
 function toFlowEdges(edges: GraphEdge[]): Edge[] {
   return edges.map((edge) => ({
     id: edge.id,
+    type: "custom",
     source: edge.sourceNodeId,
     target: edge.targetNodeId,
   }));
@@ -52,7 +64,9 @@ export function StoryGraph({
   edges: GraphEdge[];
   storyId: string;
 }) {
+  const router = useRouter();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<FlowNode>(
     toFlowNodes(nodes),
   );
@@ -70,18 +84,50 @@ export function StoryGraph({
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
 
+  async function handleConnect(connection: Connection) {
+    if (!connection.source || !connection.target) return;
+
+    const result = await createEdgeAction({
+      storyId,
+      sourceNodeId: connection.source,
+      targetNodeId: connection.target,
+    });
+
+    if (!result.success) {
+      setConnectionError(result.error.message);
+      return;
+    }
+    setConnectionError(null);
+    router.refresh();
+  }
+
   return (
     <ReactFlowProvider>
       <div className="relative h-full w-full">
+        {connectionError && (
+          <div className="absolute top-2 left-1/2 z-50 -translate-x-1/2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-sm">
+            {connectionError}
+            <button
+              type="button"
+              onClick={() => setConnectionError(null)}
+              className="ml-2 font-medium hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         <ReactFlow
           nodes={flowNodes}
           edges={flowEdges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
-          nodesConnectable={false}
           deleteKeyCode={null}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onConnect={(connection) => {
+            void handleConnect(connection);
+          }}
           onNodeClick={(_event, node) => {
             if (node.type === "TASK") {
               setSelectedNodeId(node.id);

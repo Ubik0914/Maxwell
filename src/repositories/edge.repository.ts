@@ -40,3 +40,60 @@ export async function findByStoryId(
   if (error) throw error;
   return data.map(toGraphEdge);
 }
+
+export interface CreateEdgeInput {
+  storyId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+}
+
+/**
+ * Plain insert only — DAG validation (self-edge, duplicate, START/GOAL
+ * direction, cycle) is Phase 13's job, layered on top of this in
+ * GraphService.connectNodes(). The DB's own UNIQUE(source, target) and
+ * "source <> target" CHECK constraints still give baseline protection.
+ */
+export async function createEdge(
+  supabase: Client,
+  input: CreateEdgeInput,
+): Promise<GraphEdge> {
+  const { data, error } = await supabase
+    .from("edges")
+    .insert({
+      story_id: input.storyId,
+      source_node_id: input.sourceNodeId,
+      target_node_id: input.targetNodeId,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return toGraphEdge(data);
+}
+
+export async function deleteEdge(supabase: Client, id: string): Promise<void> {
+  const { error } = await supabase.from("edges").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export interface InsertTaskOnEdgeInput {
+  edgeId: string;
+  title: string;
+  description?: string;
+}
+
+/** Delete edge + insert TASK node + insert two new edges, as one
+ * transaction via the dag.insert_task_on_edge RPC. */
+export async function insertTaskOnEdge(
+  supabase: Client,
+  input: InsertTaskOnEdgeInput,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("insert_task_on_edge", {
+    p_edge_id: input.edgeId,
+    p_title: input.title,
+    p_description: input.description ?? null,
+  });
+
+  if (error) throw error;
+  return data;
+}
