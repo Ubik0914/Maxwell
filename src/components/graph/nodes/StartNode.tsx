@@ -1,12 +1,13 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { FlowNode } from "@/components/graph/types";
 import { NodeShell } from "@/components/graph/nodes/NodeShell";
+import { NodeBranchButton } from "@/components/graph/nodes/NodeBranchButton";
 
 /**
  * The origin of the circuit: always energized, which is why it keeps a
  * standing cyan glow while task nodes have to earn theirs.
  */
-export function StartNode({ data }: NodeProps<FlowNode>) {
+export function StartNode({ id, data }: NodeProps<FlowNode>) {
   return (
     <NodeShell
       pulse={data.pulse}
@@ -24,6 +25,7 @@ export function StartNode({ data }: NodeProps<FlowNode>) {
         {data.title}
       </p>
       <Handle type="source" position={Position.Right} />
+      <NodeBranchButton nodeId={id} />
     </NodeShell>
   );
 }
