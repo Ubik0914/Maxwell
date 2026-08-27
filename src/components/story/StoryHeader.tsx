@@ -14,8 +14,8 @@ export function StoryHeader({
   frontierCount: number;
 }) {
   return (
-    <header className="flex flex-col gap-2 border-b border-gray-200 px-6 py-3">
-      <div className="flex items-center gap-3">
+    <header className="flex flex-col gap-2 border-b border-gray-200 px-4 py-3 sm:px-6">
+      <div className="flex flex-wrap items-center gap-3">
         <Link
           href="/stories"
           className="text-sm text-gray-500 hover:underline"
@@ -29,7 +29,7 @@ export function StoryHeader({
           {story.status}
         </span>
       </div>
-      <div className="flex gap-4 text-sm text-gray-600">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
         <span>Done {stats.done}</span>
         <span>Ready {stats.ready}</span>
         <span>In Progress {stats.inProgress}</span>
