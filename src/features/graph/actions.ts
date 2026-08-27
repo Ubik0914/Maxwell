@@ -13,6 +13,7 @@ import {
 import { ErrorCode } from "@/lib/errors/codes";
 import * as nodeRepository from "@/repositories/node.repository";
 import * as edgeRepository from "@/repositories/edge.repository";
+import * as graphService from "@/features/graph/services/graph-service";
 import type { ActionResult } from "@/types/action-result";
 
 async function requireUser() {
@@ -216,9 +217,14 @@ export async function createEdgeAction(input: {
   }
 
   try {
-    const edge = await edgeRepository.createEdge(supabase, parsed.data);
-    return { success: true, data: { id: edge.id } };
+    const result = await graphService.connectNodes(supabase, parsed.data);
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: { id: result.edge.id } };
   } catch (err) {
+    // Fallback for a race between the validation read and the insert;
+    // validateConnection() is the actual authority on these rejections.
     const message = err instanceof Error ? err.message : "";
     if (
       message.includes("edges_source_node_id_target_node_id_key") ||
@@ -229,15 +235,6 @@ export async function createEdgeAction(input: {
         error: {
           code: ErrorCode.EDGE_ALREADY_EXISTS,
           message: "This connection already exists.",
-        },
-      };
-    }
-    if (message.includes("edges_no_self_loop")) {
-      return {
-        success: false,
-        error: {
-          code: ErrorCode.VALIDATION_ERROR,
-          message: "A task cannot connect to itself.",
         },
       };
     }
