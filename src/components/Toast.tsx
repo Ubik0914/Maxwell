@@ -64,12 +64,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showError, showSuccess }}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-100 flex flex-col items-center gap-2 px-4">
+      {/* Every status notification in the app lands here — one fixed
+          spot (top-right), never scattered per-screen. */}
+      <div className="pointer-events-none fixed top-4 right-4 z-100 flex flex-col items-end gap-2">
         {toasts.map((toast) => (
           <div
             key={toast.id}
             role="alert"
-            className={`pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg ${
+            className={`animate-toast-in pointer-events-auto rounded-md px-4 py-2 text-sm shadow-lg select-text ${
               toast.variant === "error"
                 ? "bg-red-600 text-white"
                 : "bg-gray-900 text-white"

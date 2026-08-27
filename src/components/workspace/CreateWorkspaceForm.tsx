@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createWorkspaceAction } from "@/features/workspace/actions";
+import { Spinner } from "@/components/Spinner";
 import type { ActionResult } from "@/types/action-result";
 
 const initialState: ActionResult<{ workspaceId: string }> | null = null;
@@ -30,7 +31,7 @@ export function CreateWorkspaceForm() {
       />
 
       {state && !state.success && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-red-600 select-text">
           {state.error.message}
         </p>
       )}
@@ -38,9 +39,10 @@ export function CreateWorkspaceForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="self-start rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+        className="flex items-center gap-2 self-start rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
       >
-        {isPending ? "Creating..." : "Create Workspace"}
+        {isPending && <Spinner />}
+        Create Workspace
       </button>
     </form>
   );

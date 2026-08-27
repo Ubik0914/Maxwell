@@ -10,6 +10,8 @@ import {
 } from "@/features/graph/actions";
 import { DeleteConfirmDialog } from "@/components/graph/DeleteConfirmDialog";
 import { useToast } from "@/components/Toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { Spinner } from "@/components/Spinner";
 
 const PRIORITY_LABEL: Record<number, string> = {
   1: "Low",
@@ -44,6 +46,9 @@ export function TaskPanel({
   const [dueDate, setDueDate] = useState(node.dueDate ?? "");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // The delete confirmation, when open, owns Escape instead — a small
+  // window closes before the surface behind it.
+  useEscapeKey(onClose, !isDeleteOpen);
 
   function save(patch: Parameters<typeof updateTaskAction>[0]) {
     startTransition(async () => {
@@ -168,8 +173,9 @@ export function TaskPanel({
             save({ taskId: node.id, description: description || null })
           }
           disabled={isPending || description === (node.description ?? "")}
-          className="self-start rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          className="flex items-center gap-1.5 self-start rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
         >
+          {isPending && <Spinner className="h-3 w-3" />}
           Save
         </button>
       </div>
