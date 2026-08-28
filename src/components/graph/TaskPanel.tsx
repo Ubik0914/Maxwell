@@ -16,6 +16,7 @@ import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { useSheetDismiss } from "@/hooks/useSheetDismiss";
 import { Spinner } from "@/components/Spinner";
 import { ChevronDownIcon, CloseIcon, TrashIcon } from "@/components/icons";
+import { Markdown } from "@/components/ui/Markdown";
 
 /**
  * The task detail surface.
@@ -28,9 +29,9 @@ import { ChevronDownIcon, CloseIcon, TrashIcon } from "@/components/icons";
  *
  * Status goes through updateTaskStatusAction (the Status Engine), which
  * rejects BLOCKED->IN_PROGRESS with TASK_BLOCKED — everything else here
- * saves itself on change/blur except Description, which saves on an
- * explicit button (per spec: free text shouldn't autosave per
- * keystroke).
+ * saves itself on change/blur except Description, which renders as
+ * Markdown until you ask to edit it and then saves on an explicit
+ * button (per spec: free text shouldn't autosave per keystroke).
  *
  * The parent renders this with `key={node.id}` so switching the
  * selected node remounts the panel with fresh local state, instead of
@@ -51,6 +52,7 @@ export function TaskPanel({
   const [priority, setPriority] = useState(node.priority ?? 0);
   const [dueDate, setDueDate] = useState(node.dueDate ?? "");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isPending, startTransition] = useTransition();
   const panelRef = useRef<HTMLDivElement>(null);
   // The delete confirmation, when open, owns both ways out — a small
@@ -207,30 +209,96 @@ export function TaskPanel({
 
       <hr className="border-border" />
 
+      {/*
+       * Written as Markdown, so shown as Markdown.
+       *
+       * People put checklists, headings and quotes in a description
+       * whether or not anything renders them; the only question was
+       * whether they read `- [ ] 未完了のタスク` or a checkbox. Reading
+       * is the default state and writing is the one you ask for,
+       * because a description is looked at far more often than it is
+       * edited — and the raw source is exactly what you want back the
+       * moment you do want to change it.
+       */}
       <div className="flex flex-1 flex-col gap-2">
         <label htmlFor="panel-description" className="sr-only">
           Description
         </label>
-        <textarea
-          id="panel-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={6}
-          maxLength={5000}
-          placeholder="Add a description…"
-          className="min-h-32 flex-1 resize-none bg-transparent text-sm leading-relaxed text-text placeholder:text-text-faint focus:outline-none"
-        />
-        <button
-          type="button"
-          onClick={() =>
-            save({ taskId: node.id, description: description || null })
-          }
-          disabled={isPending || description === (node.description ?? "")}
-          className="flex items-center gap-1.5 self-start rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-inverse transition-opacity hover:bg-accent-hover disabled:opacity-40"
-        >
-          {isPending && <Spinner className="h-3 w-3" />}
-          Save
-        </button>
+        {isEditingDescription ? (
+          <>
+            <textarea
+              id="panel-description"
+              value={description}
+              autoFocus
+              onChange={(e) => setDescription(e.target.value)}
+              rows={6}
+              maxLength={5000}
+              placeholder="Add a description…"
+              className="min-h-32 flex-1 resize-none rounded-md bg-bg/60 p-2 font-mono text-[13px] leading-relaxed text-text placeholder:text-text-faint focus:outline-none"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditingDescription(false);
+                  if (description !== (node.description ?? "")) {
+                    save({ taskId: node.id, description: description || null });
+                  }
+                }}
+                className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-inverse transition-opacity hover:bg-accent-hover disabled:opacity-40"
+              >
+                {isPending && <Spinner className="h-3 w-3" />}
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDescription(node.description ?? "");
+                  setIsEditingDescription(false);
+                }}
+                className="rounded-md px-2 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Edit description"
+            onClick={(event) => {
+              // A tick, a link, or a word being selected is not a
+              // request to edit the source behind it.
+              if ((event.target as HTMLElement).closest("a, button")) return;
+              if (window.getSelection()?.toString()) return;
+              setIsEditingDescription(true);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                setIsEditingDescription(true);
+              }
+            }}
+            className="min-h-32 flex-1 cursor-text rounded-md focus-visible:outline-none"
+          >
+            {description ? (
+              <Markdown
+                onToggleTask={(next) => {
+                  // Saved on the spot, not left for the Save button:
+                  // ticking a box is a decision of its own, and one
+                  // character is not the free text the button guards.
+                  setDescription(next);
+                  save({ taskId: node.id, description: next });
+                }}
+              >
+                {description}
+              </Markdown>
+            ) : (
+              <p className="text-sm text-text-faint">Add a description…</p>
+            )}
+          </div>
+        )}
       </div>
 
       {isDeleteOpen && (
