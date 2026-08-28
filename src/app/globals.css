@@ -50,6 +50,15 @@
 
   --warning: #fbbf24;
   --warning-soft: rgba(251, 191, 36, 0.14);
+
+  /*
+   * An unpowered conduit — the colour of an LED that isn't lit.
+   * Deliberately a flat, desaturated grey rather than a darker shade of
+   * the live cyan: a dead edge should read as "no current", not as a
+   * dimmer version of a live one, and it has to stay legible so the
+   * shape of the unfinished half of a story can still be followed.
+   */
+  --dead: #7a828f;
 }
 
 @theme inline {
