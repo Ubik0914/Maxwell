@@ -198,6 +198,8 @@ export function StoryGraph({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           colorMode="dark"
+          // Out of the bottom-right, which the overview now owns.
+          attributionPosition="top-right"
           fitView
           // Left to itself, fitView shrinks a wide DAG until it fits a
           // phone's width, and the graph ends up a legible-to-nobody

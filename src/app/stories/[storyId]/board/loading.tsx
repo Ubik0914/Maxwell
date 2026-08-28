@@ -14,7 +14,7 @@ const COLUMNS = [3, 2, 1, 3, 0];
  */
 export default function StoryBoardLoading() {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-bg">
+    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
       <StoryHeaderSkeleton />
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-5">

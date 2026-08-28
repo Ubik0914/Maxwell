@@ -183,6 +183,38 @@
   background-color: color-mix(in srgb, var(--surface) 85%, transparent);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(4px);
+  /*
+   * The svg's viewBox fits the *nodes*, and the viewport rectangle
+   * drawn on top of them is whatever part of the canvas you are looking
+   * at — which on a phone is far larger than the graph. So the rect
+   * runs off the side of its own box, and without this it kept going
+   * across the page: an svg does not clip to a border-radius, or to
+   * anything else, unless told to.
+   */
+  overflow: hidden;
+}
+
+/*
+ * React Flow's attribution defaults to the bottom-right, which is
+ * exactly where the overview now is. Moved to the opposite corner
+ * (attributionPosition on <ReactFlow>) and toned down to match the rest
+ * of the canvas chrome — it stays legible and stays a link, it just
+ * stops sitting on top of the map and stops being a light-grey pill on
+ * a black canvas.
+ *
+ * Qualified by `.react-flow` for the same reason the edge rules are:
+ * React Flow ships its own rule at plain-class specificity, and a bare
+ * selector here loses to it.
+ */
+.react-flow .react-flow__attribution {
+  background: transparent;
+  padding: 0.5rem 0.75rem;
+}
+
+.react-flow .react-flow__attribution a {
+  color: var(--text-faint);
+  font-size: 10px;
+  letter-spacing: 0.04em;
 }
 
 @media (min-width: 640px) {

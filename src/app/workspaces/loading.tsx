@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/Skeleton";
  */
 export default function WorkspacesLoading() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 bg-bg px-4 py-12">
+    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 bg-bg px-4 py-12">
       <h1 className="text-2xl font-semibold text-text">Your Workspaces</h1>
       <div className="flex flex-col gap-3">
         <Skeleton className="h-16 rounded-lg" />

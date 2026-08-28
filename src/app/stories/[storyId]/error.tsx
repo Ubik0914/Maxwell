@@ -7,7 +7,7 @@ export default function StoryGraphError({
   reset: () => void;
 }) {
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-4 bg-bg">
+    <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-bg">
       <p className="text-lg font-medium text-text">
         Could not load this story.
       </p>

@@ -14,7 +14,7 @@ export default async function StoryGraphPage({
   // everything else given to the canvas. min-h-0 is what stops the flex
   // child from being sized by its content and pushing the header off.
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-bg">
+    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
       <StoryHeader
         story={graph.story}
         stats={graph.stats}
