@@ -17,8 +17,6 @@ export default async function StoryGraphPage({
     <StoryShell graph={graph} userEmail={userEmail}>
       <div className="graph-enter min-h-0 flex-1">
         <StoryGraph
-          nodes={graph.nodes}
-          edges={graph.edges}
           storyId={graph.story.id}
           today={todayIso()}
         />

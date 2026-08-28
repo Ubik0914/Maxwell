@@ -7,6 +7,7 @@ import {
   deleteTaskAction,
   reorderTasksAction,
 } from "@/features/graph/actions";
+import { usePendingGraph } from "@/features/graph/pending-graph";
 import { reorderWithin } from "@/domain/graph/reorder";
 import { sortTasks } from "@/domain/graph/task-order";
 import { onlyTasks } from "@/features/tasks/filter";
@@ -37,6 +38,7 @@ export interface MenuTarget {
 export function useTaskActions(serverNodes: GraphNode[], storyId: string) {
   const router = useRouter();
   const { showError } = useToast();
+  const pending = usePendingGraph();
   const { nodes, changeStatus, flashClass } =
     useTaskStatusMutation(serverNodes);
   /**
@@ -120,19 +122,22 @@ export function useTaskActions(serverNodes: GraphNode[], storyId: string) {
   const confirmDelete = useCallback(() => {
     const task = deleting;
     if (!task) return;
-    // Dismissed first, deleted second — the row is gone as far as this
-    // person is concerned the moment they confirm.
+    // Dismissed first, gone from the list second, deleted third — the
+    // row is gone as far as this person is concerned the moment they
+    // confirm.
     setDeleting(null);
     if (selectedId === task.id) setSelectedId(null);
+    pending.removeNode(task.id);
     startTransition(async () => {
       const result = await deleteTaskAction(task.id);
       if (!result.success) {
+        pending.revert();
         showError(result.error.message);
         return;
       }
       router.refresh();
     });
-  }, [deleting, selectedId, router, showError]);
+  }, [deleting, selectedId, pending, router, showError]);
 
   return {
     nodes: shownNodes,

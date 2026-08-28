@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 import { buildBlockerMap } from "@/domain/graph/blockers";
 import { sortTasks, type TaskSortKey } from "@/domain/graph/task-order";
 import {
@@ -19,6 +18,7 @@ import {
   TaskFilterBar,
   type StatusFilter,
 } from "@/components/task/TaskFilterBar";
+import { usePendingGraph } from "@/features/graph/pending-graph";
 import { useSwipeFilter } from "@/hooks/useSwipeFilter";
 import { GripIcon } from "@/components/icons";
 
@@ -67,16 +67,15 @@ const COLUMNS: Column[] = [
  * second half-form here.
  */
 export function TaskTable({
-  nodes: serverNodes,
-  edges,
   storyId,
   today,
 }: {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
   storyId: string;
   today: string;
 }) {
+  // The story as it should be drawn right now — the server's answer
+  // plus anything asked for since. See PendingGraphProvider.
+  const { nodes: serverNodes, edges } = usePendingGraph();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
   /** Which way the last filter change came from, for the slide-in. */

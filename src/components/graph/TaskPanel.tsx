@@ -8,6 +8,7 @@ import {
   updateTaskStatusAction,
   deleteTaskAction,
 } from "@/features/graph/actions";
+import { usePendingGraph } from "@/features/graph/pending-graph";
 import { DeleteConfirmDialog } from "@/components/graph/DeleteConfirmDialog";
 import { TaskProperties } from "@/components/graph/TaskProperties";
 import { useToast } from "@/components/Toast";
@@ -50,6 +51,7 @@ export function TaskPanel({
 }) {
   const router = useRouter();
   const { showError } = useToast();
+  const pending = usePendingGraph();
   const [title, setTitle] = useState(node.title);
   const [description, setDescription] = useState(node.description ?? "");
   const [assigneeId, setAssigneeId] = useState(node.assigneeId ?? "");
@@ -111,15 +113,17 @@ export function TaskPanel({
   );
 
   function handleDelete() {
-    // Closed first, deleted second: the task is gone as far as this
-    // person is concerned the moment they confirm, and holding the
-    // panel open over a row that is about to vanish only shows them
-    // something already untrue.
+    // Closed first, gone from the graph second, deleted third: the task
+    // is gone as far as this person is concerned the moment they
+    // confirm, and holding it on screen for the length of a round-trip
+    // only shows them something already untrue.
     setIsDeleteOpen(false);
     onClose();
+    pending.removeNode(node.id);
     startTransition(async () => {
       const result = await deleteTaskAction(node.id);
       if (!result.success) {
+        pending.revert();
         showError(result.error.message);
         return;
       }

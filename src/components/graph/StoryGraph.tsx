@@ -30,6 +30,8 @@ import {
   updateNodePositionAction,
   createEdgeAction,
 } from "@/features/graph/actions";
+import { usePendingGraph } from "@/features/graph/pending-graph";
+import { isPendingId, pendingId } from "@/domain/graph/pending";
 import { useGraphRealtime } from "@/features/graph/hooks/useGraphRealtime";
 import { useGraphPresentation } from "@/features/graph/hooks/useGraphPresentation";
 import { layoutGraph } from "@/domain/graph/layout";
@@ -51,6 +53,10 @@ function toFlowNodes(nodes: GraphNode[]): FlowNode[] {
     type: node.type,
     position: { x: node.positionX, y: node.positionY },
     data: node as FlowNodeData,
+    // A task the database has not answered for yet has an id nothing
+    // can be written against. It is drawn, and it waits — dragging it
+    // would save a position for a row that does not exist.
+    draggable: !isPendingId(node.id),
   }));
 }
 
@@ -65,18 +71,18 @@ function toFlowEdges(edges: GraphEdge[]): FlowEdge[] {
 }
 
 export function StoryGraph({
-  nodes,
-  edges,
   storyId,
   today,
 }: {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
   storyId: string;
   today: string;
 }) {
   const router = useRouter();
   const { showError } = useToast();
+  // The story as it should be drawn right now — the server's answer
+  // plus anything asked for since. See PendingGraphProvider.
+  const pending = usePendingGraph();
+  const { nodes, edges } = pending;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   // Only true while an auto-layout is gliding into place — see the
   // .graph-settling rule, which must not apply to ordinary dragging.
@@ -173,8 +179,23 @@ export function StoryGraph({
     });
   }, [flowNodes, flowEdges, storyId, setFlowNodes, showError]);
 
+  /**
+   * Draws the connection, then writes it.
+   *
+   * A line that only appears once the server agrees makes a drag that
+   * landed correctly look like one that missed — and the two are told
+   * apart by nothing but a pause. If the write is refused the line is
+   * taken back and the reason is said out loud.
+   */
   async function handleConnect(connection: Connection) {
     if (!connection.source || !connection.target) return;
+
+    pending.addEdge({
+      id: pendingId(),
+      storyId,
+      sourceNodeId: connection.source,
+      targetNodeId: connection.target,
+    });
 
     const result = await createEdgeAction({
       storyId,
@@ -183,6 +204,7 @@ export function StoryGraph({
     });
 
     if (!result.success) {
+      pending.revert();
       showError(result.error.message);
       return;
     }
@@ -228,7 +250,9 @@ export function StoryGraph({
             void handleConnect(connection);
           }}
           onNodeClick={(_event, node) => {
-            if (node.type === "TASK") {
+            // Same reason it can't be dragged: there is nothing to edit
+            // yet. It becomes a real node within a refresh.
+            if (node.type === "TASK" && !isPendingId(node.id)) {
               setSelectedNodeId(node.id);
             }
           }}

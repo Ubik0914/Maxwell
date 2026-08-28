@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 import { rejoinCandidates } from "@/domain/graph/branch";
 import { branchTaskFromNodeAction } from "@/features/graph/actions";
+import { usePendingGraph } from "@/features/graph/pending-graph";
+import { pendingId, pendingTask } from "@/domain/graph/pending";
 import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Modal } from "@/components/Modal";
@@ -12,33 +14,6 @@ import { Chip, CHIP_SET } from "@/components/ui/Chip";
 import { Select } from "@/components/ui/Select";
 import { ArrowLeftIcon } from "@/components/icons";
 
-/**
- * "What comes after this one?" — the graph's branch operation, asked in
- * the language of a task list.
- *
- * The list and the board have no canvas to draw a connection on, so the
- * only way to say "then do this" from there is a dialog. It is the same
- * server action the graph's own branch uses, and it takes the same two
- * decisions: the title, and where the new task rejoins the path it came
- * from. Every story ends at GOAL, so there is always somewhere to
- * rejoin and never a dead-end task hanging off the side of the graph.
- *
- * The second decision used to be a field labelled "Before", which named
- * the right task and framed it backwards: you arrive here having
- * pressed "+" on something, thinking forwards, and are asked what the
- * new task comes *before*. The chain says it the way round it happened
- * instead — where you started, what you are adding, and then the one
- * end still open, which is the only part you choose. Sitting third in a
- * left-to-right run is what makes the picker unambiguous; a label
- * cannot do that on its own, since "After: Ship the release" reads
- * equally well as either direction.
- *
- * The dialog closes before the write goes out. The decision was made
- * when Add was pressed; keeping a spinner on screen until the server
- * agrees makes the interface feel like it is asking permission. If the
- * write fails, a toast says so — one failure interrupting is better
- * than every success waiting.
- */
 /**
  * A fixed link in the chain — something already decided, in the same
  * pill the picker beside it wears so the run reads as one row of
@@ -69,6 +44,33 @@ function Arrow() {
   );
 }
 
+/**
+ * "What comes after this one?" — the graph's branch operation, asked in
+ * the language of a task list.
+ *
+ * The list and the board have no canvas to draw a connection on, so the
+ * only way to say "then do this" from there is a dialog. It is the same
+ * server action the graph's own branch uses, and it takes the same two
+ * decisions: the title, and where the new task rejoins the path it came
+ * from. Every story ends at GOAL, so there is always somewhere to
+ * rejoin and never a dead-end task hanging off the side of the graph.
+ *
+ * The second decision used to be a field labelled "Before", which named
+ * the right task and framed it backwards: you arrive here having
+ * pressed "+" on something, thinking forwards, and are asked what the
+ * new task comes *before*. The chain says it the way round it happened
+ * instead — where you started, what you are adding, and then the one
+ * end still open, which is the only part you choose. Sitting third in a
+ * left-to-right run is what makes the picker unambiguous; a label
+ * cannot do that on its own, since "After: Ship the release" reads
+ * equally well as either direction.
+ *
+ * The dialog closes before the write goes out. The decision was made
+ * when Add was pressed; keeping a spinner on screen until the server
+ * agrees makes the interface feel like it is asking permission. If the
+ * write fails, a toast says so — one failure interrupting is better
+ * than every success waiting.
+ */
 export function AddNextTaskDialog({
   source,
   nodes,
@@ -82,6 +84,7 @@ export function AddNextTaskDialog({
 }) {
   const router = useRouter();
   const { showError } = useToast();
+  const pending = usePendingGraph();
   const candidates = useMemo(
     () => rejoinCandidates(source.id, nodes, edges),
     [source.id, nodes, edges],
@@ -100,6 +103,32 @@ export function AddNextTaskDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onClose();
+
+    // The task and both its connections are on the graph before the
+    // request leaves. Its status is the one the Status Engine will
+    // reach anyway: work behind something unfinished is blocked.
+    const task = pendingTask({
+      storyId: source.storyId,
+      title,
+      status: source.status === "DONE" ? "READY" : "BLOCKED",
+      x: source.positionX + 220,
+      y: source.positionY + 120,
+    });
+    pending.addNode(task, [
+      {
+        id: pendingId(),
+        storyId: source.storyId,
+        sourceNodeId: source.id,
+        targetNodeId: task.id,
+      },
+      {
+        id: pendingId(),
+        storyId: source.storyId,
+        sourceNodeId: task.id,
+        targetNodeId,
+      },
+    ]);
+
     startTransition(async () => {
       const result = await branchTaskFromNodeAction({
         sourceNodeId: source.id,
@@ -107,6 +136,7 @@ export function AddNextTaskDialog({
         title,
       });
       if (!result.success) {
+        pending.revert();
         showError(result.error.message);
         return;
       }
