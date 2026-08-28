@@ -1,6 +1,8 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { TaskStatus } from "@/domain/graph/types";
 import type { FlowNode } from "@/components/graph/types";
+import { NodeShell, StatusDot } from "@/components/graph/nodes/NodeShell";
+import { NodeBranchButton } from "@/components/graph/nodes/NodeBranchButton";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   BLOCKED: "Blocked",
@@ -10,62 +12,77 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
-const STATUS_ICON: Record<TaskStatus, string> = {
-  BLOCKED: "🔒",
-  READY: "○",
-  IN_PROGRESS: "●",
-  DONE: "✓",
-  CANCELLED: "✗",
-};
-
+/**
+ * Per-status appearance. `ambient` is the looping animation that says
+ * what the node is doing right now — deliberately empty for the states
+ * that aren't doing anything, since a canvas where everything moves
+ * says nothing. `orbit` turns on the perimeter light for work in
+ * flight.
+ */
 const STATUS_STYLE: Record<
   TaskStatus,
-  { border: string; text: string; glow: string }
+  { border: string; text: string; ambient: string; orbit: boolean }
 > = {
   BLOCKED: {
     border: "border-border",
     text: "text-text-faint",
-    glow: "shadow-none",
+    ambient: "node-blocked",
+    orbit: false,
   },
   READY: {
     border: "border-accent",
     text: "text-accent",
-    glow: "shadow-[0_0_12px_var(--accent-soft)]",
+    ambient: "node-ready",
+    orbit: false,
   },
   IN_PROGRESS: {
-    border: "border-warning",
+    border: "border-warning/50",
     text: "text-warning",
-    glow: "shadow-[0_0_12px_var(--warning-soft)]",
+    ambient: "",
+    orbit: true,
   },
   DONE: {
-    border: "border-success",
+    border: "border-success/60",
     text: "text-success",
-    glow: "shadow-[0_0_12px_var(--success-soft)]",
+    ambient: "shadow-[0_0_10px_var(--success-soft)]",
+    orbit: false,
   },
   CANCELLED: {
-    border: "border-border-strong",
+    border: "border-border",
     text: "text-text-faint",
-    glow: "shadow-none",
+    ambient: "opacity-50",
+    orbit: false,
   },
 };
 
-export function TaskNode({ data }: NodeProps<FlowNode>) {
+export function TaskNode({ id, data }: NodeProps<FlowNode>) {
   const status = data.status ?? "READY";
   const style = STATUS_STYLE[status];
 
   return (
-    <div
-      className={`w-56 rounded-lg border bg-surface px-4 py-3 ${style.border} ${style.glow}`}
+    <NodeShell
+      pulse={data.pulse}
+      border={style.border}
+      ambient={style.ambient}
+      orbit={style.orbit}
     >
       <Handle type="target" position={Position.Left} />
-      <p className="text-sm font-medium text-text">{data.title}</p>
-      <p className={`mt-1 text-xs ${style.text}`}>
-        {STATUS_ICON[status]} {STATUS_LABEL[status].toUpperCase()}
+      <p className="line-clamp-2 text-[13px] leading-snug font-medium text-text">
+        {data.title}
       </p>
-      {data.dueDate && (
-        <p className="mt-1 text-xs text-text-faint">{data.dueDate}</p>
-      )}
+      <div
+        className={`mt-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase ${style.text}`}
+      >
+        <StatusDot status={status} />
+        <span>{STATUS_LABEL[status]}</span>
+        {data.dueDate && (
+          <span className="ml-auto font-normal tracking-normal text-text-faint">
+            {data.dueDate.slice(5)}
+          </span>
+        )}
+      </div>
       <Handle type="source" position={Position.Right} />
-    </div>
+      <NodeBranchButton nodeId={id} />
+    </NodeShell>
   );
 }

@@ -5,6 +5,7 @@ import * as edgeRepository from "@/repositories/edge.repository";
 import * as storyRepository from "@/repositories/story.repository";
 import { getCurrentFrontier } from "@/domain/graph/frontier";
 import { validateConnection, type ValidationError } from "@/domain/graph/connection";
+import { validateBranch } from "@/domain/graph/branch";
 import {
   calculateTaskAvailability,
   recalculateDownstream,
@@ -177,23 +178,108 @@ export interface InsertTaskOnEdgeInput {
   description?: string;
 }
 
+export interface BranchTaskFromNodeInput {
+  sourceNodeId: string;
+  targetNodeId: string;
+  title: string;
+  description?: string;
+}
+
 /**
  * Splits an existing A->B edge into A->NewTask->B (the RPC is one
- * atomic transaction for the delete+insert+insert+insert). The new
- * task's own initial status is computed correctly by the RPC itself
- * (READY only if its source is actually satisfied), but B's status can
- * still go stale here: if B was DONE/IN_PROGRESS because A was DONE,
- * it now depends on NewTask instead - which never starts DONE - so it
- * needs the same downstream recalculation as a manually-created edge.
+ * atomic transaction for the delete+insert+insert+insert).
  */
 export async function insertTaskOnEdge(
   supabase: Client,
   input: InsertTaskOnEdgeInput,
 ): Promise<string> {
   const newNodeId = await edgeRepository.insertTaskOnEdge(supabase, input);
+  await settleAfterSplice(supabase, newNodeId);
+  return newNodeId;
+}
 
+/**
+ * Adds a parallel A->NewTask->B beside an existing A->B, which stays.
+ * The new task becomes a second prerequisite for B, rejoining the path
+ * it branched from.
+ */
+export async function branchTaskOnEdge(
+  supabase: Client,
+  input: InsertTaskOnEdgeInput,
+): Promise<string> {
+  const newNodeId = await edgeRepository.branchTaskOnEdge(supabase, input);
+  await settleAfterSplice(supabase, newNodeId);
+  return newNodeId;
+}
+
+export type BranchFromNodeResult =
+  | { success: true; nodeId: string }
+  | { success: false; error: ValidationError };
+
+/**
+ * Branches from a node rather than from one of its edges: the caller
+ * names both ends, so the new task can rejoin further downstream than
+ * the next task along.
+ *
+ * That freedom is why this validates first and branchTaskOnEdge doesn't
+ * have to — an edge's own endpoints are always a safe pair, but an
+ * arbitrary one can be pointed back upstream, and the new task would
+ * close a cycle. The RPC works on ids alone and can't see the shape of
+ * the graph, so the check belongs here.
+ */
+export async function branchTaskFromNode(
+  supabase: Client,
+  input: BranchTaskFromNodeInput,
+): Promise<BranchFromNodeResult> {
+  const source = await nodeRepository.findById(supabase, input.sourceNodeId);
+  if (!source) {
+    return {
+      success: false,
+      error: {
+        code: "NODE_NOT_FOUND",
+        message: "One of the selected tasks no longer exists.",
+      },
+    };
+  }
+
+  const [nodes, edges] = await Promise.all([
+    nodeRepository.findByStoryId(supabase, source.storyId),
+    edgeRepository.findByStoryId(supabase, source.storyId),
+  ]);
+
+  const validation = validateBranch(
+    input.sourceNodeId,
+    input.targetNodeId,
+    nodes,
+    edges,
+  );
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+
+  const newNodeId = await edgeRepository.branchTaskFromNode(supabase, input);
+  await settleAfterSplice(supabase, newNodeId);
+  return { success: true, nodeId: newNodeId };
+}
+
+/**
+ * Brings the graph back into a consistent state after a node has been
+ * spliced onto an edge, whichever way round.
+ *
+ * The new task's own initial status is computed correctly by the RPC
+ * (READY only if its source is actually satisfied), but B's can go
+ * stale either way: an insert makes B depend on NewTask instead of A,
+ * and a branch gives B a second prerequisite on top of A — and NewTask
+ * never starts DONE. So a B that was DONE/IN_PROGRESS has to fall back
+ * to BLOCKED, exactly as it would for a manually-created edge, and the
+ * story's own status follows from that.
+ */
+async function settleAfterSplice(
+  supabase: Client,
+  newNodeId: string,
+): Promise<void> {
   const newNode = await nodeRepository.findById(supabase, newNodeId);
-  if (!newNode) return newNodeId;
+  if (!newNode) return;
 
   const [nodes, edges] = await Promise.all([
     nodeRepository.findByStoryId(supabase, newNode.storyId),
@@ -232,8 +318,6 @@ export async function insertTaskOnEdge(
       }
     }
   }
-
-  return newNodeId;
 }
 
 export interface ChangeTaskStatusInput {

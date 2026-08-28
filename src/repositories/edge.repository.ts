@@ -97,3 +97,50 @@ export async function insertTaskOnEdge(
   if (error) throw error;
   return data;
 }
+
+/**
+ * Insert TASK node + two new edges while KEEPING the original edge, as
+ * one transaction via the dag.branch_task_on_edge RPC — a parallel path
+ * A->NewTask->B beside the existing A->B, rather than a split.
+ */
+export async function branchTaskOnEdge(
+  supabase: Client,
+  input: InsertTaskOnEdgeInput,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("branch_task_on_edge", {
+    p_edge_id: input.edgeId,
+    p_title: input.title,
+    p_description: input.description ?? null,
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export interface BranchTaskFromNodeInput {
+  sourceNodeId: string;
+  targetNodeId: string;
+  title: string;
+  description?: string;
+}
+
+/**
+ * The same parallel splice as branchTaskOnEdge, but given its two
+ * endpoints directly — so a branch can start at a node and rejoin
+ * anywhere downstream, not only at whatever one edge happened to point
+ * at. Cycle safety is checked in GraphService before this is called.
+ */
+export async function branchTaskFromNode(
+  supabase: Client,
+  input: BranchTaskFromNodeInput,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("branch_task_from_node", {
+    p_source_node_id: input.sourceNodeId,
+    p_target_node_id: input.targetNodeId,
+    p_title: input.title,
+    p_description: input.description ?? null,
+  });
+
+  if (error) throw error;
+  return data;
+}

@@ -252,6 +252,23 @@ export type Database = {
         };
         Returns: string;
       };
+      branch_task_on_edge: {
+        Args: {
+          p_edge_id: string;
+          p_title: string;
+          p_description: string | null;
+        };
+        Returns: string;
+      };
+      branch_task_from_node: {
+        Args: {
+          p_source_node_id: string;
+          p_target_node_id: string;
+          p_title: string;
+          p_description: string | null;
+        };
+        Returns: string;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

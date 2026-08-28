@@ -9,13 +9,17 @@ import {
   useNodesState,
   useEdgesState,
   type Connection,
-  type Edge,
   type EdgeTypes,
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { GraphNode, GraphEdge } from "@/domain/graph/types";
-import type { FlowNode, FlowNodeData } from "@/components/graph/types";
+import { calculateStoryStatus } from "@/domain/graph/story-status";
+import type {
+  FlowEdge,
+  FlowNode,
+  FlowNodeData,
+} from "@/components/graph/types";
 import { StartNode } from "@/components/graph/nodes/StartNode";
 import { TaskNode } from "@/components/graph/nodes/TaskNode";
 import { GoalNode } from "@/components/graph/nodes/GoalNode";
@@ -27,6 +31,7 @@ import {
   createEdgeAction,
 } from "@/features/graph/actions";
 import { useGraphRealtime } from "@/features/graph/hooks/useGraphRealtime";
+import { useEnergyFlow } from "@/features/graph/hooks/useEnergyFlow";
 import { useToast } from "@/components/Toast";
 
 const nodeTypes: NodeTypes = {
@@ -48,12 +53,13 @@ function toFlowNodes(nodes: GraphNode[]): FlowNode[] {
   }));
 }
 
-function toFlowEdges(edges: GraphEdge[]): Edge[] {
+function toFlowEdges(edges: GraphEdge[]): FlowEdge[] {
   return edges.map((edge) => ({
     id: edge.id,
     type: "custom",
     source: edge.sourceNodeId,
     target: edge.targetNodeId,
+    data: { live: false, damped: false, surgeId: null },
   }));
 }
 
@@ -84,7 +90,7 @@ export function StoryGraph({
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<FlowNode>(
     toFlowNodes(nodes),
   );
-  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(
+  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<FlowEdge>(
     toFlowEdges(edges),
   );
 
@@ -115,16 +121,63 @@ export function StoryGraph({
   const selectedNode =
     flowNodes.find((n) => n.id === selectedNodeId)?.data ?? null;
 
+  // Every transition the graph just went through — a task completing, a
+  // successor unblocking, a node being spliced in. It expires on its own
+  // timers, so the canvas returns to rest without anything to reset.
+  const { pulses, emitters, arrivals } = useEnergyFlow(flowNodes);
+
+  // Has the graph actually arrived at the goal? Decided by the very rule
+  // that sets the story's own status, so the goal lighting up and the
+  // story reading COMPLETED can never disagree. Until then the goal is
+  // drawn dark: it's a destination, not an achievement.
+  const goalReached = useMemo(() => {
+    const domainNodes = flowNodes.map((node) => node.data);
+    const domainEdges = flowEdges.map((edge) => ({
+      id: edge.id,
+      storyId,
+      sourceNodeId: edge.source,
+      targetNodeId: edge.target,
+    }));
+    return calculateStoryStatus(domainNodes, domainEdges) === "COMPLETED";
+  }, [flowNodes, flowEdges, storyId]);
+
+  // A pulse is presentation state, so it's grafted on here instead of
+  // being written into node state: when nothing is pulsing and the goal
+  // is unreached this returns the very same array, and React Flow
+  // re-renders nothing at all.
+  const displayNodes = useMemo(() => {
+    if (pulses.size === 0 && !goalReached) return flowNodes;
+    return flowNodes.map((node) => {
+      const pulse = pulses.get(node.id);
+      const reached = goalReached && node.data.type === "GOAL";
+      if (!pulse && !reached) return node;
+      return { ...node, data: { ...node.data, pulse, reached } };
+    });
+  }, [flowNodes, pulses, goalReached]);
+
   // Recomputed from flowNodes on every render (not baked into flowEdges'
   // own state) so a Realtime status change to DONE re-animates that
   // node's outgoing edges immediately, without a separate sync effect.
+  //
+  // An edge surges when its source just emitted (a task turned DONE, or
+  // a node materialised), and also when its *target* just materialised —
+  // that second case is what makes an inserted node light up on both
+  // sides while still drawing every spark source -> target.
   const displayEdges = useMemo(() => {
     const nodeById = new Map(flowNodes.map((n) => [n.id, n]));
-    return flowEdges.map((edge) => ({
-      ...edge,
-      animated: isFlowingSource(nodeById.get(edge.source)),
-    }));
-  }, [flowEdges, flowNodes]);
+    return flowEdges.map((edge) => {
+      const live = isFlowingSource(nodeById.get(edge.source));
+      const damped = nodeById.get(edge.target)?.data.status === "BLOCKED";
+      const surgeId =
+        emitters.get(edge.source) ?? arrivals.get(edge.target) ?? null;
+
+      return {
+        ...edge,
+        className: live ? "edge-live" : damped ? "edge-damped" : undefined,
+        data: { live, damped, surgeId },
+      };
+    });
+  }, [flowEdges, flowNodes, emitters, arrivals]);
 
   async function handleConnect(connection: Connection) {
     if (!connection.source || !connection.target) return;
@@ -146,12 +199,18 @@ export function StoryGraph({
     <ReactFlowProvider>
       <div className="relative h-full w-full bg-bg">
         <ReactFlow
-          nodes={flowNodes}
+          nodes={displayNodes}
           edges={displayEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           colorMode="dark"
           fitView
+          // Left to itself, fitView shrinks a wide DAG until it fits a
+          // phone's width, and the graph ends up a legible-to-nobody
+          // sliver floating in empty canvas. Clamping the zoom keeps
+          // nodes readable and hands the overflow to panning, which is
+          // what the canvas is for.
+          fitViewOptions={{ padding: 0.1, minZoom: 0.65, maxZoom: 1.25 }}
           deleteKeyCode={null}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}

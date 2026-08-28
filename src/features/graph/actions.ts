@@ -8,6 +8,7 @@ import {
   updateTaskStatusSchema,
 } from "@/lib/validation/task";
 import {
+  branchTaskFromNodeSchema,
   createEdgeSchema,
   insertTaskOnEdgeSchema,
 } from "@/lib/validation/edge";
@@ -275,12 +276,23 @@ export async function deleteEdgeAction(
   }
 }
 
+/**
+ * The two things a connection's "+" can do, sharing everything but the
+ * splice itself:
+ *   insert — A->B becomes A->NewTask->B (the old edge goes)
+ *   branch — A->NewTask->B is added beside A->B, which stays, so the
+ *            new task is a parallel prerequisite rejoining at B
+ */
+export type EdgeSpliceMode = "insert" | "branch";
+
 export async function insertTaskOnEdgeAction(input: {
   edgeId: string;
   title: string;
   description?: string;
+  mode?: EdgeSpliceMode;
 }): Promise<ActionResult<{ id: string }>> {
-  const parsed = insertTaskOnEdgeSchema.safeParse(input);
+  const { mode = "insert", ...splice } = input;
+  const parsed = insertTaskOnEdgeSchema.safeParse(splice);
 
   if (!parsed.success) {
     return {
@@ -301,7 +313,10 @@ export async function insertTaskOnEdgeAction(input: {
   }
 
   try {
-    const nodeId = await graphService.insertTaskOnEdge(supabase, parsed.data);
+    const nodeId =
+      mode === "branch"
+        ? await graphService.branchTaskOnEdge(supabase, parsed.data)
+        : await graphService.insertTaskOnEdge(supabase, parsed.data);
     return { success: true, data: { id: nodeId } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "";
@@ -318,7 +333,72 @@ export async function insertTaskOnEdgeAction(input: {
       success: false,
       error: {
         code: ErrorCode.INTERNAL_ERROR,
-        message: "Failed to insert task.",
+        message:
+          mode === "branch"
+            ? "Failed to branch this connection."
+            : "Failed to insert task.",
+      },
+    };
+  }
+}
+
+/**
+ * Branching from a node: the new task runs parallel to whatever already
+ * lies between `sourceNodeId` and `targetNodeId`, and rejoins there.
+ * Unlike the edge route, the caller picks both ends, so GraphService
+ * checks the pair for a cycle before anything is written.
+ */
+export async function branchTaskFromNodeAction(input: {
+  sourceNodeId: string;
+  targetNodeId: string;
+  title: string;
+  description?: string;
+}): Promise<ActionResult<{ id: string }>> {
+  const parsed = branchTaskFromNodeSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.VALIDATION_ERROR,
+        message: parsed.error.issues[0]?.message ?? "Invalid input",
+      },
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    const result = await graphService.branchTaskFromNode(
+      supabase,
+      parsed.data,
+    );
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+    return { success: true, data: { id: result.nodeId } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("NODE_NOT_FOUND")) {
+      return {
+        success: false,
+        error: {
+          code: ErrorCode.NODE_NOT_FOUND,
+          message: "One of the selected tasks no longer exists.",
+        },
+      };
+    }
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to branch from this task.",
       },
     };
   }

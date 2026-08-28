@@ -99,32 +99,475 @@ textarea,
   animation: toast-in 180ms ease-out;
 }
 
-/*
- * Graph edges (dependency arrows between nodes): a bright dash train
- * flows continuously from source to target once that source has
- * actually produced something to flow (Start, or a Done task - see
- * StoryGraph's isFlowingSource/displayEdges), on top of a dim static
- * line elsewhere. React Flow marks a flowing edge "react-flow__edge
- * .animated" and ships its own dashdraw keyframe; these rules override
- * its color/width/speed to match the accent palette instead of the
- * library's default thin gray.
+/* ==========================================================================
+ * Energy flow
+ *
+ * The graph isn't a diagram of tasks, it's a circuit: work that is
+ * finished energizes the channels leaving it, and the state change
+ * itself travels downstream as light. Every animation below exists to
+ * show a state change, never as decoration — which is why the ambient
+ * (looping) effects are deliberately faint and slow, and the loud ones
+ * are all one-shot, fired by a transition the user just caused.
+ *
+ * Motion budget:
+ *   ambient loops   very low contrast, 2.6s-3.6s cycles
+ *   one-shot pulses 0.6s-0.9s, bright, then settle
+ *   edge surge      0.65s to cross an edge (a DONE propagating)
+ * ==========================================================================
  */
+
+/* --- Edges: dim conduit by default, lit once current can reach it ------ */
+
 .react-flow__edge-path {
   stroke: var(--border-strong);
+  stroke-width: 2.5;
+  transition:
+    stroke 260ms ease,
+    stroke-width 260ms ease,
+    opacity 260ms ease;
+}
+
+/* A "live" edge has an energized source (Start, or a Done task — see
+   StoryGraph's isFlowingSource). It gets a steady, low-key glow; the
+   motion on it comes from the travelling sparks, not from the line. */
+.react-flow__edge.edge-live .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
   stroke-width: 3;
 }
 
-.react-flow__edge.animated .react-flow__edge-path {
-  stroke: var(--accent);
-  stroke-width: 4;
-  stroke-dasharray: 10 8;
-  filter: drop-shadow(0 0 5px var(--accent-soft));
-  animation: edge-flow 0.8s linear infinite;
+/* Blocked target: current reaches the edge but can't pass through, so
+   the conduit reads as dead rather than merely idle. */
+.react-flow__edge.edge-damped .react-flow__edge-path {
+  stroke: var(--border);
+  opacity: 0.55;
 }
 
-@keyframes edge-flow {
+.edge-spark {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent));
+  animation: spark-fade 2.4s linear infinite;
+}
+
+/* Sparks fade in and out at the ends so they emerge from the source node
+   and dissolve into the target instead of popping at the handles. */
+@keyframes spark-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  18%,
+  82% {
+    opacity: 0.9;
+  }
+}
+
+/* The propagation itself: fired once when a task turns DONE, a bright
+   packet crossing to each successor. This is the moment the whole
+   theme is built around, so it is the loudest thing on screen. */
+.edge-surge {
+  fill: #ffffff;
+  filter: drop-shadow(0 0 10px var(--accent));
+  animation: surge-fade 650ms ease-out both;
+}
+
+@keyframes surge-fade {
+  0% {
+    opacity: 0;
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.edge-surge-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px var(--accent));
+  animation: surge-path 650ms ease-out both;
+}
+
+@keyframes surge-path {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* --- Terminals: where a connection can be made ------------------------- */
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--bg);
+  background: var(--border-strong);
+  transition:
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.react-flow__node:hover .react-flow__handle {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* A connection being dragged is made of the same light as a live edge. */
+.react-flow__connection-path {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px var(--accent-soft));
+}
+
+/* --- Nodes: ambient state (looping, faint) ----------------------------- */
+
+/* Ready = charged and waiting. A slow breath, nothing more. */
+.node-ready {
+  animation: node-breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes node-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(34, 211, 238, 0.06),
+      0 0 20px rgba(34, 211, 238, 0.24);
+  }
+}
+
+/* Blocked = a fault light: mostly dark, with a brief warning tick. */
+.node-blocked {
+  animation: node-fault 2.8s ease-in-out infinite;
+}
+
+@keyframes node-fault {
+  0%,
+  68%,
+  100% {
+    box-shadow: 0 0 0 rgba(248, 113, 113, 0);
+    border-color: var(--border);
+  }
+  84% {
+    box-shadow: 0 0 12px rgba(248, 113, 113, 0.22);
+    border-color: rgba(248, 113, 113, 0.5);
+  }
+}
+
+/* In progress = energy circulating. A light runs the node's perimeter:
+   an oversized conic gradient spins inside a clipped 1px-outset frame,
+   and the opaque card on top masks everything but the rim. */
+.node-orbit {
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 11.5px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.node-orbit::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 260%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 58%,
+    color-mix(in srgb, var(--warning) 40%, transparent) 72%,
+    var(--warning) 84%,
+    #fff8e1 88%,
+    transparent 96%
+  );
+  animation: node-orbit 2.6s linear infinite;
+}
+
+@keyframes node-orbit {
   to {
-    stroke-dashoffset: -36;
+    rotate: 360deg;
+  }
+}
+
+/* A gauge with something to report: the frontier indicator idles bright
+   only while there is work that can actually be picked up. */
+.indicator-live {
+  animation: indicator-live 2.4s ease-in-out infinite;
+}
+
+@keyframes indicator-live {
+  0%,
+  100% {
+    opacity: 0.6;
+    box-shadow: 0 0 4px var(--accent);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 9px var(--accent);
+  }
+}
+
+/* --- Nodes: one-shot pulses (the state change itself) ------------------ */
+
+/* Ready pulse: the arrival flash when upstream work unblocks this node.
+   Delayed by the time the surge needs to cross the edge — the node is
+   briefly unlit, then the light lands on it. `forwards` (not `both`) is
+   what keeps it dark during that lead-in instead of holding frame 0.
+   Bright ring -> settle; the ambient breathe takes over when it ends. */
+.pulse-ready {
+  animation: pulse-ready 900ms cubic-bezier(0.16, 0.9, 0.28, 1) 320ms forwards;
+}
+
+@keyframes pulse-ready {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(34, 211, 238, 0.6),
+      0 0 34px rgba(34, 211, 238, 0.7);
+    border-color: var(--accent-hover);
+  }
+  100% {
+    box-shadow:
+      0 0 0 12px rgba(34, 211, 238, 0),
+      0 0 10px rgba(34, 211, 238, 0.1);
+    border-color: var(--accent);
+  }
+}
+
+.pulse-done {
+  animation: pulse-done 900ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+@keyframes pulse-done {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(52, 211, 153, 0.6),
+      0 0 34px rgba(52, 211, 153, 0.7);
+    border-color: #a7f3d0;
+  }
+  100% {
+    box-shadow:
+      0 0 0 12px rgba(52, 211, 153, 0),
+      0 0 10px rgba(52, 211, 153, 0.12);
+    border-color: var(--success);
+  }
+}
+
+.pulse-blocked {
+  animation: pulse-blocked 900ms ease-out both;
+}
+
+@keyframes pulse-blocked {
+  0%,
+  40% {
+    box-shadow: 0 0 22px rgba(248, 113, 113, 0.45);
+    border-color: rgba(248, 113, 113, 0.7);
+  }
+  20% {
+    box-shadow: 0 0 4px rgba(248, 113, 113, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(248, 113, 113, 0);
+    border-color: var(--border);
+  }
+}
+
+/* Genesis: a node materialising on the canvas (Insert Task / + Task).
+   The form doesn't "submit" — a node condenses out of the graph. */
+.pulse-genesis {
+  animation: pulse-genesis 620ms cubic-bezier(0.16, 0.9, 0.25, 1) both;
+}
+
+@keyframes pulse-genesis {
+  0% {
+    opacity: 0;
+    transform: scale(0.84);
+    box-shadow: 0 0 40px rgba(34, 211, 238, 0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.12);
+  }
+}
+
+/* --- Loading: the shell is here, the content is still arriving --------- */
+
+/*
+ * A slow sweep across a placeholder, not a blinking block: navigation
+ * between the story list and a graph goes to the server, and without
+ * this the screen simply holds the previous page and looks frozen. The
+ * sweep is the proof that something is in flight.
+ */
+.skeleton {
+  background-color: var(--surface);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--surface-hover) 45%,
+    transparent 90%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-sweep 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+/* The canvas's own dot grid, so a loading graph screen sits on the same
+   ground the real one does instead of on a blank panel. React Flow
+   draws this at a 24px gap once it mounts. */
+.canvas-grid {
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+
+/* --- Modals: the graph recedes, the panel condenses -------------------- */
+
+.modal-backdrop {
+  animation: modal-backdrop 200ms ease-out both;
+}
+
+@keyframes modal-backdrop {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(6px);
+  }
+}
+
+.modal-panel {
+  animation: modal-panel 240ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+@keyframes modal-panel {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* --- Story card -> graph ---------------------------------------------- */
+
+/* Clicking a story expands its card toward the viewer while the rest of
+   the grid drops back, and the graph page fades up from the same scale —
+   so the card reads as having become the graph rather than as a page
+   swap. */
+.story-card {
+  transition:
+    transform 200ms cubic-bezier(0.16, 0.9, 0.28, 1),
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    opacity 260ms ease;
+}
+
+@media (hover: hover) {
+  .story-card:hover {
+    transform: scale(1.02);
+  }
+}
+
+.story-card:active {
+  transform: scale(0.995);
+}
+
+.story-card-launch {
+  animation: story-launch 420ms cubic-bezier(0.3, 0, 0.2, 1) both;
+  z-index: 1;
+}
+
+@keyframes story-launch {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0;
+    box-shadow: 0 0 60px rgba(34, 211, 238, 0.35);
+    border-color: var(--accent);
+  }
+}
+
+.story-grid:has(.story-card-launch) .story-card:not(.story-card-launch) {
+  opacity: 0.15;
+  transform: scale(0.97);
+}
+
+.graph-enter {
+  animation: graph-enter 420ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+/* Ends at `none`, not `scale(1)`: any transform value other than none
+   makes an element the containing block for its position: fixed
+   descendants, and this one wraps the whole canvas. Landing on scale(1)
+   would leave every dialog inside the graph resolving "fixed inset-0"
+   against this box forever after. (Modal portals out of here as a second
+   line of defence — but the animation must not lay the trap.) */
+@keyframes graph-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The spark riding a story card's rail, on hover only. `left` rather
+   than a transform because the rail is fluid-width and a percentage
+   translate would resolve against the 5px spark itself. */
+.story-card .spark-run {
+  left: 0;
+  opacity: 0;
+}
+
+@media (hover: hover) {
+  .story-card:hover .spark-run {
+    animation: spark-run 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes spark-run {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  20%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
   }
 }
 
@@ -136,5 +579,15 @@ textarea,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Travelling light has no static "final frame" worth freezing — with
+     motion reduced these are simply removed, and the static colour
+     difference between a live and a dead edge carries the state. */
+  .edge-spark,
+  .edge-surge,
+  .edge-surge-path,
+  .node-orbit {
+    display: none;
   }
 }

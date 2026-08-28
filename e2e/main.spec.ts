@@ -38,7 +38,7 @@ test("sign up, build a graph, and complete the story", async ({ page }) => {
   await page.waitForURL("**/stories");
 
   // Create Story
-  await page.click('button:has-text("+ New Story")');
+  await page.click('button:has-text("New Story")');
   await page.fill("#title", "E2E Story");
   await page.fill("#startState", "Requirements approved");
   await page.fill("#goalState", "Available in production");
@@ -51,13 +51,17 @@ test("sign up, build a graph, and complete the story", async ({ page }) => {
 
   // Insert Task A on the START -> GOAL edge
   await page.hover(".react-flow__edge");
-  await page.click('button[title="Insert task"]');
+  await page.click('button[aria-label="Add task"]');
   await page.fill("#insert-task-title", "Task A");
-  await page.click('button:has-text("Insert")');
+  // The dialog's mode chooser carries an "Insert" button of its own, so
+  // the submit is addressed by role rather than by its label.
+  await page.click('#insert-task-form button[type="submit"]');
   await expect(page.getByText("Task A")).toBeVisible();
 
   // Add Task B via the toolbar
-  await page.click('button:has-text("+ Task")');
+  // Icon-only on the canvas toolbar, so it's addressed by its name
+  // rather than by label text.
+  await page.click('button[aria-label="New task"]');
   await page.fill("#task-title", "Task B");
   await page.click('button:has-text("Create")');
   await expect(page.getByText("Task B")).toBeVisible();
