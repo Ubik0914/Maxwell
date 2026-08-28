@@ -1,8 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BoardIcon, GraphViewIcon, ListIcon } from "@/components/icons";
+import {
+  BoardIcon,
+  GraphViewIcon,
+  ListIcon,
+  StoriesIcon,
+} from "@/components/icons";
+import { TabBar } from "@/components/ui/TabBar";
 
 const VIEWS = [
   { segment: "", label: "Graph", Icon: GraphViewIcon },
@@ -11,27 +16,26 @@ const VIEWS = [
 ] as const;
 
 /**
- * The same story, three ways to look at it.
+ * The same story, three ways to look at it — and, on a phone, the way
+ * back to the list of them.
  *
- * Two placements, because a phone and a desktop disagree about where a
- * tab bar goes and both are right. On a wide screen it sits under the
- * title, where the eye already is. On a phone it sits at the bottom,
- * where the thumb already is — which is where every app that has to
- * offer this on a phone has ended up putting it, and the reason the
- * targets there are twice the height of the ones up top.
+ * That fourth tab exists only in the bottom bar. Up top there is a
+ * "← Stories" link right next to the title, and a second way out three
+ * inches away would be one too many. At the bottom there isn't one: the
+ * back arrow is a small target in the far corner of a phone, which is
+ * the corner a thumb reaches last. A bar that can move between a
+ * story's views but not out of the story is half a navigation.
  *
- * They are real links, so each view has a URL you can send to someone
- * and the back button does what it should. The active one is marked
- * with a lit rule rather than a filled background: it is the same
- * language the graph uses for a live conduit, and it leaves the tab
- * itself uncoloured so three tabs read as one row rather than as one
- * button and two labels. The rule sits on the edge facing the content
- * — under the tab up top, over it at the bottom — so it always points
- * at what it is describing.
+ * It leads rather than follows the three views, because it is the level
+ * above them — the same order the back arrow and the title sit in up
+ * top, read left to right.
  *
- * The active segment is read from the pathname rather than passed down,
- * which keeps the header a Server Component and stops three pages
- * having to remember to say which one they are.
+ * Real links throughout, so each view has a URL you can send to someone
+ * and the back button does what it should. Which one is active is read
+ * from the pathname rather than passed down, which keeps the header a
+ * Server Component and stops three pages having to remember to say
+ * which one they are — the one thing here that TabBar can't decide for
+ * itself.
  */
 export function ViewSwitcher({
   storyId,
@@ -44,44 +48,37 @@ export function ViewSwitcher({
 }) {
   const pathname = usePathname();
   const base = `/stories/${storyId}`;
-  const isBottom = placement === "bottom";
+
+  const views = VIEWS.map(({ segment, label, Icon }) => ({
+    key: label,
+    href: `${base}${segment}`,
+    label,
+    isActive: pathname === `${base}${segment}`,
+    icon: <Icon />,
+  }));
 
   return (
-    <nav
-      aria-label="Story view"
-      className={`flex w-full items-stretch ${className}`}
-    >
-      {VIEWS.map(({ segment, label, Icon }) => {
-        const href = `${base}${segment}`;
-        const isActive = pathname === href;
-        return (
-          <Link
-            key={label}
-            href={href}
-            aria-current={isActive ? "page" : undefined}
-            className={`view-tab relative flex flex-1 items-center justify-center transition-colors ${
-              isBottom
-                ? "flex-col gap-1 py-2.5 text-[11px] font-medium"
-                : "gap-1.5 py-2.5 text-xs font-medium"
-            } ${
-              isActive
-                ? "text-accent"
-                : "text-text-faint hover:bg-surface-hover hover:text-text"
-            }`}
-          >
-            <Icon />
-            {label}
-            {isActive && (
-              <span
-                aria-hidden="true"
-                className={`absolute inset-x-0 mx-auto h-0.5 w-14 rounded-full bg-accent shadow-[0_0_8px_var(--accent)] ${
-                  isBottom ? "top-0" : "bottom-0"
-                }`}
-              />
-            )}
-          </Link>
-        );
-      })}
-    </nav>
+    <TabBar
+      label="Story view"
+      placement={placement}
+      className={className}
+      tabs={
+        placement === "bottom"
+          ? [
+              {
+                key: "Stories",
+                href: "/stories",
+                label: "Stories",
+                // Never active: leaving here means leaving this bar
+                // behind, so marking it would claim a destination the
+                // bar cannot be showing.
+                isActive: false,
+                icon: <StoriesIcon />,
+              },
+              ...views,
+            ]
+          : views
+      }
+    />
   );
 }
