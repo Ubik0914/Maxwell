@@ -1,22 +1,18 @@
-import type { Priority, TaskStatus } from "@/domain/graph/types";
+import {
+  SETTABLE_STATUSES,
+  type Priority,
+  type SettableStatus,
+  type TaskStatus,
+} from "@/domain/graph/types";
 
 /**
- * The statuses a person is allowed to choose.
- *
- * BLOCKED is absent on purpose: it is derived by the Status Engine from
- * the shape of the graph, never picked. Anywhere that offers a status
- * offers these four and shows BLOCKED only as a state it is currently
- * in — which is why this type, not TaskStatus, is what every status
- * control speaks.
+ * Re-exported so a control can reach the vocabulary and the palette
+ * from one place; the rule itself lives in the domain, because the API
+ * and the Status Engine enforce it too and neither should be importing
+ * from a component.
  */
-export type SettableStatus = "READY" | "IN_PROGRESS" | "DONE" | "CANCELLED";
-
-export const SETTABLE_STATUSES: SettableStatus[] = [
-  "READY",
-  "IN_PROGRESS",
-  "DONE",
-  "CANCELLED",
-];
+export { SETTABLE_STATUSES };
+export type { SettableStatus };
 
 /**
  * Every column a board shows, and the order the filter chips list them.

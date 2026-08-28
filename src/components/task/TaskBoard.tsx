@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { GraphEdge, GraphNode, TaskStatus } from "@/domain/graph/types";
 import { buildBlockerMap } from "@/domain/graph/blockers";
+import { canRequestStatus } from "@/domain/graph/status-change";
 import { sortTasks } from "@/domain/graph/task-order";
 import { countByStatus, matchesQuery, onlyTasks } from "@/features/tasks/filter";
 import { useCardDrag, type DropTarget } from "@/features/tasks/hooks/useCardDrag";
@@ -97,6 +98,16 @@ export function TaskBoard({
       return;
     }
 
+    // A blocked card can be cancelled and nothing else. Said here as
+    // well as on the server so the card does not travel to a column,
+    // sit there for a round-trip and then jump back.
+    if (!canRequestStatus(statusOf(task.status), target.zone as SettableStatus)) {
+      showError(
+        "This task is waiting on work that isn't finished. It becomes Ready on its own once that work is done.",
+      );
+      return;
+    }
+
     // Position always, status only when the column actually changed.
     // Dropping a card two places up inside its own column is a
     // reordering, not a state change, and writing the status it already
@@ -120,6 +131,7 @@ export function TaskBoard({
     // to the first column it is allowed to be in.
     const next = index === -1 ? (direction === 1 ? 0 : -1) : index + direction;
     if (next < 0 || next >= DROPPABLE.length) return;
+    if (!canRequestStatus(from, DROPPABLE[next])) return;
     changeStatus(task.id, DROPPABLE[next]);
   }
 

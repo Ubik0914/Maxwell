@@ -10,6 +10,24 @@ export type TaskStatus =
 export type Priority = 1 | 2 | 3 | 4;
 
 /**
+ * The statuses a person is allowed to choose.
+ *
+ * BLOCKED is absent on purpose: it is derived by the Status Engine from
+ * the shape of the graph, never picked. This lives here rather than
+ * beside the control that renders it, because it is a rule about what a
+ * task may be — the same rule validateStatusChange and the API enforce,
+ * neither of which has any business importing from a component.
+ */
+export type SettableStatus = "READY" | "IN_PROGRESS" | "DONE" | "CANCELLED";
+
+export const SETTABLE_STATUSES: SettableStatus[] = [
+  "READY",
+  "IN_PROGRESS",
+  "DONE",
+  "CANCELLED",
+];
+
+/**
  * Domain-level graph node. Deliberately decoupled from both the raw
  * (snake_case) DB row shape and from @xyflow/react's Node type — the
  * Repository layer maps DB rows into this, and the Graph rendering layer

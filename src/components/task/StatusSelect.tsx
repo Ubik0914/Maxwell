@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { TaskStatus } from "@/domain/graph/types";
+import { canRequestStatus } from "@/domain/graph/status-change";
 import {
   SETTABLE_STATUSES,
   STATUS_LABEL,
@@ -20,9 +21,11 @@ import { Select, type SelectOption } from "@/components/ui/Select";
  *
  * BLOCKED appears only when the task is already in it, and then only as
  * a disabled option: it is the Status Engine's to assign, never a
- * choice. Selecting something else from there is still allowed, because
- * cancelling blocked work is legitimate — the engine rejects the moves
- * that aren't (BLOCKED -> IN_PROGRESS) and the caller shows why.
+ * choice. From there, Cancel is the one move left — abandoning work you
+ * are blocked on is a decision about the task, while Ready, In progress
+ * and Done are all claims about a graph that says otherwise. The engine
+ * refuses those anyway (validateStatusChange); showing them enabled
+ * would just be offering three ways to be told no.
  */
 export function StatusSelect({
   id,
@@ -42,12 +45,14 @@ export function StatusSelect({
       value,
       label: STATUS_LABEL[value],
     }));
-    return status === "BLOCKED"
-      ? [
-          { value: "BLOCKED" as const, label: STATUS_LABEL.BLOCKED, disabled: true },
-          ...settable,
-        ]
-      : settable;
+    if (status !== "BLOCKED") return settable;
+    return [
+      { value: "BLOCKED" as const, label: STATUS_LABEL.BLOCKED, disabled: true },
+      ...settable.map((option) => ({
+        ...option,
+        disabled: !canRequestStatus(status, option.value),
+      })),
+    ];
   }, [status]);
 
   return (

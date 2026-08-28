@@ -8,6 +8,7 @@ import {
   statusOf,
   type SettableStatus,
 } from "@/components/task/status";
+import { canRequestStatus } from "@/domain/graph/status-change";
 import { Menu, type MenuItemSpec } from "@/components/ui/Menu";
 import type { PressPoint } from "@/hooks/useLongPress";
 import { ListIcon, PlusIcon, TrashIcon } from "@/components/icons";
@@ -24,7 +25,11 @@ import { ListIcon, PlusIcon, TrashIcon } from "@/components/icons";
  * read your own state off it.
  *
  * BLOCKED is not here at all: it is the Status Engine's, derived from
- * what a task is waiting on, never chosen.
+ * what a task is waiting on, never chosen. And while a task *is*
+ * blocked the only one of the four that stays live is Cancel — the
+ * others are claims about a graph that says otherwise, and the engine
+ * refuses them (validateStatusChange). A menu that offers three ways to
+ * be told no is a worse menu.
  */
 export function TaskMenu({
   task,
@@ -64,7 +69,7 @@ export function TaskMenu({
         label: STATUS_LABEL[status],
         separated: index === 0,
         checked: current === status,
-        disabled: current === status,
+        disabled: current === status || !canRequestStatus(current, status),
         onSelect: () => onStatusChange(status),
       })),
       {
