@@ -228,8 +228,11 @@ export function StoryGraph({
           onPaneClick={() => setSelectedNodeId(null)}
         >
           <Background color="var(--border-strong)" gap={24} />
-          <GraphMiniMap />
         </ReactFlow>
+        {/* Outside <ReactFlow>, unlike React Flow's own MiniMap: this
+            one draws the graph itself and positions itself, so it has
+            no reason to be a panel the canvas owns. */}
+        <GraphMiniMap />
         <GraphToolbar storyId={storyId} onAutoLayout={handleAutoLayout} />
         {selectedNode && (
           <TaskPanel
