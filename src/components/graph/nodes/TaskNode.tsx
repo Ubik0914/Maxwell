@@ -38,7 +38,11 @@ const STATUS_STYLE: Record<
   IN_PROGRESS: {
     border: "border-warning/50",
     text: "text-warning",
-    ambient: "",
+    // A steady glow under the travelling rim light. The orbit carries
+    // the state on its own, but it's the one ambient effect that
+    // genuinely moves — so it's removed under reduced motion, and this
+    // is what still tells an in-progress node from an idle one.
+    ambient: "shadow-[0_0_12px_var(--warning-soft)]",
     orbit: true,
   },
   DONE: {

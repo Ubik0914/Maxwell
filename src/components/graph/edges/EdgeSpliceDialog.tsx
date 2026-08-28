@@ -9,6 +9,7 @@ import {
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
+import { SpliceDiagram } from "@/components/graph/SpliceDiagram";
 
 const MODES: {
   value: EdgeSpliceMode;
@@ -26,94 +27,6 @@ const MODES: {
     hint: "In parallel — a second path, rejoining here",
   },
 ];
-
-/**
- * What each mode does to the graph, drawn rather than described: the
- * existing nodes as terminals, the new task as a node card on the path
- * it will occupy. Two shapes tell the difference faster than two
- * sentences, and this is the one choice a reader has to get right
- * before typing anything.
- */
-function ModeDiagram({ mode }: { mode: EdgeSpliceMode }) {
-  const isBranch = mode === "branch";
-
-  return (
-    <svg
-      viewBox="0 0 220 72"
-      className="h-16 w-full"
-      role="img"
-      aria-label={
-        isBranch
-          ? "The existing connection stays, and a new task is added on a parallel path that rejoins it"
-          : "The existing connection is replaced by one running through a new task"
-      }
-    >
-      {isBranch ? (
-        <>
-          <path
-            d="M20 20H200"
-            stroke="var(--border-strong)"
-            strokeWidth="2"
-            fill="none"
-          />
-          <path
-            d="M20 20C60 20 60 52 110 52C160 52 160 20 200 20"
-            stroke="var(--accent)"
-            strokeWidth="2"
-            fill="none"
-            opacity="0.7"
-          />
-          <rect
-            x="90"
-            y="43"
-            width="40"
-            height="18"
-            rx="5"
-            fill="var(--surface)"
-            stroke="var(--accent)"
-            strokeWidth="1.5"
-          />
-        </>
-      ) : (
-        <>
-          <path
-            d="M20 36H200"
-            stroke="var(--accent)"
-            strokeWidth="2"
-            fill="none"
-            opacity="0.7"
-          />
-          <rect
-            x="90"
-            y="27"
-            width="40"
-            height="18"
-            rx="5"
-            fill="var(--surface)"
-            stroke="var(--accent)"
-            strokeWidth="1.5"
-          />
-        </>
-      )}
-      <circle
-        cx="20"
-        cy={isBranch ? 20 : 36}
-        r="5"
-        fill="var(--surface)"
-        stroke="var(--border-strong)"
-        strokeWidth="2"
-      />
-      <circle
-        cx="200"
-        cy={isBranch ? 20 : 36}
-        r="5"
-        fill="var(--surface)"
-        stroke="var(--border-strong)"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
 
 /**
  * The dialog behind a connection's "+". It asks which shape to add
@@ -191,7 +104,7 @@ export function EdgeSpliceDialog({
           })}
         </div>
 
-        <ModeDiagram mode={mode} />
+        <SpliceDiagram shape={mode} />
 
         <div className="flex flex-col gap-1">
           <label

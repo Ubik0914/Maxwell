@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -14,7 +14,6 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { GraphNode, GraphEdge } from "@/domain/graph/types";
-import { calculateStoryStatus } from "@/domain/graph/story-status";
 import type {
   FlowEdge,
   FlowNode,
@@ -31,7 +30,7 @@ import {
   createEdgeAction,
 } from "@/features/graph/actions";
 import { useGraphRealtime } from "@/features/graph/hooks/useGraphRealtime";
-import { useEnergyFlow } from "@/features/graph/hooks/useEnergyFlow";
+import { useGraphPresentation } from "@/features/graph/hooks/useGraphPresentation";
 import { useToast } from "@/components/Toast";
 
 const nodeTypes: NodeTypes = {
@@ -61,18 +60,6 @@ function toFlowEdges(edges: GraphEdge[]): FlowEdge[] {
     target: edge.targetNodeId,
     data: { live: false, damped: false, surgeId: null },
   }));
-}
-
-/**
- * An edge "flows" once its source has actually produced something to
- * flow downstream: Start (the always-ready origin) or a Done task.
- * Anything upstream of unfinished work stays a static line, so the
- * animation tracks real progress through the DAG instead of just
- * decorating every connection uniformly.
- */
-function isFlowingSource(node: FlowNode | undefined): boolean {
-  if (!node) return false;
-  return node.data.type === "START" || node.data.status === "DONE";
 }
 
 export function StoryGraph({
@@ -121,63 +108,11 @@ export function StoryGraph({
   const selectedNode =
     flowNodes.find((n) => n.id === selectedNodeId)?.data ?? null;
 
-  // Every transition the graph just went through — a task completing, a
-  // successor unblocking, a node being spliced in. It expires on its own
-  // timers, so the canvas returns to rest without anything to reset.
-  const { pulses, emitters, arrivals } = useEnergyFlow(flowNodes);
-
-  // Has the graph actually arrived at the goal? Decided by the very rule
-  // that sets the story's own status, so the goal lighting up and the
-  // story reading COMPLETED can never disagree. Until then the goal is
-  // drawn dark: it's a destination, not an achievement.
-  const goalReached = useMemo(() => {
-    const domainNodes = flowNodes.map((node) => node.data);
-    const domainEdges = flowEdges.map((edge) => ({
-      id: edge.id,
-      storyId,
-      sourceNodeId: edge.source,
-      targetNodeId: edge.target,
-    }));
-    return calculateStoryStatus(domainNodes, domainEdges) === "COMPLETED";
-  }, [flowNodes, flowEdges, storyId]);
-
-  // A pulse is presentation state, so it's grafted on here instead of
-  // being written into node state: when nothing is pulsing and the goal
-  // is unreached this returns the very same array, and React Flow
-  // re-renders nothing at all.
-  const displayNodes = useMemo(() => {
-    if (pulses.size === 0 && !goalReached) return flowNodes;
-    return flowNodes.map((node) => {
-      const pulse = pulses.get(node.id);
-      const reached = goalReached && node.data.type === "GOAL";
-      if (!pulse && !reached) return node;
-      return { ...node, data: { ...node.data, pulse, reached } };
-    });
-  }, [flowNodes, pulses, goalReached]);
-
-  // Recomputed from flowNodes on every render (not baked into flowEdges'
-  // own state) so a Realtime status change to DONE re-animates that
-  // node's outgoing edges immediately, without a separate sync effect.
-  //
-  // An edge surges when its source just emitted (a task turned DONE, or
-  // a node materialised), and also when its *target* just materialised —
-  // that second case is what makes an inserted node light up on both
-  // sides while still drawing every spark source -> target.
-  const displayEdges = useMemo(() => {
-    const nodeById = new Map(flowNodes.map((n) => [n.id, n]));
-    return flowEdges.map((edge) => {
-      const live = isFlowingSource(nodeById.get(edge.source));
-      const damped = nodeById.get(edge.target)?.data.status === "BLOCKED";
-      const surgeId =
-        emitters.get(edge.source) ?? arrivals.get(edge.target) ?? null;
-
-      return {
-        ...edge,
-        className: live ? "edge-live" : damped ? "edge-damped" : undefined,
-        data: { live, damped, surgeId },
-      };
-    });
-  }, [flowEdges, flowNodes, emitters, arrivals]);
+  const { displayNodes, displayEdges } = useGraphPresentation({
+    flowNodes,
+    flowEdges,
+    storyId,
+  });
 
   async function handleConnect(connection: Connection) {
     if (!connection.source || !connection.target) return;
