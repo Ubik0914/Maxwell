@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import { useId, useState, type MouseEvent } from "react";
 import type { StoryListItem } from "@/repositories/story.repository";
-import { SettingsIcon } from "@/components/icons";
+import { ChevronDownIcon, SettingsIcon } from "@/components/icons";
 import { StorySettingsDialog } from "@/components/story/StorySettingsDialog";
+import { StoryDetails } from "@/components/story/StoryDetails";
 
 const STATUS_TONE: Record<StoryListItem["status"], string> = {
   ACTIVE: "text-accent",
@@ -64,11 +65,26 @@ function Tally({
  * and `.graph-enter`), so the card reads as having *become* the graph.
  * Modified clicks are left to the browser so "open in new tab" still
  * works.
+ *
+ * Details open in place instead. Opening a story to see whether it was
+ * the one you meant, and going back when it wasn't, is a round trip
+ * for a question the list can already answer — so the card answers it
+ * without giving up its own press, and the list keeps its place.
  */
-export function StoryCard({ story }: { story: StoryListItem }) {
+export function StoryCard({
+  story,
+  today,
+}: {
+  story: StoryListItem;
+  /** Today, as an ISO date — handed down so nothing reads the clock
+   *  while rendering. */
+  today: string;
+}) {
   const router = useRouter();
   const [isLaunching, setIsLaunching] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const detailsId = useId();
   const href = `/stories/${story.id}`;
 
   const { done, ready, inProgress, blocked } = story.stats;
@@ -100,7 +116,7 @@ export function StoryCard({ story }: { story: StoryListItem }) {
       <Link
         href={href}
         onClick={handleClick}
-        className="flex flex-col gap-3 p-4"
+        className="flex flex-col gap-3 px-4 pt-4 pb-3"
       >
         <div className="flex items-center gap-3 pr-7">
           <h2 className="min-w-0 flex-1 truncate font-medium text-text">
@@ -144,10 +160,34 @@ export function StoryCard({ story }: { story: StoryListItem }) {
           <Tally value={blocked} label="Blocked" tone="text-danger" />
         </div>
 
+      </Link>
+
+      {/*
+       * Outside the link, because it holds a control. A button inside
+       * an anchor is two controls fighting over one press — the same
+       * reason the settings icon is a sibling rather than a child.
+       */}
+      <div className="flex items-center justify-between gap-2 px-4 pb-3">
         <span className="text-xs text-text-faint">
           {formatRelativeTime(story.updatedAt)}
         </span>
-      </Link>
+        <button
+          type="button"
+          onClick={() => setIsExpanded((open) => !open)}
+          aria-expanded={isExpanded}
+          aria-controls={detailsId}
+          className="-mr-1.5 flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-xs text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
+        >
+          Details
+          <ChevronDownIcon
+            className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          />
+        </button>
+      </div>
+
+      {isExpanded && (
+        <StoryDetails id={detailsId} story={story} today={today} />
+      )}
 
       {/* Hidden while the card is becoming the graph: it is not part
           of that animation and would be the one thing left behind. */}

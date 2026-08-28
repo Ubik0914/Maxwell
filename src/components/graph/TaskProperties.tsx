@@ -5,9 +5,10 @@ import { PRIORITY_LABEL, type SettableStatus } from "@/components/task/status";
 import { StatusSelect } from "@/components/task/StatusSelect";
 import { Chip, CHIP_CONTROL, CHIP_SET, CHIP_UNSET } from "@/components/ui/Chip";
 import { Select, type SelectOption } from "@/components/ui/Select";
+import { DateField } from "@/components/ui/DateField";
 
-/** "" is the absence of a priority, which a <select> can only carry as
- *  a value of its own — `null` is what actually gets saved. */
+/** "" is the absence of a priority, which a list of choices can only
+ *  carry as a choice of its own — `null` is what actually gets saved. */
 type PriorityValue = "" | `${Priority}`;
 
 const PRIORITY_OPTIONS: SelectOption<PriorityValue>[] = [
@@ -39,6 +40,7 @@ export function TaskProperties({
   onPriorityChange,
   dueDate,
   onDueDateChange,
+  today,
   assigneeId,
   onAssigneeChange,
   onAssigneeCommit,
@@ -49,6 +51,8 @@ export function TaskProperties({
   onPriorityChange: (priority: number) => void;
   dueDate: string;
   onDueDateChange: (dueDate: string) => void;
+  /** Today, as an ISO date — the calendar must not read the clock. */
+  today: string;
   assigneeId: string;
   onAssigneeChange: (assigneeId: string) => void;
   onAssigneeCommit: () => void;
@@ -67,28 +71,13 @@ export function TaskProperties({
         tone={priority ? CHIP_SET : CHIP_UNSET}
       />
 
-      <Chip tone={dueDate ? CHIP_SET : CHIP_UNSET}>
-        <label htmlFor="panel-due-date" className="sr-only">
-          Due date
-        </label>
-        {/* An empty date input renders the browser's own "mm/dd/yyyy",
-            which shouts about a value that isn't set. When there's no
-            date the input is laid transparently over the chip instead,
-            so the chip reads as a name like the others and still opens
-            the picker anywhere on it. */}
-        {!dueDate && <span aria-hidden="true">Due date</span>}
-        <input
-          id="panel-due-date"
-          type="date"
-          value={dueDate}
-          onChange={(e) => onDueDateChange(e.target.value)}
-          className={
-            dueDate
-              ? `${CHIP_CONTROL} w-[7.5rem]`
-              : `${CHIP_CONTROL} absolute inset-0 h-full w-full opacity-0`
-          }
-        />
-      </Chip>
+      <DateField
+        id="panel-due-date"
+        label="Due date"
+        value={dueDate}
+        onChange={onDueDateChange}
+        today={today}
+      />
 
       <Chip tone={assigneeId ? CHIP_SET : CHIP_UNSET}>
         <label htmlFor="panel-assignee" className="sr-only">

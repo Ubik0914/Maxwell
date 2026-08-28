@@ -39,9 +39,13 @@ import { Markdown } from "@/components/ui/Markdown";
  */
 export function TaskPanel({
   node,
+  today,
   onClose,
 }: {
   node: GraphNode;
+  /** Today, as an ISO date. Handed down rather than read from the
+   *  clock: see story-data's todayIso for why. */
+  today: string;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -194,6 +198,7 @@ export function TaskPanel({
           setPriority(value);
           save({ taskId: node.id, priority: value || null });
         }}
+        today={today}
         dueDate={dueDate}
         onDueDateChange={(value) => {
           setDueDate(value);

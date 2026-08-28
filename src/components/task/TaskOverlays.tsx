@@ -18,9 +18,11 @@ import { DeleteConfirmDialog } from "@/components/graph/DeleteConfirmDialog";
 export function TaskOverlays({
   actions,
   edges,
+  today,
 }: {
   actions: ReturnType<typeof useTaskActions>;
   edges: GraphEdge[];
+  today: string;
 }) {
   const { menu, selected, addAfter, deleting } = actions;
 
@@ -58,6 +60,7 @@ export function TaskOverlays({
         <TaskPanel
           key={selected.id}
           node={selected}
+          today={today}
           onClose={() => actions.select(null)}
         />
       )}

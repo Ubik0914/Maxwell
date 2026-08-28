@@ -201,6 +201,47 @@
   }
 }
 
+/* A dropdown grows from the edge it is attached to, so the list reads
+   as having come out of the control rather than appeared over it. */
+.select-list {
+  animation: menu-in 120ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+  transform-origin: top left;
+}
+
+.select-list-above {
+  transform-origin: bottom left;
+}
+
+/*
+ * A card's details opening in place.
+ *
+ * Animated on grid-template-rows rather than height, because the
+ * details are as tall as they are — a description of unknown length and
+ * a list of unknown count — and height needs a number nobody has.
+ * 0fr to 1fr is that number without measuring it, and the row's child
+ * clips while it grows so the text is revealed rather than squashed.
+ */
+.detail-reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: detail-reveal 180ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+.detail-reveal > * {
+  overflow: hidden;
+}
+
+@keyframes detail-reveal {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
 /* Long-pressing a card must not raise iOS's own text callout over the
    menu we are about to open. Selection is left alone — this suppresses
    the callout, not the ability to select. */
@@ -435,7 +476,10 @@ html[data-motion="reduced"] {
   & .modal-panel,
   & .graph-enter,
   & .pane-from-left,
-  & .pane-from-right {
+  & .pane-from-right,
+  /* The details arrive rather than growing into place; the row is
+     already at its full height, so only the fade is left. */
+  & .detail-reveal {
     animation: reduced-appear 200ms ease-out both;
   }
 

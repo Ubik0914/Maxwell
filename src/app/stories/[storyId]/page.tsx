@@ -1,6 +1,6 @@
 import { StoryShell } from "@/components/story/StoryShell";
 import { StoryGraph } from "@/components/graph/StoryGraph";
-import { loadStory } from "@/app/stories/[storyId]/story-data";
+import { loadStory, todayIso } from "@/app/stories/[storyId]/story-data";
 
 export default async function StoryGraphPage({
   params,
@@ -20,6 +20,7 @@ export default async function StoryGraphPage({
           nodes={graph.nodes}
           edges={graph.edges}
           storyId={graph.story.id}
+          today={todayIso()}
         />
       </div>
     </StoryShell>

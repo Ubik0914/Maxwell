@@ -11,7 +11,12 @@ import {
   recalculateDownstream,
 } from "@/domain/graph/availability";
 import { calculateStoryStatus } from "@/domain/graph/story-status";
-import type { GraphNode, GraphEdge, TaskStatus } from "@/domain/graph/types";
+import { validateStatusChange } from "@/domain/graph/status-change";
+import type {
+  GraphNode,
+  GraphEdge,
+  SettableStatus,
+} from "@/domain/graph/types";
 
 type Client = SupabaseClient<Database, "dag">;
 
@@ -325,7 +330,8 @@ async function settleAfterSplice(
 
 export interface ChangeTaskStatusInput {
   taskId: string;
-  status: TaskStatus;
+  /** Never BLOCKED: that one is the engine's to assign, not a caller's. */
+  status: SettableStatus;
 }
 
 export interface StatusChangeError {
@@ -361,28 +367,26 @@ export async function changeTaskStatus(
     };
   }
 
-  if (input.status === "IN_PROGRESS" || input.status === "DONE") {
+  // Every move but Cancel is checked, Ready included — see
+  // validateStatusChange. Ready is a fact about the graph rather than a
+  // wish, and the engine grants it on its own the moment the last thing
+  // in the way turns DONE.
+  if (input.status !== "CANCELLED") {
     const [nodesBefore, edgesBefore] = await Promise.all([
       nodeRepository.findByStoryId(supabase, current.storyId),
       edgeRepository.findByStoryId(supabase, current.storyId),
     ]);
 
-    // Checked against the true dependency-derived availability, not the
+    // Judged on the true dependency-derived availability, not the
     // stored status field: a task's stored status can itself be stale
     // (e.g. a dependency reverted after this task was already READY),
-    // so trusting it here would let the same TASK_BLOCKED guard be
-    // sidestepped by going through READY first.
-    if (
-      calculateTaskAvailability(current.id, nodesBefore, edgesBefore) ===
-      "BLOCKED"
-    ) {
-      return {
-        success: false,
-        error: {
-          code: "TASK_BLOCKED",
-          message: "Complete the blocking tasks before starting this task.",
-        },
-      };
+    // so trusting it would let the guard be walked around.
+    const verdict = validateStatusChange(
+      input.status,
+      calculateTaskAvailability(current.id, nodesBefore, edgesBefore),
+    );
+    if (!verdict.allowed) {
+      return { success: false, error: verdict.error };
     }
   }
 

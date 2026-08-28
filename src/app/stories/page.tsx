@@ -2,6 +2,7 @@ import { requireCurrentWorkspace } from "@/features/workspace/current-workspace"
 import { listStoriesForWorkspace } from "@/repositories/story.repository";
 import { AppShell } from "@/components/layout/AppShell";
 import { StoryList } from "@/components/story/StoryList";
+import { todayIso } from "@/app/stories/[storyId]/story-data";
 import { StatusFilter } from "@/components/story/StatusFilter";
 import { CreateStoryModal } from "@/components/story/CreateStoryModal";
 import { StoriesPane } from "@/components/story/StoriesPane";
@@ -38,7 +39,7 @@ export default async function StoriesPage({
         <StatusFilter current={filter} />
         {/* Swipe left or right to walk the filters — see StoriesPane. */}
         <StoriesPane current={filter}>
-          <StoryList stories={filteredStories} />
+          <StoryList stories={filteredStories} today={todayIso()} />
         </StoriesPane>
       </div>
     </AppShell>
