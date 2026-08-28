@@ -111,8 +111,20 @@ describe("rejoinCandidates", () => {
     edge("B", "GOAL"),
   ];
 
-  it("offers the node's own successors, then GOAL", () => {
+  it("offers everything downstream, nearest first", () => {
     expect(rejoinCandidates("A", nodes, edges).map((n) => n.id)).toEqual([
+      "B",
+      "C",
+      "GOAL",
+    ]);
+  });
+
+  it("reaches past the immediate successors", () => {
+    // START -> A -> B -> GOAL: GOAL is two hops away and still offered,
+    // which is the whole point — inserting after START often belongs
+    // before something further along than A.
+    expect(rejoinCandidates("START", nodes, edges).map((n) => n.id)).toEqual([
+      "A",
       "B",
       "C",
       "GOAL",
@@ -125,7 +137,7 @@ describe("rejoinCandidates", () => {
     ]);
   });
 
-  it("does not list GOAL twice when it is already a successor", () => {
+  it("does not list GOAL twice when it is already downstream", () => {
     expect(rejoinCandidates("B", nodes, edges).map((n) => n.id)).toEqual([
       "GOAL",
     ]);
@@ -133,6 +145,27 @@ describe("rejoinCandidates", () => {
 
   it("never offers the node itself", () => {
     expect(rejoinCandidates("GOAL", nodes, edges)).toEqual([]);
+  });
+
+  it("names each task once however many paths reach it", () => {
+    // A diamond: A -> B -> D and A -> C -> D.
+    const diamond = [
+      node({ id: "A" }),
+      node({ id: "B" }),
+      node({ id: "C" }),
+      node({ id: "D" }),
+    ];
+    const paths = [
+      edge("A", "B"),
+      edge("A", "C"),
+      edge("B", "D"),
+      edge("C", "D"),
+    ];
+    expect(rejoinCandidates("A", diamond, paths).map((n) => n.id)).toEqual([
+      "B",
+      "C",
+      "D",
+    ]);
   });
 
   it("returns nothing when the story has no GOAL and no successors", () => {

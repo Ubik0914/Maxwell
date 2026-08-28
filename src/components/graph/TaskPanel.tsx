@@ -130,10 +130,16 @@ export function TaskPanel({
   return (
     // Full height on a phone — a task is the whole screen while you're
     // in it — and a panel beside the graph once there's room for both.
+    //
+    // The corners it keeps are the ones that aren't against an edge of
+    // the window: both top corners as a sheet, and only the top-left
+    // beside the graph, where the right side is flush with the screen.
+    // A square corner floating over the canvas reads as a piece of the
+    // page that failed to load.
     <div
       ref={panelRef}
       style={sheet.sheetStyle}
-      className="absolute inset-0 z-20 flex flex-col gap-4 overflow-y-auto rounded-t-2xl border-border bg-surface p-4 shadow-[-8px_0_40px_rgba(0,0,0,0.5)] sm:inset-y-0 sm:left-auto sm:w-96 sm:rounded-none sm:border-l sm:p-5"
+      className="absolute inset-0 z-20 flex flex-col gap-4 overflow-y-auto rounded-t-2xl border-border bg-surface p-4 shadow-[-8px_0_40px_rgba(0,0,0,0.5)] sm:inset-y-0 sm:left-auto sm:w-96 sm:rounded-tr-none sm:border-l sm:p-5"
     >
       {/*
        * On a phone this is a sheet, so it says so: a grab bar, and a
