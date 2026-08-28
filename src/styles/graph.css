@@ -15,11 +15,29 @@
  * ==========================================================================
  */
 
-/* --- Edges: dim conduit by default, lit once current can reach it ------ */
+/* --- Edges: dead metal by default, lit once current can reach it ------- */
 
-.react-flow__edge-path {
-  stroke: var(--border-strong);
-  stroke-width: 2.5;
+/*
+ * An edge with no current is drawn as unlit metal: flat, desaturated,
+ * matte, and thinner than a live one.
+ *
+ * It used to be a dark blue-grey that all but dissolved into the
+ * background, which meant the unfinished half of a story had no visible
+ * shape at all — you could see what had been done and nothing about
+ * what was still wired up ahead. The difference between these two
+ * states is now colour and light rather than presence and absence: a
+ * dead conduit is plainly there, it simply isn't carrying anything.
+ *
+ * Qualified by the parent on purpose. React Flow ships its own
+ * `.react-flow__edge-path` rule with a dark-theme grey, at the same
+ * specificity as a bare selector here and later in the bundle — so it
+ * won, and this declaration had never actually applied to anything.
+ * The lit and damped rules below were only ever visible because they
+ * happened to carry an extra class.
+ */
+.react-flow__edge .react-flow__edge-path {
+  stroke: var(--dead);
+  stroke-width: 2;
   transition:
     stroke 260ms ease,
     stroke-width 260ms ease,
@@ -27,18 +45,18 @@
 }
 
 /* A "live" edge has an energized source (Start, or a Done task — see
-   StoryGraph's isFlowingSource). It gets a steady, low-key glow; the
-   motion on it comes from the travelling sparks, not from the line. */
+   useGraphPresentation's isFlowingSource). It wins on colour, weight
+   and glow, and it is the only one carrying sparks. */
 .react-flow__edge.edge-live .react-flow__edge-path {
-  stroke: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
+  stroke: color-mix(in srgb, var(--accent) 70%, var(--dead));
   stroke-width: 3;
 }
 
-/* Blocked target: current reaches the edge but can't pass through, so
-   the conduit reads as dead rather than merely idle. */
+/* Leads into something blocked: dead like the rest, and set back a
+   little further, because nothing can move along it until whatever is
+   holding up its target clears. */
 .react-flow__edge.edge-damped .react-flow__edge-path {
-  stroke: var(--border);
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 /*
