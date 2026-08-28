@@ -1,8 +1,8 @@
 import { StoryHeader } from "@/components/story/StoryHeader";
-import { StoryGraph } from "@/components/graph/StoryGraph";
-import { loadStory } from "@/app/stories/[storyId]/story-data";
+import { TaskBoard } from "@/components/task/TaskBoard";
+import { loadStory, todayIso } from "@/app/stories/[storyId]/story-data";
 
-export default async function StoryGraphPage({
+export default async function StoryBoardPage({
   params,
 }: {
   params: Promise<{ storyId: string }>;
@@ -10,9 +10,6 @@ export default async function StoryGraphPage({
   const { storyId } = await params;
   const graph = await loadStory(storyId);
 
-  // The screen *is* the graph here: a thin instrument strip on top, and
-  // everything else given to the canvas. min-h-0 is what stops the flex
-  // child from being sized by its content and pushing the header off.
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-bg">
       <StoryHeader
@@ -20,11 +17,11 @@ export default async function StoryGraphPage({
         stats={graph.stats}
         frontierCount={graph.frontier.length}
       />
-      <div className="graph-enter min-h-0 flex-1">
-        <StoryGraph
+      <div className="min-h-0 flex-1">
+        <TaskBoard
           nodes={graph.nodes}
           edges={graph.edges}
-          storyId={graph.story.id}
+          today={todayIso()}
         />
       </div>
     </div>

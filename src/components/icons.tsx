@@ -137,6 +137,61 @@ export function MembersIcon({ className }: { className?: string }) {
 }
 
 /**
+ * The three ways to look at one story. They have to be distinguishable
+ * at 16px in a row of three, so each is a different *shape* — scattered
+ * nodes, stacked lines, side-by-side stacks — rather than three
+ * variations on a rectangle.
+ */
+export function GraphViewIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <circle cx="4.5" cy="10" r="1.8" />
+      <circle cx="10" cy="5" r="1.8" />
+      <circle cx="10" cy="15" r="1.8" />
+      <circle cx="15.5" cy="10" r="1.8" />
+      <path d="M5.8 8.8 8.7 6.2M5.8 11.2l2.9 2.6M11.3 6.2l2.9 2.6M11.3 13.8l2.9-2.6" />
+    </Icon>
+  );
+}
+
+/** Rows with a marker: the task list. */
+export function ListIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M3 5.5h1M3 10h1M3 14.5h1M7 5.5h10M7 10h10M7 14.5h10" />
+    </Icon>
+  );
+}
+
+/** Two columns of stacked cards: the board. */
+export function BoardIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <rect x="2.5" y="3" width="6" height="14" rx="1.2" />
+      <rect x="11.5" y="3" width="6" height="9" rx="1.2" />
+    </Icon>
+  );
+}
+
+/** The handle you pick a card up by. */
+export function GripIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M7 5.5h.01M13 5.5h.01M7 10h.01M13 10h.01M7 14.5h.01M13 14.5h.01" />
+    </Icon>
+  );
+}
+
+export function SearchIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <circle cx="8.75" cy="8.75" r="5.25" />
+      <path d="M12.6 12.6L17 17" />
+    </Icon>
+  );
+}
+
+/**
  * One node branching into two: arrange the graph by dependency order.
  */
 export function AutoLayoutIcon({ className }: { className?: string }) {

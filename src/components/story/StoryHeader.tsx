@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "@/components/icons";
+import { ViewSwitcher } from "@/components/story/ViewSwitcher";
 
 const STORY_STATUS_TONE: Record<string, string> = {
   ACTIVE: "text-accent",
@@ -85,6 +86,8 @@ export function StoryHeader({
           indicator dropping to its own line is fine, silently sliding
           off the right edge is not. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-x-4">
+        <ViewSwitcher storyId={story.id} />
+
         <Meter label="Done" value={stats.done} tone="text-success" />
         <Meter label="Ready" value={stats.ready} tone="text-accent" />
         <Meter label="Progress" value={stats.inProgress} tone="text-warning" />

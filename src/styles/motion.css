@@ -183,6 +183,108 @@
   animation: toast-in 180ms ease-out;
 }
 
+/* --- Task views: the same state change, told without a graph ----------- */
+
+/*
+ * The list and the board have no conduits to send light down, so a
+ * status change would otherwise be a silent re-sort — the row you just
+ * acted on jumping somewhere else with nothing to connect the two. Both
+ * flash once, in the colour of the state just entered, and settle.
+ *
+ * The colour is a variable rather than five near-identical rules,
+ * because the flash is one idea (something here just changed) with the
+ * hue as its only parameter.
+ */
+.flash-ready {
+  --flash: rgba(34, 211, 238, 0.55);
+}
+.flash-progress {
+  --flash: rgba(251, 191, 36, 0.55);
+}
+.flash-done {
+  --flash: rgba(52, 211, 153, 0.55);
+}
+.flash-blocked {
+  --flash: rgba(248, 113, 113, 0.5);
+}
+.flash-cancelled {
+  --flash: rgba(91, 100, 128, 0.5);
+}
+
+/* A card can carry a glow. */
+.state-changed {
+  animation: state-changed 760ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+@keyframes state-changed {
+  0% {
+    box-shadow:
+      0 0 0 0 var(--flash),
+      0 0 26px var(--flash);
+    border-color: var(--flash);
+  }
+  100% {
+    box-shadow:
+      0 0 0 10px transparent,
+      0 0 0 transparent;
+  }
+}
+
+/* A table row can't — a box-shadow on a <tr> is unreliable across
+   border models — so it washes instead. Same idea, same duration. */
+.row-changed {
+  animation: row-changed 760ms ease-out both;
+}
+
+@keyframes row-changed {
+  0% {
+    background-color: var(--flash);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+/*
+ * A card being dragged across the board.
+ *
+ * It follows the pointer under `position: fixed`, which only works
+ * because nothing above it on the board is transformed — a transformed
+ * ancestor would silently become its containing block and pin it inside
+ * the column. `pointer-events: none` is what lets elementFromPoint see
+ * the column underneath rather than the card being carried over it.
+ */
+.board-card-flying {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* The card itself, tilted just enough to read as picked up. */
+.board-card-held {
+  rotate: -1.5deg;
+  border-color: var(--accent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+/* The card left behind: still there, plainly not where the action is. */
+.board-card-lifted {
+  opacity: 0.3;
+}
+
+/* The column under the pointer lights up like a live conduit — this is
+   the one place a drop is about to land. */
+.board-column-over {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+/* Nowhere to drop: the Status Engine owns BLOCKED, so the column says
+   no rather than accepting and silently refusing. */
+.board-column-refuse {
+  border-color: var(--danger);
+}
+
 /* ==========================================================================
  * Reduced motion
  *
