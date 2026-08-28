@@ -6,17 +6,21 @@ export type TaskSortKey = "urgency" | "title" | "status" | "priority" | "due";
  * Which state deserves attention first.
  *
  * Work already started outranks work merely available, because leaving
- * something half-done is worse than not having picked it up. Blocked
- * comes next — you cannot act on it, but it is what the frontier is
- * waiting for. Finished and abandoned work sinks, since the list is for
- * deciding what to do, not for admiring what has been done.
+ * something half-done is worse than not having picked it up. Then the
+ * work that is over — done, then abandoned.
+ *
+ * Blocked is last, below even cancelled work. It sat third at first, on
+ * the reasoning that it is what the frontier is waiting for; but this
+ * list exists to answer "what do I do next", and blocked work is
+ * precisely the part of the story you can do nothing about. It belongs
+ * at the bottom, where you go looking for it.
  */
 const STATUS_RANK: Record<TaskStatus, number> = {
   IN_PROGRESS: 0,
   READY: 1,
-  BLOCKED: 2,
-  DONE: 3,
-  CANCELLED: 4,
+  DONE: 2,
+  CANCELLED: 3,
+  BLOCKED: 4,
 };
 
 /** Absent values sort last in every field, never first. */

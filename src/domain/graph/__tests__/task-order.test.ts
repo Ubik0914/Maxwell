@@ -22,7 +22,7 @@ function order(nodes: GraphNode[], key: Parameters<typeof sortTasks>[1]) {
 }
 
 describe("compareByUrgency", () => {
-  it("puts started work above available work above blocked work", () => {
+  it("puts started work first and blocked work last", () => {
     const nodes = [
       node({ id: "done", status: "DONE" }),
       node({ id: "blocked", status: "BLOCKED" }),
@@ -34,9 +34,9 @@ describe("compareByUrgency", () => {
     expect(order(nodes, "urgency")).toEqual([
       "started",
       "ready",
-      "blocked",
       "done",
       "cancelled",
+      "blocked",
     ]);
   });
 
@@ -88,6 +88,17 @@ describe("compareByUrgency", () => {
     ];
 
     expect(order(nodes, "urgency")).toEqual(["started", "goal", "blocked"]);
+  });
+
+  it("ranks blocked work below finished and abandoned work", () => {
+    const nodes = [
+      node({ id: "blocked", status: "BLOCKED", priority: 4 }),
+      node({ id: "cancelled", status: "CANCELLED" }),
+    ];
+
+    // Even an urgent blocked task sinks: priority only breaks ties
+    // within a state, and there is nothing to be done about this one.
+    expect(order(nodes, "urgency")).toEqual(["cancelled", "blocked"]);
   });
 
   it("is a pure comparator: it never mutates its arguments", () => {
