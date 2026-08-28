@@ -3,12 +3,13 @@
 /*
  * Everything below line ~100 used to live here too. The palette and
  * the Tailwind theme bridge stay in this file because they are what
- * every other stylesheet resolves against; the two partials hold the
- * app's own CSS, split by what it is for:
+ * every other stylesheet resolves against; the partials hold the app's
+ * own CSS, split by what it is for:
  *
- *   graph.css   the circuit — edges, terminals, node state and pulses
- *   motion.css  everything else that moves, plus the one place that
- *               decides what happens under reduced motion
+ *   graph.css     the circuit — edges, terminals, node state and pulses
+ *   motion.css    everything else that moves, plus the one place that
+ *                 decides what happens under reduced motion
+ *   markdown.css  what a rendered description looks like
  *
  * Imports have to precede rules, so these load before the tokens they
  * use. That is fine: custom properties resolve where they are used,
@@ -16,6 +17,7 @@
  */
 @import "../styles/graph.css";
 @import "../styles/motion.css";
+@import "../styles/markdown.css";
 
 /*
  * Dark is the default (and only) theme. Tokens live as plain custom
