@@ -40,14 +40,12 @@ export function StoryShellSkeleton({ children }: { children: ReactNode }) {
 
       {children}
 
-      {/* Four, because the bottom bar carries the way to the stories
-          list as well as the three views. No `flex-col` here
-          either: the tabs stack icon-over-label *inside* each tab, and
-          the bar itself is always a row — putting it on the bar turned
-          the whole thing into a vertical stack down the middle of the
-          screen. */}
+      {/* No `flex-col` here either: the tabs stack icon-over-label
+          *inside* each tab, and the bar itself is always a row —
+          putting it on the bar turned the whole thing into a vertical
+          stack down the middle of the screen. */}
       <TabsSkeleton
-        count={4}
+        count={3}
         className="shrink-0 border-t border-border sm:hidden"
       />
     </div>

@@ -114,6 +114,7 @@ export function MenuButton({
       <SideMenu
         open={isOpen}
         onOpenChange={setOpen}
+        workspaceId={workspaceId}
         workspaceName={workspaceName}
         userEmail={userEmail}
         stories={stories}

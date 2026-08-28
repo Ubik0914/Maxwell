@@ -40,7 +40,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+      className="modal-backdrop fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
