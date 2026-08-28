@@ -135,3 +135,17 @@ export function MembersIcon({ className }: { className?: string }) {
     </Icon>
   );
 }
+
+/**
+ * One node branching into two: arrange the graph by dependency order.
+ */
+export function AutoLayoutIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <rect x="2" y="7.5" width="5" height="5" rx="1.2" />
+      <rect x="13" y="2.5" width="5" height="5" rx="1.2" />
+      <rect x="13" y="12.5" width="5" height="5" rx="1.2" />
+      <path d="M7 10h3V5h3M10 10v5h3" />
+    </Icon>
+  );
+}
