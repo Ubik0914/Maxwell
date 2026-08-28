@@ -6,7 +6,7 @@ import { buildBlockerMap } from "@/domain/graph/blockers";
 import { sortTasks } from "@/domain/graph/task-order";
 import { countByStatus, matchesQuery, onlyTasks } from "@/features/tasks/filter";
 import { useCardDrag } from "@/features/tasks/hooks/useCardDrag";
-import { useTaskStatusMutation } from "@/features/tasks/hooks/useTaskStatusMutation";
+import { useTaskActions } from "@/features/tasks/hooks/useTaskActions";
 import {
   BOARD_STATUSES,
   STATUS_INK,
@@ -15,12 +15,11 @@ import {
   type SettableStatus,
 } from "@/components/task/status";
 import { TaskCard } from "@/components/task/TaskCard";
-import { AddNextTaskDialog } from "@/components/task/AddNextTaskDialog";
+import { TaskOverlays } from "@/components/task/TaskOverlays";
 import {
   TaskFilterBar,
   type StatusFilter,
 } from "@/components/task/TaskFilterBar";
-import { TaskPanel } from "@/components/graph/TaskPanel";
 import { useToast } from "@/components/Toast";
 
 /** The columns a card can actually be dropped into. */
@@ -57,13 +56,11 @@ export function TaskBoard({
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [addAfterId, setAddAfterId] = useState<string | null>(null);
   const { showError } = useToast();
-  // `nodes` already carries any status change still in flight, so a
-  // dropped card is in its new column before the server has answered.
-  const { nodes, changeStatus, flashClass } =
-    useTaskStatusMutation(serverNodes);
+  // `actions.nodes` already carries any status change still in flight,
+  // so a dropped card is in its new column before the server answers.
+  const actions = useTaskActions(serverNodes);
+  const { nodes, changeStatus, flashClass } = actions;
 
   const tasks = useMemo(() => onlyTasks(nodes), [nodes]);
   const blockers = useMemo(() => buildBlockerMap(nodes, edges), [nodes, edges]);
@@ -112,11 +109,6 @@ export function TaskBoard({
     ? (tasks.find((task) => task.id === drag.taskId) ?? null)
     : null;
 
-  const byId = (id: string | null) =>
-    id ? (nodes.find((node) => node.id === id) ?? null) : null;
-
-  const selected = byId(selectedId);
-  const addAfter = byId(addAfterId);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -179,10 +171,11 @@ export function TaskBoard({
                         today={today}
                         isLifted={drag?.taskId === task.id}
                         flashClass={flashClass(task.id, "state-changed")}
-                        onOpen={() => setSelectedId(task.id)}
+                        onOpen={() => actions.select(task.id)}
                         onGrab={(event) => start(event, task.id)}
                         onNudge={(direction) => nudge(task, direction)}
-                        onAddNext={() => setAddAfterId(task.id)}
+                        onAddNext={() => actions.askAddAfter(task.id)}
+                        onLongPress={(point) => actions.openMenu(task, point)}
                       />
                     ))}
                     {column.tasks.length === 0 && (
@@ -219,22 +212,7 @@ export function TaskBoard({
         </div>
       )}
 
-      {addAfter && (
-        <AddNextTaskDialog
-          source={addAfter}
-          nodes={nodes}
-          edges={edges}
-          onClose={() => setAddAfterId(null)}
-        />
-      )}
-
-      {selected && (
-        <TaskPanel
-          key={selected.id}
-          node={selected}
-          onClose={() => setSelectedId(null)}
-        />
-      )}
+      <TaskOverlays actions={actions} edges={edges} />
     </div>
   );
 }
