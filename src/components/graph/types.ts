@@ -29,13 +29,14 @@ export type FlowNode = Node<FlowNodeData>;
  * stored:
  *   - `live`    the source has energy to give (Start, or a Done task),
  *               so the conduit is lit and carries drifting sparks
- *   - `damped`  the target can't accept it yet (Blocked)
+ *   - `waiting` the target can't accept it yet (Blocked), so this is
+ *               the boundary the energised part of the graph stops at
  *   - `surgeId` a one-shot propagation just fired along this edge; the
  *               changing number is what replays the animation
  */
 export type FlowEdgeData = {
   live: boolean;
-  damped: boolean;
+  waiting: boolean;
   surgeId: number | null;
 } & Record<string, unknown>;
 export type FlowEdge = Edge<FlowEdgeData>;
