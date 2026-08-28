@@ -27,7 +27,26 @@ npm run build     # プロダクションビルド
 npm run lint      # ESLint実行
 npm test          # Domain層ユニットテスト (Jest)
 npm run test:e2e  # E2Eテスト (Playwright, 要 npx playwright install)
+npm run cli       # CLI (`npm run cli -- help`)
 ```
+
+## CLI / REST API
+
+ブラウザ以外からグラフを操作できる。CLI は REST API のクライアントに
+すぎず、CLI にできることはすべて `curl` でもできる。
+
+```bash
+maxwell login --url https://maxwell-bay.vercel.app
+maxwell frontier <story-id>          # 今すぐ着手できるタスク
+maxwell task status <task-id> DONE
+```
+
+`/api/v1` はブラウザからはセッションCookie、それ以外からは
+`Authorization: Bearer <access token>` を受け付ける（`POST
+/api/v1/auth/token` で発行・更新）。どちらも user-scoped クライアントに
+なるため RLS の効き方は同じで、Service Role Key は使わない。
+
+エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)。
 
 ## Deployment (Vercel)
 
