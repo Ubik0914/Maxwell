@@ -170,28 +170,41 @@
 /* --- The overview ------------------------------------------------------ */
 
 /*
- * React Flow's minimap ships light-themed and desktop-sized. Sized here
- * rather than by props because it has to shrink on a phone, where it is
- * most useful (small window, wide graph) and least affordable.
+ * Sized here rather than by props because it has to shrink on a phone,
+ * where it is most useful (small window, wide graph) and least
+ * affordable. It positions itself too — it is drawn by GraphMiniMap
+ * rather than by React Flow, so nothing else is placing it.
  */
-.react-flow__minimap.graph-minimap {
+.graph-minimap {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 5;
   width: 116px;
   height: 78px;
-  margin: 0.75rem;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background-color: color-mix(in srgb, var(--surface) 85%, transparent);
+  background-color: color-mix(in srgb, var(--surface) 88%, transparent);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(4px);
-  /*
-   * The svg's viewBox fits the *nodes*, and the viewport rectangle
-   * drawn on top of them is whatever part of the canvas you are looking
-   * at — which on a phone is far larger than the graph. So the rect
-   * runs off the side of its own box, and without this it kept going
-   * across the page: an svg does not clip to a border-radius, or to
-   * anything else, unless told to.
-   */
+  cursor: pointer;
+  /* The viewport outline runs past the frame whenever you are looking
+     at more than the graph, and an svg clips to nothing — not even its
+     own border-radius — unless told to. */
   overflow: hidden;
+  /* The whole map is a pan control, so a drag across it must not also
+     scroll the page or select anything. */
+  touch-action: none;
+  user-select: none;
+}
+
+@media (min-width: 640px) {
+  .graph-minimap {
+    right: 1rem;
+    bottom: 1rem;
+    width: 176px;
+    height: 118px;
+  }
 }
 
 /*
@@ -217,13 +230,6 @@
   letter-spacing: 0.04em;
 }
 
-@media (min-width: 640px) {
-  .react-flow__minimap.graph-minimap {
-    width: 176px;
-    height: 118px;
-    margin: 1rem;
-  }
-}
 
 /* --- Nodes: ambient state (looping, faint) ----------------------------- */
 
