@@ -6,8 +6,10 @@ import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 import { rejoinCandidates } from "@/domain/graph/branch";
 import { branchTaskFromNodeAction } from "@/features/graph/actions";
 import { useToast } from "@/components/Toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Modal } from "@/components/Modal";
 import { SpliceDiagram } from "@/components/graph/SpliceDiagram";
+import { Select } from "@/components/ui/Select";
 
 /**
  * "What comes after this one?" — the graph's branch operation, asked in
@@ -47,6 +49,11 @@ export function AddNextTaskDialog({
   const [targetNodeId, setTargetNodeId] = useState(candidates[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [, startTransition] = useTransition();
+  // Owned here rather than left to the caller. The graph's two entry
+  // points happened to register it themselves; the list and the board
+  // did not, so the same dialog closed on Escape from one surface and
+  // not from another. A dialog's way out belongs to the dialog.
+  useEscapeKey(onClose, true);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,29 +105,17 @@ export function AddNextTaskDialog({
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="next-task-rejoin"
-              className="text-sm font-medium text-text-muted"
-            >
-              Before
-            </label>
-            <select
-              id="next-task-rejoin"
-              value={targetNodeId}
-              onChange={(e) => setTargetNodeId(e.target.value)}
-              className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
-            >
-              {candidates.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {candidate.title}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-text-faint">
-              The new task has to be done before this one can start.
-            </p>
-          </div>
+          <Select
+            id="next-task-rejoin"
+            label="Before"
+            value={targetNodeId}
+            options={candidates.map((candidate) => ({
+              value: candidate.id,
+              label: candidate.title,
+            }))}
+            onChange={setTargetNodeId}
+            hint="The new task has to be done before this one can start."
+          />
 
           <div className="flex justify-end gap-2">
             <button

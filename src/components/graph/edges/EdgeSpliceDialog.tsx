@@ -4,6 +4,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { insertTaskOnEdgeAction } from "@/features/graph/actions";
 import { useToast } from "@/components/Toast";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Modal } from "@/components/Modal";
 import { SpliceDiagram } from "@/components/graph/SpliceDiagram";
 
@@ -34,6 +35,8 @@ export function EdgeSpliceDialog({
   const { showError } = useToast();
   const [title, setTitle] = useState("");
   const [, startTransition] = useTransition();
+  // Owned here, not left to the caller — see AddNextTaskDialog.
+  useEscapeKey(onClose, true);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

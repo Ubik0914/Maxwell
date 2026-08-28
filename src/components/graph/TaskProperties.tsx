@@ -1,40 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
-import type { TaskStatus } from "@/domain/graph/types";
+import type { Priority, TaskStatus } from "@/domain/graph/types";
 import { PRIORITY_LABEL, type SettableStatus } from "@/components/task/status";
 import { StatusSelect } from "@/components/task/StatusSelect";
+import { Chip, CHIP_CONTROL, CHIP_SET, CHIP_UNSET } from "@/components/ui/Chip";
+import { Select, type SelectOption } from "@/components/ui/Select";
 
-const SET = "border-border text-text";
-const UNSET = "border-border text-text-muted";
+/** "" is the absence of a priority, which a <select> can only carry as
+ *  a value of its own — `null` is what actually gets saved. */
+type PriorityValue = "" | `${Priority}`;
 
-/** Strips a control back to text so the chip's border is the only frame. */
-const BARE =
-  "cursor-pointer appearance-none bg-transparent text-xs text-current focus:outline-none";
-
-/**
- * A property as a chip: the value is the label.
- *
- * Each one wraps a real form control styled to disappear into the pill,
- * so the whole surface stays keyboard- and screen-reader-native and a
- * phone still gets its own OS picker on tap — no custom popover to
- * reimplement badly.
- */
-function Chip({
-  tone = UNSET,
-  children,
-}: {
-  tone?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={`relative flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors focus-within:border-accent ${tone}`}
-    >
-      {children}
-    </div>
-  );
-}
+const PRIORITY_OPTIONS: SelectOption<PriorityValue>[] = [
+  { value: "", label: "Priority" },
+  ...(Object.entries(PRIORITY_LABEL) as [`${Priority}`, string][]).map(
+    ([value, label]) => ({ value, label }),
+  ),
+];
 
 /**
  * The row of chips between a task's title and its description —
@@ -45,10 +26,11 @@ function Chip({
  * what to save and when, because status goes through the Status Engine
  * while the rest are plain field updates.
  *
- * The status chip is StatusSelect, the same component the list and the
- * board use. It used to be spelled out here, which meant three places
- * would have had to agree on which statuses are choosable — a rule that
- * belongs in one file, not in whichever surfaces happen to show it.
+ * Neither dropdown here is spelled out any more — Status is
+ * StatusSelect and Priority is the shared Select, both in the chip
+ * shape the two remaining `<input>` chips use. Which statuses are
+ * choosable, and what a dropdown looks like, are each decided in one
+ * place now rather than at whichever call sites happen to show them.
  */
 export function TaskProperties({
   status,
@@ -75,26 +57,17 @@ export function TaskProperties({
     <div className="flex flex-wrap items-center gap-1.5">
       <StatusSelect id="panel-status" status={status} onChange={onStatusChange} />
 
-      <Chip tone={priority ? SET : UNSET}>
-        <label htmlFor="panel-priority" className="sr-only">
-          Priority
-        </label>
-        <select
-          id="panel-priority"
-          value={priority}
-          onChange={(e) => onPriorityChange(Number(e.target.value))}
-          className={BARE}
-        >
-          <option value={0}>Priority</option>
-          {Object.entries(PRIORITY_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </Chip>
+      <Select
+        id="panel-priority"
+        label="Priority"
+        variant="chip"
+        value={(priority ? String(priority) : "") as PriorityValue}
+        options={PRIORITY_OPTIONS}
+        onChange={(value) => onPriorityChange(Number(value))}
+        tone={priority ? CHIP_SET : CHIP_UNSET}
+      />
 
-      <Chip tone={dueDate ? SET : UNSET}>
+      <Chip tone={dueDate ? CHIP_SET : CHIP_UNSET}>
         <label htmlFor="panel-due-date" className="sr-only">
           Due date
         </label>
@@ -111,13 +84,13 @@ export function TaskProperties({
           onChange={(e) => onDueDateChange(e.target.value)}
           className={
             dueDate
-              ? `${BARE} w-[7.5rem]`
-              : `${BARE} absolute inset-0 h-full w-full opacity-0`
+              ? `${CHIP_CONTROL} w-[7.5rem]`
+              : `${CHIP_CONTROL} absolute inset-0 h-full w-full opacity-0`
           }
         />
       </Chip>
 
-      <Chip tone={assigneeId ? SET : UNSET}>
+      <Chip tone={assigneeId ? CHIP_SET : CHIP_UNSET}>
         <label htmlFor="panel-assignee" className="sr-only">
           Assignee
         </label>
@@ -127,7 +100,7 @@ export function TaskProperties({
           onChange={(e) => onAssigneeChange(e.target.value)}
           onBlur={onAssigneeCommit}
           placeholder="Assignee"
-          className={`${BARE} w-24 cursor-text placeholder:text-text-muted`}
+          className={`${CHIP_CONTROL} w-24 cursor-text placeholder:text-text-muted`}
         />
       </Chip>
     </div>

@@ -182,6 +182,36 @@ export function GripIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * The mark that says "there is a list behind this".
+ *
+ * Small and low-contrast on purpose: it has to be legible at 12px
+ * beside a one-word value without competing with the value itself,
+ * which is the thing the control is actually showing.
+ */
+export function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M5.5 8L10 12.5 14.5 8" />
+    </Icon>
+  );
+}
+
+/**
+ * Sliders rather than a gear: a gear's teeth are exactly the kind of
+ * detail that turns to mush at 16px in this stroke weight, and two
+ * lines with a knob on each survive it.
+ */
+export function SettingsIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M3 7h5.5M11.5 7H17M3 13h2.5M8.5 13H17" />
+      <circle cx="10" cy="7" r="1.75" />
+      <circle cx="7" cy="13" r="1.75" />
+    </Icon>
+  );
+}
+
 export function SearchIcon({ className }: { className?: string }) {
   return (
     <Icon className={className}>

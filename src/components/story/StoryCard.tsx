@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type MouseEvent } from "react";
 import type { StoryListItem } from "@/repositories/story.repository";
+import { SettingsIcon } from "@/components/icons";
+import { StorySettingsDialog } from "@/components/story/StorySettingsDialog";
 
 const STATUS_TONE: Record<StoryListItem["status"], string> = {
   ACTIVE: "text-accent",
@@ -66,6 +68,7 @@ function Tally({
 export function StoryCard({ story }: { story: StoryListItem }) {
   const router = useRouter();
   const [isLaunching, setIsLaunching] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const href = `/stories/${story.id}`;
 
   const { done, ready, inProgress, blocked } = story.stats;
@@ -82,58 +85,93 @@ export function StoryCard({ story }: { story: StoryListItem }) {
   }
 
   return (
-    <Link
-      href={href}
-      onClick={handleClick}
-      className={`story-card flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 hover:border-accent hover:shadow-[0_0_18px_var(--accent-soft)] ${
+    // The card is the frame; the link is what fills it. That split is
+    // what lets the settings control be a *sibling* of the link rather
+    // than a child of it — a button inside an anchor is two controls
+    // fighting over one press, and the browser's own "open in new tab"
+    // would inherit the fight. Keeping the frame on the outside also
+    // means the lift on hover carries both, instead of the card
+    // growing out from under a control pinned to its corner.
+    <div
+      className={`story-card relative rounded-xl border border-border bg-surface hover:border-accent hover:shadow-[0_0_18px_var(--accent-soft)] ${
         isLaunching ? "story-card-launch" : ""
       }`}
     >
-      <div className="flex items-center gap-3">
-        <h2 className="min-w-0 flex-1 truncate font-medium text-text">
-          {story.title}
-        </h2>
-        <span
-          className={`flex shrink-0 items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase ${
-            STATUS_TONE[story.status]
-          }`}
-        >
+      <Link
+        href={href}
+        onClick={handleClick}
+        className="flex flex-col gap-3 p-4"
+      >
+        <div className="flex items-center gap-3 pr-7">
+          <h2 className="min-w-0 flex-1 truncate font-medium text-text">
+            {story.title}
+          </h2>
           <span
-            aria-hidden="true"
-            className="h-1.5 w-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor]"
+            className={`flex shrink-0 items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase ${
+              STATUS_TONE[story.status]
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor]"
+            />
+            {story.status}
+          </span>
+        </div>
+
+        <div className="relative h-px w-full bg-border" aria-hidden="true">
+          <div
+            className="absolute inset-y-0 left-0 bg-accent shadow-[0_0_6px_var(--accent)]"
+            style={{ width: `${progress * 100}%` }}
           />
-          {story.status}
+          <span className="absolute top-[-3px] left-0 h-[7px] w-[7px] rounded-full bg-accent shadow-[0_0_6px_var(--accent)]" />
+          <span
+            className={`absolute top-[-3px] right-0 h-[7px] w-[7px] rounded-full ${
+              story.status === "COMPLETED"
+                ? "bg-success shadow-[0_0_6px_var(--success)]"
+                : "bg-border-strong"
+            }`}
+          />
+          <span className="spark-run absolute top-[-2px] h-[5px] w-[5px] rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />
+        </div>
+
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <Tally value={done} label="Done" tone="text-success" />
+          <Tally value={ready} label="Ready" tone="text-accent" />
+          {inProgress > 0 && (
+            <Tally value={inProgress} label="Progress" tone="text-warning" />
+          )}
+          <Tally value={blocked} label="Blocked" tone="text-danger" />
+        </div>
+
+        <span className="text-xs text-text-faint">
+          {formatRelativeTime(story.updatedAt)}
         </span>
-      </div>
+      </Link>
 
-      <div className="relative h-px w-full bg-border" aria-hidden="true">
-        <div
-          className="absolute inset-y-0 left-0 bg-accent shadow-[0_0_6px_var(--accent)]"
-          style={{ width: `${progress * 100}%` }}
+      {/* Hidden while the card is becoming the graph: it is not part
+          of that animation and would be the one thing left behind. */}
+      {!isLaunching && (
+        <button
+          type="button"
+          onClick={() => setIsSettingsOpen(true)}
+          aria-label={`Settings for ${story.title}`}
+          title="Story settings"
+          className="absolute top-3.5 right-3.5 rounded-md p-1 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
+        >
+          <SettingsIcon className="h-4 w-4" />
+        </button>
+      )}
+
+      {isSettingsOpen && (
+        <StorySettingsDialog
+          story={story}
+          onClose={() => setIsSettingsOpen(false)}
+          // The card is in the list it would be deleted from, so there
+          // is nowhere to go — the list simply loses a row.
+          onDeleted={() => router.refresh()}
         />
-        <span className="absolute top-[-3px] left-0 h-[7px] w-[7px] rounded-full bg-accent shadow-[0_0_6px_var(--accent)]" />
-        <span
-          className={`absolute top-[-3px] right-0 h-[7px] w-[7px] rounded-full ${
-            story.status === "COMPLETED"
-              ? "bg-success shadow-[0_0_6px_var(--success)]"
-              : "bg-border-strong"
-          }`}
-        />
-        <span className="spark-run absolute top-[-2px] h-[5px] w-[5px] rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />
-      </div>
-
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <Tally value={done} label="Done" tone="text-success" />
-        <Tally value={ready} label="Ready" tone="text-accent" />
-        {inProgress > 0 && (
-          <Tally value={inProgress} label="Progress" tone="text-warning" />
-        )}
-        <Tally value={blocked} label="Blocked" tone="text-danger" />
-      </div>
-
-      <span className="text-xs text-text-faint">
-        {formatRelativeTime(story.updatedAt)}
-      </span>
-    </Link>
+      )}
+    </div>
   );
 }

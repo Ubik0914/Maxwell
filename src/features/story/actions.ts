@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createStorySchema, updateStorySchema } from "@/lib/validation/story";
 import { ErrorCode } from "@/lib/errors/codes";
 import * as storyRepository from "@/repositories/story.repository";
+import * as nodeRepository from "@/repositories/node.repository";
+import * as edgeRepository from "@/repositories/edge.repository";
+import { calculateStoryStatus } from "@/domain/graph/story-status";
 import type { ActionResult } from "@/types/action-result";
 
 async function requireUser() {
@@ -128,6 +131,46 @@ export async function archiveStoryAction(
       error: {
         code: ErrorCode.INTERNAL_ERROR,
         message: "Failed to archive story.",
+      },
+    };
+  }
+}
+
+/**
+ * Takes a story back out of the archive.
+ *
+ * The restored status is re-derived from the graph rather than set to
+ * ACTIVE, because ACTIVE/COMPLETED is not a thing anyone chooses — it
+ * is what the DAG says. Archiving is the one manual override, so
+ * lifting it should hand the story back to the rule that owns it,
+ * otherwise a finished story would come back out claiming to be
+ * unfinished.
+ */
+export async function unarchiveStoryAction(
+  storyId: string,
+): Promise<ActionResult<"ACTIVE" | "COMPLETED">> {
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    const [nodes, edges] = await Promise.all([
+      nodeRepository.findByStoryId(supabase, storyId),
+      edgeRepository.findByStoryId(supabase, storyId),
+    ]);
+    const status = calculateStoryStatus(nodes, edges);
+    await storyRepository.updateStatus(supabase, storyId, status);
+    return { success: true, data: status };
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to restore story.",
       },
     };
   }

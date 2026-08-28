@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "@/components/icons";
 import { ViewSwitcher } from "@/components/story/ViewSwitcher";
+import { StorySettingsButton } from "@/components/story/StorySettingsButton";
 
 const STORY_STATUS_TONE: Record<string, string> = {
   ACTIVE: "text-accent",
@@ -49,6 +50,7 @@ export function StoryHeader({
   story: {
     id: string;
     title: string;
+    description: string | null;
     status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
   };
   stats: { done: number; ready: number; inProgress: number; blocked: number };
@@ -80,6 +82,7 @@ export function StoryHeader({
           />
           {story.status}
         </span>
+        <StorySettingsButton story={story} />
       </div>
 
       {/* Wraps rather than scrolls: on a narrow phone the frontier
