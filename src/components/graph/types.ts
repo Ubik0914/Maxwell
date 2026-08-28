@@ -13,10 +13,15 @@ import type { NodePulse } from "@/features/graph/hooks/useEnergyFlow";
  * injects it for the ~1s a status change is being animated and drops it
  * again, so nodes carry no animation bookkeeping of their own.
  */
-export type FlowNodeData = GraphNode & { pulse?: NodePulse } & Record<
-    string,
-    unknown
-  >;
+export type FlowNodeData = GraphNode & {
+  pulse?: NodePulse;
+  /**
+   * GOAL only: whether the story has actually arrived here. Derived per
+   * render from the same rule that sets the story's own status, so an
+   * unreached goal can be drawn dark instead of pretending to be lit.
+   */
+  reached?: boolean;
+} & Record<string, unknown>;
 export type FlowNode = Node<FlowNodeData>;
 
 /**
