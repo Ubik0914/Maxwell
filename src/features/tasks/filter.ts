@@ -1,5 +1,30 @@
 import type { GraphNode, TaskStatus } from "@/domain/graph/types";
-import { statusOf } from "@/components/task/status";
+import { BOARD_STATUSES, statusOf } from "@/components/task/status";
+
+/** `null` is "everything" — the absence of a filter, not a sixth state. */
+export type StatusFilter = TaskStatus | null;
+
+/**
+ * The filters in the order they are shown, which is also the order a
+ * swipe walks them.
+ */
+export const FILTER_ORDER: StatusFilter[] = [null, ...BOARD_STATUSES];
+
+/**
+ * The filter one step along, or undefined at either end.
+ *
+ * Deliberately does not wrap. Running off the edge of a list and
+ * landing back at the start is disorienting, and the end of the row is
+ * worth being able to feel.
+ */
+export function stepFilter(
+  current: StatusFilter,
+  step: -1 | 1,
+): StatusFilter | undefined {
+  const at = FILTER_ORDER.indexOf(current);
+  if (at === -1) return undefined;
+  return FILTER_ORDER[at + step];
+}
 
 /**
  * Free-text search over a task.

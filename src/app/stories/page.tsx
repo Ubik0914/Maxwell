@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { StoryList } from "@/components/story/StoryList";
 import { StatusFilter } from "@/components/story/StatusFilter";
 import { CreateStoryModal } from "@/components/story/CreateStoryModal";
+import { StoriesPane } from "@/components/story/StoriesPane";
 
 type StatusFilterValue = "ALL" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
 
@@ -35,7 +36,10 @@ export default async function StoriesPage({
           <CreateStoryModal workspaceId={workspace.id} />
         </div>
         <StatusFilter current={filter} />
-        <StoryList stories={filteredStories} />
+        {/* Swipe left or right to walk the filters — see StoriesPane. */}
+        <StoriesPane current={filter}>
+          <StoryList stories={filteredStories} />
+        </StoriesPane>
       </div>
     </AppShell>
   );

@@ -1,29 +1,20 @@
-import { Skeleton } from "@/components/Skeleton";
 import { StoryShellSkeleton } from "@/components/story/StoryShellSkeleton";
 
 /**
  * Shown while a story's graph is fetched.
  *
- * Below the header strip, the canvas's own dot grid with a few
- * node-shaped placeholders on it, so the wait reads as a graph arriving
- * rather than as a blank panel.
+ * The canvas's own dot grid and nothing else. It used to carry a few
+ * node-shaped placeholders, on the theory that they would read as a
+ * graph arriving — but a real graph is nowhere near two rectangles in
+ * the middle of the screen, so what they actually did was show a shape
+ * that was about to be replaced by a different one. The grid alone says
+ * the same thing without promising anything: this is a canvas, and it
+ * is not ready yet.
  */
 export default function StoryGraphLoading() {
   return (
     <StoryShellSkeleton>
       <div className="canvas-grid relative min-h-0 flex-1 overflow-hidden">
-        <div className="flex h-full items-center justify-center px-4">
-          <div className="flex items-center">
-            <Skeleton className="h-14 w-[130px] rounded-[10px] sm:w-[170px]" />
-            <span aria-hidden="true" className="h-px w-8 bg-border-strong sm:w-16" />
-            <Skeleton className="h-14 w-[130px] rounded-[10px] sm:w-[170px]" />
-            <span
-              aria-hidden="true"
-              className="hidden h-px w-16 bg-border-strong sm:block"
-            />
-            <Skeleton className="hidden h-14 w-[170px] rounded-[10px] sm:block" />
-          </div>
-        </div>
         <span className="sr-only">Loading graph…</span>
       </div>
     </StoryShellSkeleton>

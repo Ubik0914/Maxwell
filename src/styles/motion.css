@@ -208,6 +208,36 @@
   -webkit-touch-callout: none;
 }
 
+/*
+ * A list arriving from the side it was swiped in from.
+ *
+ * Without it, swiping between filters is a silent substitution: the
+ * rows are simply different ones, with nothing saying you moved. A
+ * short slide in the direction of travel is the whole story — it is
+ * over before you have finished lifting your thumb.
+ */
+.pane-from-right {
+  animation: pane-from-right 200ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+.pane-from-left {
+  animation: pane-from-left 200ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+@keyframes pane-from-right {
+  from {
+    opacity: 0;
+    translate: 18px 0;
+  }
+}
+
+@keyframes pane-from-left {
+  from {
+    opacity: 0;
+    translate: -18px 0;
+  }
+}
+
 /* --- Task views: the same state change, told without a graph ----------- */
 
 /*
@@ -403,7 +433,9 @@ html[data-motion="reduced"] {
   /* Entrances keep the fade and lose the displacement. */
   & .animate-toast-in,
   & .modal-panel,
-  & .graph-enter {
+  & .graph-enter,
+  & .pane-from-left,
+  & .pane-from-right {
     animation: reduced-appear 200ms ease-out both;
   }
 

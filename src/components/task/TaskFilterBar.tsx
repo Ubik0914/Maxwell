@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { TaskStatus } from "@/domain/graph/types";
+import type { StatusFilter } from "@/features/tasks/filter";
 import { BOARD_STATUSES, STATUS_INK, STATUS_LABEL } from "@/components/task/status";
 import { SearchIcon } from "@/components/icons";
 
-/** `null` is "everything" — the absence of a filter, not a sixth state. */
-export type StatusFilter = TaskStatus | null;
+export type { StatusFilter } from "@/features/tasks/filter";
 
 /**
  * Search and state filters, shared by the list and the board.
@@ -33,6 +34,25 @@ export function TaskFilterBar({
   total: number;
   children?: React.ReactNode;
 }) {
+  /*
+   * Keep the chosen chip on screen.
+   *
+   * The row scrolls sideways, so a filter reached by swiping the list
+   * can easily be one of the chips currently off the edge — and then
+   * nothing visible says which filter is applied. `inline: nearest`
+   * moves it the shortest distance that makes it visible, and
+   * `block: nearest` is what stops the page itself from scrolling on
+   * the way.
+   */
+  const activeChip = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeChip.current?.scrollIntoView({
+      inline: "nearest",
+      block: "nearest",
+      behavior: "smooth",
+    });
+  }, [status]);
+
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-5">
       <div className="relative flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1.5 transition-colors focus-within:border-accent sm:max-w-64">
@@ -61,6 +81,7 @@ export function TaskFilterBar({
         className="scroll-x -mx-3 flex w-full min-w-0 items-center gap-1 px-3 sm:mx-0 sm:w-auto sm:flex-1 sm:px-0"
       >
         <FilterChip
+          ref={status === null ? activeChip : undefined}
           isActive={status === null}
           onClick={() => onStatusChange(null)}
           label="All"
@@ -69,6 +90,7 @@ export function TaskFilterBar({
         {BOARD_STATUSES.map((value) => (
           <FilterChip
             key={value}
+            ref={status === value ? activeChip : undefined}
             isActive={status === value}
             onClick={() => onStatusChange(status === value ? null : value)}
             label={STATUS_LABEL[value]}
@@ -96,12 +118,14 @@ export function TaskFilterBar({
 }
 
 function FilterChip({
+  ref,
   isActive,
   onClick,
   label,
   count,
   ink = "text-text-muted",
 }: {
+  ref?: React.Ref<HTMLButtonElement>;
   isActive: boolean;
   onClick: () => void;
   label: string;
@@ -110,6 +134,7 @@ function FilterChip({
 }) {
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
       aria-pressed={isActive}
