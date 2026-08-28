@@ -228,3 +228,22 @@
   max-width: 100%;
   border-radius: 8px;
 }
+
+/*
+ * Pictures in a description.
+ *
+ * Bounded by the column rather than by their own size — a screenshot is
+ * usually far wider than the panel it lands in, and one that sets the
+ * width of the text around it makes the whole description scroll
+ * sideways. The frame is there because a dark screenshot on a dark
+ * panel has no edge of its own to show where it stops.
+ */
+.md-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75rem 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+}
