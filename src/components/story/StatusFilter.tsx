@@ -1,30 +1,32 @@
 import Link from "next/link";
+import {
+  STORY_FILTER_ORDER,
+  storyFilterHref,
+  type StoryFilter,
+} from "@/features/story/filter";
 
-const FILTERS = [
-  { label: "All", value: "ALL" },
-  { label: "Active", value: "ACTIVE" },
-  { label: "Completed", value: "COMPLETED" },
-  { label: "Archived", value: "ARCHIVED" },
-] as const;
+const LABELS: Record<StoryFilter, string> = {
+  ALL: "All",
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  ARCHIVED: "Archived",
+};
 
 export function StatusFilter({ current }: { current: string }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {FILTERS.map((filter) => (
+      {STORY_FILTER_ORDER.map((value) => (
         <Link
-          key={filter.value}
-          href={
-            filter.value === "ALL"
-              ? "/stories"
-              : `/stories?status=${filter.value}`
-          }
+          key={value}
+          href={storyFilterHref(value)}
+          aria-current={current === value ? "page" : undefined}
           className={`rounded-full border px-3 py-1 text-sm transition ${
-            current === filter.value
+            current === value
               ? "border-accent bg-accent-soft text-accent"
               : "border-border text-text-muted hover:border-border-strong hover:text-text"
           }`}
         >
-          {filter.label}
+          {LABELS[value]}
         </Link>
       ))}
     </div>

@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 import { buildBlockerMap } from "@/domain/graph/blockers";
 import { sortTasks, type TaskSortKey } from "@/domain/graph/task-order";
-import { countByStatus, matchesQuery, onlyTasks } from "@/features/tasks/filter";
+import {
+  countByStatus,
+  matchesQuery,
+  onlyTasks,
+  stepFilter,
+} from "@/features/tasks/filter";
 import { useTaskActions } from "@/features/tasks/hooks/useTaskActions";
 import { useCardDrag, type DropTarget } from "@/features/tasks/hooks/useCardDrag";
 import { statusOf } from "@/components/task/status";
@@ -14,6 +19,7 @@ import {
   TaskFilterBar,
   type StatusFilter,
 } from "@/components/task/TaskFilterBar";
+import { useSwipeFilter } from "@/hooks/useSwipeFilter";
 import { GripIcon } from "@/components/icons";
 
 interface Column {
@@ -73,6 +79,8 @@ export function TaskTable({
 }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
+  /** Which way the last filter change came from, for the slide-in. */
+  const [enterFrom, setEnterFrom] = useState<-1 | 1 | 0>(0);
   const [sortKey, setSortKey] = useState<TaskSortKey>("urgency");
   const [isDescending, setIsDescending] = useState(false);
   // `actions.nodes` already carries any status change still in flight,
@@ -105,6 +113,21 @@ export function TaskTable({
       actions.reorder(taskId, visible, target.index),
   });
 
+  /**
+   * The filters are a row of siblings, so a phone can move along them
+   * with a thumb instead of reaching for a chip. Stops at both ends
+   * rather than wrapping: running off the edge of a list and landing
+   * back at the start is disorienting, and the end is worth feeling.
+   */
+  function step(direction: -1 | 1) {
+    const next = stepFilter(statusFilter, direction);
+    if (next === undefined) return;
+    setStatusFilter(next);
+    setEnterFrom(direction);
+  }
+
+  const swipe = useSwipeFilter({ onSwipe: step });
+
   function sortBy(key: TaskSortKey) {
     if (key === sortKey) {
       setIsDescending((prev) => !prev);
@@ -120,7 +143,10 @@ export function TaskTable({
         query={query}
         onQueryChange={setQuery}
         status={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={(next) => {
+          setStatusFilter(next);
+          setEnterFrom(0);
+        }}
         counts={counts}
         total={tasks.length}
       >
@@ -144,7 +170,19 @@ export function TaskTable({
         </button>
       </TaskFilterBar>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div
+        {...swipe}
+        // Keyed on the filter so React remounts it and the animation
+        // replays; without the key a class alone only ever fires once.
+        key={statusFilter ?? "ALL"}
+        className={`min-h-0 flex-1 overflow-auto ${
+          enterFrom === 1
+            ? "pane-from-right"
+            : enterFrom === -1
+              ? "pane-from-left"
+              : ""
+        }`}
+      >
         {visible.length === 0 ? (
           <EmptyState hasTasks={tasks.length > 0} />
         ) : (
