@@ -14,6 +14,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { GraphNode, GraphEdge } from "@/domain/graph/types";
+import { calculateStoryStatus } from "@/domain/graph/story-status";
 import type {
   FlowEdge,
   FlowNode,
@@ -125,16 +126,34 @@ export function StoryGraph({
   // timers, so the canvas returns to rest without anything to reset.
   const { pulses, emitters, arrivals } = useEnergyFlow(flowNodes);
 
+  // Has the graph actually arrived at the goal? Decided by the very rule
+  // that sets the story's own status, so the goal lighting up and the
+  // story reading COMPLETED can never disagree. Until then the goal is
+  // drawn dark: it's a destination, not an achievement.
+  const goalReached = useMemo(() => {
+    const domainNodes = flowNodes.map((node) => node.data);
+    const domainEdges = flowEdges.map((edge) => ({
+      id: edge.id,
+      storyId,
+      sourceNodeId: edge.source,
+      targetNodeId: edge.target,
+    }));
+    return calculateStoryStatus(domainNodes, domainEdges) === "COMPLETED";
+  }, [flowNodes, flowEdges, storyId]);
+
   // A pulse is presentation state, so it's grafted on here instead of
-  // being written into node state: when nothing is pulsing this returns
-  // the very same array, and React Flow re-renders nothing at all.
+  // being written into node state: when nothing is pulsing and the goal
+  // is unreached this returns the very same array, and React Flow
+  // re-renders nothing at all.
   const displayNodes = useMemo(() => {
-    if (pulses.size === 0) return flowNodes;
+    if (pulses.size === 0 && !goalReached) return flowNodes;
     return flowNodes.map((node) => {
       const pulse = pulses.get(node.id);
-      return pulse ? { ...node, data: { ...node.data, pulse } } : node;
+      const reached = goalReached && node.data.type === "GOAL";
+      if (!pulse && !reached) return node;
+      return { ...node, data: { ...node.data, pulse, reached } };
     });
-  }, [flowNodes, pulses]);
+  }, [flowNodes, pulses, goalReached]);
 
   // Recomputed from flowNodes on every render (not baked into flowEdges'
   // own state) so a Realtime status change to DONE re-animates that
