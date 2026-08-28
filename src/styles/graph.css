@@ -38,6 +38,10 @@
 .react-flow__edge .react-flow__edge-path {
   stroke: var(--dead);
   stroke-width: 2;
+  /* Set back, because a plain dead edge is the far end of the graph:
+     its target isn't even waiting on anything yet — typically the run
+     out to GOAL. See .edge-waiting for the other half of this. */
+  opacity: 0.6;
   transition:
     stroke 260ms ease,
     stroke-width 260ms ease,
@@ -50,13 +54,23 @@
 .react-flow__edge.edge-live .react-flow__edge-path {
   stroke: color-mix(in srgb, var(--accent) 70%, var(--dead));
   stroke-width: 3;
+  /* Explicit, because the base rule sets a falloff for the dead states
+     and a lit conduit is the source that falloff is measured from. */
+  opacity: 1;
 }
 
-/* Leads into something blocked: dead like the rest, and set back a
-   little further, because nothing can move along it until whatever is
-   holding up its target clears. */
-.react-flow__edge.edge-damped .react-flow__edge-path {
-  opacity: 0.6;
+/*
+ * Leads into something that is waiting — the boundary the energised
+ * part of the graph stops at, so it is the brightest of the dead
+ * conduits.
+ *
+ * These two opacities were the other way round, which put the faintest
+ * line right beside the lit region and the strongest one out at the far
+ * end. Light should fall off with distance from its source: nearest the
+ * current, brightest.
+ */
+.react-flow__edge.edge-waiting .react-flow__edge-path {
+  opacity: 1;
 }
 
 /*

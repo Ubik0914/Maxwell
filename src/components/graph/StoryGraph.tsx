@@ -59,7 +59,7 @@ function toFlowEdges(edges: GraphEdge[]): FlowEdge[] {
     type: "custom",
     source: edge.sourceNodeId,
     target: edge.targetNodeId,
-    data: { live: false, damped: false, surgeId: null },
+    data: { live: false, waiting: false, surgeId: null },
   }));
 }
 

@@ -75,14 +75,14 @@ export function useGraphPresentation({
     const nodeById = new Map(flowNodes.map((n) => [n.id, n]));
     return flowEdges.map((edge) => {
       const live = isFlowingSource(nodeById.get(edge.source));
-      const damped = nodeById.get(edge.target)?.data.status === "BLOCKED";
+      const waiting = nodeById.get(edge.target)?.data.status === "BLOCKED";
       const surgeId =
         emitters.get(edge.source) ?? arrivals.get(edge.target) ?? null;
 
       return {
         ...edge,
-        className: live ? "edge-live" : damped ? "edge-damped" : undefined,
-        data: { live, damped, surgeId },
+        className: live ? "edge-live" : waiting ? "edge-waiting" : undefined,
+        data: { live, waiting, surgeId },
       };
     });
   }, [flowEdges, flowNodes, emitters, arrivals]);

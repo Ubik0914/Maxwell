@@ -46,7 +46,7 @@ function edgeRowToFlowEdge(row: EdgeRow): FlowEdge {
     target: row.target_node_id,
     // Placeholder only: StoryGraph derives the real energy state for
     // every edge on each render (see its displayEdges).
-    data: { live: false, damped: false, surgeId: null },
+    data: { live: false, waiting: false, surgeId: null },
   };
 }
 

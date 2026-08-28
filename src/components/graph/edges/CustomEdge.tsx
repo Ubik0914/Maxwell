@@ -24,7 +24,7 @@ const SPARK_DURATION = "2.4s";
  * A dependency edge, drawn as a conduit rather than a connector.
  *
  * Three layers, all driven by graph state (see FlowEdgeData):
- *   1. the path itself — dim, lit, or damped
+ *   1. the path itself — lit, waiting, or dead
  *   2. drifting sparks while the source has energy to give
  *   3. a one-shot surge when a task upstream just completed, which is
  *      the change actually propagating through the DAG
