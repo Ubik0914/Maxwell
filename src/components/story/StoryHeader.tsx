@@ -46,6 +46,9 @@ function Meter({
  *   2. a full-width tab bar — which view of it you are looking at
  *   3. a readout — what the graph currently contains
  *
+ * On a phone row 2 is not here at all: a tab bar belongs under the
+ * thumb, so StoryShell puts it along the bottom edge instead.
+ *
  * The tabs used to be a small pill sharing row 2 with the counters,
  * which cost the counters a second line and gave the app's three main
  * screens a control the width of a thumb. Split apart, all three rows
@@ -98,7 +101,10 @@ export function StoryHeader({
         <StorySettingsButton story={story} />
       </div>
 
-      <ViewSwitcher storyId={story.id} />
+      {/* Up here only where there is a pointer. On a phone the tab bar
+          lives along the bottom edge, where the thumb is — see
+          StoryShell. */}
+      <ViewSwitcher storyId={story.id} className="hidden sm:flex" />
 
       {/* Bleeds to the screen edge so a counter scrolled to the end
           sits flush rather than in a gutter. */}

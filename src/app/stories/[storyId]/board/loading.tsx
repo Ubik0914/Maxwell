@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/Skeleton";
-import { StoryHeaderSkeleton } from "@/components/story/StoryHeaderSkeleton";
+import { StoryShellSkeleton } from "@/components/story/StoryShellSkeleton";
 
 /* How many cards each column gets while it waits — enough to read as
    columns holding different amounts of work rather than a grid. */
@@ -14,9 +14,7 @@ const COLUMNS = [3, 2, 1, 3, 0];
  */
 export default function StoryBoardLoading() {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
-      <StoryHeaderSkeleton />
-
+    <StoryShellSkeleton>
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-5">
         <Skeleton className="h-8 w-full rounded-md sm:w-64" />
         <Skeleton className="h-6 w-16 rounded-full" />
@@ -46,6 +44,6 @@ export default function StoryBoardLoading() {
         </div>
         <span className="sr-only">Loading board…</span>
       </div>
-    </div>
+    </StoryShellSkeleton>
   );
 }

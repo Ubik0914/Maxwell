@@ -26,7 +26,11 @@ export function ToolbarButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+      // 44px on a phone, which is the smallest target anyone should
+      // have to hit with a thumb, and back to 32px once there is a
+      // pointer. The icon inside scales with it — see `.toolbar-button`
+      // in graph.css for why that sizing isn't a utility class.
+      className={`toolbar-button flex h-11 w-11 items-center justify-center rounded-full transition-colors sm:h-8 sm:w-8 ${
         tone === "accent"
           ? "text-accent hover:bg-accent-soft"
           : "text-text-muted hover:bg-surface-hover hover:text-accent"
