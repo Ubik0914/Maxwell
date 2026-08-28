@@ -242,6 +242,82 @@
   }
 }
 
+/*
+ * The task panel arriving and leaving.
+ *
+ * It comes from the side it lives on — up from the bottom as a sheet,
+ * in from the right as a panel — because a surface that fades in from
+ * nowhere leaves you working out where it came from and, more
+ * importantly, where it will go back to.
+ *
+ * Leaving is the same motion reversed and slightly quicker: an entrance
+ * is worth watching and an exit is something you have already decided.
+ * The component stays mounted for the length of it (see LEAVE_MS in
+ * TaskPanel) — an exit animation cannot play on a component that has
+ * already been removed.
+ */
+.task-panel {
+  animation: panel-up 220ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+.task-panel-leaving {
+  animation: panel-down 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes panel-up {
+  from {
+    opacity: 0;
+    transform: translateY(3%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes panel-down {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4%);
+  }
+}
+
+@media (min-width: 640px) {
+  .task-panel {
+    animation-name: panel-in-right;
+  }
+
+  .task-panel-leaving {
+    animation-name: panel-out-right;
+  }
+}
+
+@keyframes panel-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(6%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes panel-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(8%);
+  }
+}
+
 /* Long-pressing a card must not raise iOS's own text callout over the
    menu we are about to open. Selection is left alone — this suppresses
    the callout, not the ability to select. */
@@ -474,6 +550,7 @@ html[data-motion="reduced"] {
   /* Entrances keep the fade and lose the displacement. */
   & .animate-toast-in,
   & .modal-panel,
+  & .task-panel,
   & .graph-enter,
   & .pane-from-left,
   & .pane-from-right,
@@ -483,7 +560,8 @@ html[data-motion="reduced"] {
     animation: reduced-appear 200ms ease-out both;
   }
 
-  & .story-card-launch {
+  & .story-card-launch,
+  & .task-panel-leaving {
     animation: reduced-vanish 200ms ease-out both;
   }
 

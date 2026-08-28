@@ -3,6 +3,8 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { insertTaskOnEdgeAction } from "@/features/graph/actions";
+import { usePendingGraph } from "@/features/graph/pending-graph";
+import { pendingId, pendingTask } from "@/domain/graph/pending";
 import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Modal } from "@/components/Modal";
@@ -26,13 +28,26 @@ import { SpliceDiagram } from "@/components/graph/SpliceDiagram";
  */
 export function EdgeSpliceDialog({
   edgeId,
+  sourceNodeId,
+  targetNodeId,
+  at,
   onClose,
 }: {
   edgeId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  /** Where on the canvas the new node should appear — the midpoint of
+   *  the connection it is going into. */
+  at: { x: number; y: number };
   onClose: () => void;
 }) {
   const router = useRouter();
   const { showError } = useToast();
+  const pending = usePendingGraph();
+  // Read off the connection's own source rather than passed in: the
+  // edge component knows which nodes it joins, not which story it is.
+  const storyId =
+    pending.nodes.find((node) => node.id === sourceNodeId)?.storyId ?? "";
   const [title, setTitle] = useState("");
   const [, startTransition] = useTransition();
   // Owned here, not left to the caller — see AddNextTaskDialog.
@@ -41,6 +56,15 @@ export function EdgeSpliceDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onClose();
+
+    // The connection becomes two with the task between them, drawn
+    // before the request leaves.
+    const task = pendingTask({ storyId, title, status: "BLOCKED", ...at });
+    pending.spliceEdge(edgeId, task, [
+      { id: pendingId(), storyId, sourceNodeId, targetNodeId: task.id },
+      { id: pendingId(), storyId, sourceNodeId: task.id, targetNodeId },
+    ]);
+
     startTransition(async () => {
       const result = await insertTaskOnEdgeAction({
         edgeId,
@@ -48,6 +72,7 @@ export function EdgeSpliceDialog({
         mode: "insert",
       });
       if (!result.success) {
+        pending.revert();
         showError(result.error.message);
         return;
       }

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { GraphResult } from "@/features/graph/services/graph-service";
+import { PendingGraphProvider } from "@/features/graph/pending-graph";
 import { StoryHeader } from "@/components/story/StoryHeader";
 import { ViewSwitcher } from "@/components/story/ViewSwitcher";
 
@@ -16,6 +17,12 @@ import { ViewSwitcher } from "@/components/story/ViewSwitcher";
  * ends where the bar begins. That is what keeps the graph's toolbar and
  * its overview — both positioned against the canvas's bottom edge —
  * sitting above the bar instead of under it.
+ *
+ * It is also where the story's nodes and edges enter the browser, so it
+ * is where they are wrapped in the layer that lets a change show before
+ * the database has agreed to it. All three views read from that layer
+ * rather than from props, which is what stops one of them being
+ * optimistic and another not.
  */
 export function StoryShell({
   graph,
@@ -37,7 +44,9 @@ export function StoryShell({
         frontierCount={graph.frontier.length}
       />
 
-      {children}
+      <PendingGraphProvider nodes={graph.nodes} edges={graph.edges}>
+        {children}
+      </PendingGraphProvider>
 
       <ViewSwitcher
         storyId={graph.story.id}

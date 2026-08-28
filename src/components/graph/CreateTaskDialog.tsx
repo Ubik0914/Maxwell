@@ -3,6 +3,9 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createTaskAction } from "@/features/graph/actions";
+import { usePendingGraph } from "@/features/graph/pending-graph";
+import { pendingTask } from "@/domain/graph/pending";
+import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Spinner } from "@/components/Spinner";
 import { Modal } from "@/components/Modal";
@@ -13,9 +16,10 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const pending = usePendingGraph();
+  const { showError } = useToast();
   useEscapeKey(() => setIsOpen(false), isOpen);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -28,6 +32,17 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
       y: 220 + Math.random() * 80,
     };
 
+    // The node is on the canvas before the request leaves, and the
+    // dialog is out of the way — the decision was made when Create was
+    // pressed, and watching a spinner over the canvas you are about to
+    // look at is a round-trip spent on nothing.
+    pending.addNode(
+      pendingTask({ storyId, title, description, ...position }),
+    );
+    setTitle("");
+    setDescription("");
+    setIsOpen(false);
+
     startTransition(async () => {
       const formData = new FormData();
       formData.set("storyId", storyId);
@@ -38,14 +53,10 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
 
       const result = await createTaskAction(null, formData);
       if (!result.success) {
-        setError(result.error.message);
+        pending.revert();
+        showError(result.error.message);
         return;
       }
-
-      setError(null);
-      setTitle("");
-      setDescription("");
-      setIsOpen(false);
       router.refresh();
     });
   }
@@ -102,11 +113,6 @@ export function CreateTaskDialog({ storyId }: { storyId: string }) {
               />
             </div>
 
-            {error && (
-              <p role="alert" className="text-sm text-danger select-text">
-                {error}
-              </p>
-            )}
 
             <div className="flex justify-end gap-2">
               <button

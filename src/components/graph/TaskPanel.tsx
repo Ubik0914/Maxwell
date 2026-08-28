@@ -8,6 +8,7 @@ import {
   updateTaskStatusAction,
   deleteTaskAction,
 } from "@/features/graph/actions";
+import { usePendingGraph } from "@/features/graph/pending-graph";
 import { DeleteConfirmDialog } from "@/components/graph/DeleteConfirmDialog";
 import { TaskProperties } from "@/components/graph/TaskProperties";
 import { useToast } from "@/components/Toast";
@@ -15,8 +16,23 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { useSheetDismiss } from "@/hooks/useSheetDismiss";
 import { Spinner } from "@/components/Spinner";
-import { ChevronDownIcon, CloseIcon, TrashIcon } from "@/components/icons";
+import {
+  ChevronDownIcon,
+  CloseIcon,
+  ImageIcon,
+  TrashIcon,
+} from "@/components/icons";
 import { Markdown } from "@/components/ui/Markdown";
+import { uploadTaskImage } from "@/features/attachments/upload";
+import {
+  ACCEPTED_IMAGE_TYPES,
+  appendImage,
+  imageMarkdown,
+  rejectImage,
+} from "@/features/attachments/task-images";
+
+/** Long enough to see the panel leave, short enough not to wait for it. */
+const LEAVE_MS = 180;
 
 /**
  * The task detail surface.
@@ -50,6 +66,7 @@ export function TaskPanel({
 }) {
   const router = useRouter();
   const { showError } = useToast();
+  const pending = usePendingGraph();
   const [title, setTitle] = useState(node.title);
   const [description, setDescription] = useState(node.description ?? "");
   const [assigneeId, setAssigneeId] = useState(node.assigneeId ?? "");
@@ -57,14 +74,30 @@ export function TaskPanel({
   const [dueDate, setDueDate] = useState(node.dueDate ?? "");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [uploading, setUploading] = useState(0);
+  const [isDropTarget, setIsDropTarget] = useState(false);
   const [isPending, startTransition] = useTransition();
   const panelRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  /*
+   * Closing is a thing that takes time, so it is asked for rather than
+   * done. The panel plays its exit and tells the parent to unmount it
+   * afterwards — a panel that vanishes on the frame you press ✕ leaves
+   * you looking at a canvas with no idea where the task went, and an
+   * exit animation cannot run on a component that is already gone.
+   */
+  const requestClose = useCallback(() => {
+    setIsLeaving(true);
+    setTimeout(onClose, LEAVE_MS);
+  }, [onClose]);
   // The delete confirmation, when open, owns both ways out — a small
   // window closes before the surface behind it, and a click inside a
   // portalled dialog is not a click outside this panel.
-  useEscapeKey(onClose, !isDeleteOpen);
-  useOutsideClick(panelRef, onClose, !isDeleteOpen);
-  const sheet = useSheetDismiss(onClose);
+  useEscapeKey(requestClose, !isDeleteOpen);
+  useOutsideClick(panelRef, requestClose, !isDeleteOpen);
+  const sheet = useSheetDismiss(requestClose);
 
   /*
    * The status shown is the status just chosen, not the status the
@@ -92,6 +125,42 @@ export function TaskPanel({
     });
   }
 
+  /**
+   * Puts pictures into the description.
+   *
+   * The description is Markdown, so an image is a line of it — which
+   * means an upload is an edit, and is saved the way an edit is rather
+   * than left for the Save button. Several at once are appended in the
+   * order they were given, each as its own line.
+   *
+   * A refusal is per file: three good screenshots and one PDF should
+   * attach three screenshots and say what happened to the PDF.
+   */
+  async function attach(files: File[]) {
+    const images = files.filter((file) => {
+      const refusal = rejectImage(file);
+      if (refusal) showError(refusal);
+      return !refusal;
+    });
+    if (images.length === 0) return;
+
+    setUploading((count) => count + images.length);
+    let next = description;
+    for (const image of images) {
+      const result = await uploadTaskImage(image, node.storyId);
+      setUploading((count) => count - 1);
+      if (!result.ok) {
+        showError(result.message);
+        continue;
+      }
+      next = appendImage(next, imageMarkdown(image.name, result.url));
+    }
+
+    if (next === description) return;
+    setDescription(next);
+    save({ taskId: node.id, description: next });
+  }
+
   const changeStatus = useCallback(
     (status: "READY" | "IN_PROGRESS" | "DONE" | "CANCELLED") => {
       startTransition(async () => {
@@ -111,15 +180,17 @@ export function TaskPanel({
   );
 
   function handleDelete() {
-    // Closed first, deleted second: the task is gone as far as this
-    // person is concerned the moment they confirm, and holding the
-    // panel open over a row that is about to vanish only shows them
-    // something already untrue.
+    // Closed first, gone from the graph second, deleted third: the task
+    // is gone as far as this person is concerned the moment they
+    // confirm, and holding it on screen for the length of a round-trip
+    // only shows them something already untrue.
     setIsDeleteOpen(false);
-    onClose();
+    requestClose();
+    pending.removeNode(node.id);
     startTransition(async () => {
       const result = await deleteTaskAction(node.id);
       if (!result.success) {
+        pending.revert();
         showError(result.error.message);
         return;
       }
@@ -130,10 +201,18 @@ export function TaskPanel({
   return (
     // Full height on a phone — a task is the whole screen while you're
     // in it — and a panel beside the graph once there's room for both.
+    //
+    // The corners it keeps are the ones that aren't against an edge of
+    // the window: both top corners as a sheet, and only the top-left
+    // beside the graph, where the right side is flush with the screen.
+    // A square corner floating over the canvas reads as a piece of the
+    // page that failed to load.
     <div
       ref={panelRef}
       style={sheet.sheetStyle}
-      className="absolute inset-0 z-20 flex flex-col gap-4 overflow-y-auto rounded-t-2xl border-border bg-surface p-4 shadow-[-8px_0_40px_rgba(0,0,0,0.5)] sm:inset-y-0 sm:left-auto sm:w-96 sm:rounded-none sm:border-l sm:p-5"
+      className={`task-panel absolute inset-0 z-20 flex flex-col gap-4 overflow-y-auto rounded-t-2xl border-border bg-surface p-4 shadow-[-8px_0_40px_rgba(0,0,0,0.5)] sm:inset-y-0 sm:left-auto sm:w-96 sm:rounded-tr-none sm:border-l sm:p-5 ${
+        isLeaving ? "task-panel-leaving" : ""
+      }`}
     >
       {/*
        * On a phone this is a sheet, so it says so: a grab bar, and a
@@ -151,7 +230,7 @@ export function TaskPanel({
         <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="Close"
             className="-ml-1.5 rounded-full p-1.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
           >
@@ -225,10 +304,52 @@ export function TaskPanel({
        * edited — and the raw source is exactly what you want back the
        * moment you do want to change it.
        */}
-      <div className="flex flex-1 flex-col gap-2">
+      <div
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes("Files")) return;
+          event.preventDefault();
+          setIsDropTarget(true);
+        }}
+        onDragLeave={(event) => {
+          // Only when the pointer has left the whole region — moving
+          // between children fires this too, and the outline would
+          // flicker for the length of the drag.
+          if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+          setIsDropTarget(false);
+        }}
+        onDrop={(event) => {
+          if (!event.dataTransfer.types.includes("Files")) return;
+          event.preventDefault();
+          setIsDropTarget(false);
+          void attach([...event.dataTransfer.files]);
+        }}
+        className={`flex flex-1 flex-col gap-2 rounded-lg transition-colors ${
+          isDropTarget
+            ? "outline-2 outline-offset-4 outline-dashed outline-accent"
+            : ""
+        }`}
+      >
         <label htmlFor="panel-description" className="sr-only">
           Description
         </label>
+
+        {/* The picker itself is never shown — the button opens it, and
+            a bare file input in a panel is a piece of browser chrome
+            nothing here matches. */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept={ACCEPTED_IMAGE_TYPES.join(",")}
+          multiple
+          className="hidden"
+          onChange={(event) => {
+            const picked = [...(event.target.files ?? [])];
+            // Cleared so picking the same file twice in a row still
+            // counts as a change.
+            event.target.value = "";
+            void attach(picked);
+          }}
+        />
         {isEditingDescription ? (
           <>
             <textarea
@@ -236,6 +357,15 @@ export function TaskPanel({
               value={description}
               autoFocus
               onChange={(e) => setDescription(e.target.value)}
+              onPaste={(event) => {
+                // A screenshot on the clipboard is the most common way
+                // a picture arrives, and pasting it should not mean
+                // saving it to disk first and then finding it again.
+                const images = [...event.clipboardData.files];
+                if (images.length === 0) return;
+                event.preventDefault();
+                void attach(images);
+              }}
               rows={6}
               maxLength={5000}
               placeholder="Add a description…"
@@ -265,6 +395,11 @@ export function TaskPanel({
               >
                 Cancel
               </button>
+
+              <AttachButton
+                onPick={() => fileRef.current?.click()}
+                uploading={uploading}
+              />
             </div>
           </>
         ) : (
@@ -285,7 +420,7 @@ export function TaskPanel({
                 setIsEditingDescription(true);
               }
             }}
-            className="min-h-32 flex-1 cursor-text rounded-md focus-visible:outline-none"
+            className="min-h-24 cursor-text rounded-md focus-visible:outline-none"
           >
             {description ? (
               <Markdown
@@ -304,6 +439,30 @@ export function TaskPanel({
             )}
           </div>
         )}
+
+        {!isEditingDescription && (
+          <>
+            <div className="flex items-center gap-2">
+              <AttachButton
+                onPick={() => fileRef.current?.click()}
+                uploading={uploading}
+              />
+              <span className="text-[11px] text-text-faint">
+                or drop an image here
+              </span>
+            </div>
+
+            {/* The rest of the panel. It looks like nothing and is the
+                largest part of the click target: reaching a description
+                to edit it shouldn't mean aiming at the last line of
+                text. */}
+            <div
+              aria-hidden="true"
+              onClick={() => setIsEditingDescription(true)}
+              className="min-h-8 flex-1 cursor-text"
+            />
+          </>
+        )}
       </div>
 
       {isDeleteOpen && (
@@ -315,5 +474,40 @@ export function TaskPanel({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * The one control for putting a picture in a description.
+ *
+ * It says what is happening rather than only that something is: an
+ * upload with no count is a spinner you have to guess at when you
+ * dropped four screenshots and one of them was too big.
+ */
+function AttachButton({
+  onPick,
+  uploading,
+}: {
+  onPick: () => void;
+  uploading: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      disabled={uploading > 0}
+      aria-label="Add an image"
+      title="Add an image"
+      className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-text-faint transition-colors hover:bg-surface-hover hover:text-text disabled:cursor-default"
+    >
+      {uploading > 0 ? (
+        <>
+          <Spinner className="h-3.5 w-3.5" />
+          {uploading > 1 ? `Adding ${uploading}…` : "Adding…"}
+        </>
+      ) : (
+        <ImageIcon className="h-3.5 w-3.5" />
+      )}
+    </button>
   );
 }

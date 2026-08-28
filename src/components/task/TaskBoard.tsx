@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { GraphEdge, GraphNode, TaskStatus } from "@/domain/graph/types";
+import type { GraphNode, TaskStatus } from "@/domain/graph/types";
 import { buildBlockerMap } from "@/domain/graph/blockers";
 import { canRequestStatus } from "@/domain/graph/status-change";
 import { sortTasks } from "@/domain/graph/task-order";
 import { countByStatus, matchesQuery, onlyTasks } from "@/features/tasks/filter";
 import { useCardDrag, type DropTarget } from "@/features/tasks/hooks/useCardDrag";
+import { usePendingGraph } from "@/features/graph/pending-graph";
 import { useTaskActions } from "@/features/tasks/hooks/useTaskActions";
 import {
   BOARD_STATUSES,
@@ -48,16 +49,15 @@ const DROPPABLE = BOARD_STATUSES.filter(
  * want, and what a per-column rank could not give you.
  */
 export function TaskBoard({
-  nodes: serverNodes,
-  edges,
   storyId,
   today,
 }: {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
   storyId: string;
   today: string;
 }) {
+  // The story as it should be drawn right now — the server's answer
+  // plus anything asked for since. See PendingGraphProvider.
+  const { nodes: serverNodes, edges } = usePendingGraph();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
   const { showError } = useToast();

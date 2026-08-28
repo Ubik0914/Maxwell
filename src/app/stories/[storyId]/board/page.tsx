@@ -14,8 +14,6 @@ export default async function StoryBoardPage({
     <StoryShell graph={graph} userEmail={userEmail}>
       <div className="min-h-0 flex-1">
         <TaskBoard
-          nodes={graph.nodes}
-          edges={graph.edges}
           storyId={graph.story.id}
           today={todayIso()}
         />

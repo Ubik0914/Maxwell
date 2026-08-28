@@ -79,13 +79,23 @@ export function validateBranch(
 /**
  * Where a new task added after `nodeId` is allowed to rejoin.
  *
- * Its direct successors first — the ordinary case, "do this before what
- * already follows" — and then GOAL, which every story has and which
- * nothing leaves, so it is always a safe landing point.
+ * Everything downstream of it, not only what it points at directly.
+ * "Do this before what already follows" is the common case but not the
+ * only one: work inserted after a task often belongs before something
+ * further along the same path, and offering only the immediate
+ * successors made those branches unreachable without going to the
+ * canvas and drawing the edge by hand.
  *
- * Every option is downstream of the branch point by construction, so
- * none of them can close a cycle. GraphService re-checks anyway: this
- * list is a convenience for building a picker, never an authority.
+ * Breadth-first, so the nearest tasks are named first and the order on
+ * screen reads outward from the branch point rather than at random.
+ * GOAL is appended when the search cannot reach it, which is what makes
+ * a dead-end task still branchable: every story has a GOAL and nothing
+ * leaves it, so it is always a safe landing point.
+ *
+ * Every option is downstream by construction, so none of them can close
+ * a cycle: a path back from a descendant would already be one.
+ * GraphService re-checks anyway — this list is a convenience for
+ * building a picker, never an authority.
  *
  * It lives in the domain rather than beside the graph canvas because
  * the list and the board offer the same "add what comes next" action
@@ -98,20 +108,29 @@ export function rejoinCandidates(
   edges: GraphEdge[],
 ): GraphNode[] {
   const byId = new Map(nodes.map((node) => [node.id, node]));
-  const candidates: GraphNode[] = [];
-
+  const successors = new Map<string, string[]>();
   for (const edge of edges) {
-    if (edge.sourceNodeId !== nodeId) continue;
-    const target = byId.get(edge.targetNodeId);
-    if (target && !candidates.some((c) => c.id === target.id)) {
-      candidates.push(target);
+    const from = successors.get(edge.sourceNodeId);
+    if (from) from.push(edge.targetNodeId);
+    else successors.set(edge.sourceNodeId, [edge.targetNodeId]);
+  }
+
+  const candidates: GraphNode[] = [];
+  const seen = new Set([nodeId]);
+  const queue = [nodeId];
+
+  while (queue.length > 0) {
+    for (const nextId of successors.get(queue.shift()!) ?? []) {
+      if (seen.has(nextId)) continue;
+      seen.add(nextId);
+      queue.push(nextId);
+      const next = byId.get(nextId);
+      if (next) candidates.push(next);
     }
   }
 
   const goal = nodes.find((node) => node.type === "GOAL");
-  if (goal && goal.id !== nodeId && !candidates.some((c) => c.id === goal.id)) {
-    candidates.push(goal);
-  }
+  if (goal && !seen.has(goal.id)) candidates.push(goal);
 
   return candidates;
 }

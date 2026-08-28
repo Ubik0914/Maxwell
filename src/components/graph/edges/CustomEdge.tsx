@@ -10,6 +10,7 @@ import {
 } from "@xyflow/react";
 import type { FlowEdge } from "@/components/graph/types";
 import { deleteEdgeAction } from "@/features/graph/actions";
+import { usePendingGraph } from "@/features/graph/pending-graph";
 import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { EdgeSpliceDialog } from "@/components/graph/edges/EdgeSpliceDialog";
@@ -45,6 +46,8 @@ const SPARK_DURATION = "2.4s";
  */
 export function CustomEdge({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -55,6 +58,7 @@ export function CustomEdge({
 }: EdgeProps<FlowEdge>) {
   const router = useRouter();
   const { showError } = useToast();
+  const pending = usePendingGraph();
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -72,10 +76,13 @@ export function CustomEdge({
   const [isPending, startTransition] = useTransition();
   useEscapeKey(() => setIsSpliceOpen(false), isSpliceOpen);
 
+  /** The line goes first; the write follows it. */
   function handleDelete() {
+    pending.removeEdge(id);
     startTransition(async () => {
       const result = await deleteEdgeAction(id);
       if (!result.success) {
+        pending.revert();
         showError(result.error.message);
         return;
       }
@@ -178,6 +185,11 @@ export function CustomEdge({
       {isSpliceOpen && (
         <EdgeSpliceDialog
           edgeId={id}
+          sourceNodeId={source}
+          targetNodeId={target}
+          // The midpoint of the line, in canvas coordinates — the same
+          // place the "+" that opened this sits.
+          at={{ x: labelX, y: labelY }}
           onClose={() => setIsSpliceOpen(false)}
         />
       )}

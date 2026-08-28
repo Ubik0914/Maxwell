@@ -62,6 +62,16 @@ export function ArrowLeftIcon({ className }: { className?: string }) {
   );
 }
 
+export function ImageIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <rect x="2.5" y="4" width="15" height="12" rx="2" />
+      <circle cx="7" cy="8" r="1.25" />
+      <path d="M3 13.5l3.5-3.5 3 3 2.5-2.5 5 5" />
+    </Icon>
+  );
+}
+
 export function TrashIcon({ className }: { className?: string }) {
   return (
     <Icon className={className}>
