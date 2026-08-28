@@ -1,13 +1,7 @@
-import Link from "next/link";
-import { ArrowLeftIcon } from "@/components/icons";
+import { MenuButton } from "@/components/layout/MenuButton";
 import { ViewSwitcher } from "@/components/story/ViewSwitcher";
+import { STORY_STATUS_INK } from "@/components/story/status";
 import { StorySettingsButton } from "@/components/story/StorySettingsButton";
-
-const STORY_STATUS_TONE: Record<string, string> = {
-  ACTIVE: "text-accent",
-  COMPLETED: "text-success",
-  ARCHIVED: "text-text-faint",
-};
 
 /**
  * A compact readout strip: one metric, its value first. Zero values are
@@ -42,9 +36,14 @@ function Meter({
  * over it — but in the shape a phone expects, which is the shape every
  * app with more than one view of the same thing has settled on:
  *
- *   1. a nav row — where you are, and the way back out
+ *   1. a nav row — where you are, and the way anywhere else
  *   2. a full-width tab bar — which view of it you are looking at
  *   3. a readout — what the graph currently contains
+ *
+ * Row 1 opens the app's drawer, where it used to hold a back link to
+ * the stories list. The drawer contains that link and every story
+ * besides, so switching stories no longer means going out to the list
+ * and coming back in — and the row costs the same width it did.
  *
  * On a phone row 2 is not here at all: a tab bar belongs under the
  * thumb, so StoryShell puts it along the bottom edge instead.
@@ -60,6 +59,8 @@ function Meter({
  */
 export function StoryHeader({
   story,
+  workspace,
+  userEmail,
   stats,
   frontierCount,
 }: {
@@ -69,27 +70,27 @@ export function StoryHeader({
     description: string | null;
     status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
   };
+  workspace: { id: string; name: string };
+  userEmail: string;
   stats: { done: number; ready: number; inProgress: number; blocked: number };
   frontierCount: number;
 }) {
   return (
     <header className="z-10 flex shrink-0 flex-col border-b border-border bg-bg">
       <div className="flex min-w-0 items-center gap-2.5 px-3 pt-2 pb-1.5 sm:px-5">
-        <Link
-          href="/stories"
-          title="Back to stories"
-          className="flex shrink-0 items-center gap-1 text-sm text-text-faint transition-colors hover:text-accent"
-        >
-          <ArrowLeftIcon />
-          <span className="hidden sm:inline">Stories</span>
-          <span className="sr-only">Back to stories</span>
-        </Link>
+        <MenuButton
+          workspaceId={workspace.id}
+          workspaceName={workspace.name}
+          userEmail={userEmail}
+          currentStoryId={story.id}
+          className="-ml-1.5 shrink-0"
+        />
         <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-text sm:text-base">
           {story.title}
         </h1>
         <span
           className={`flex shrink-0 items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase ${
-            STORY_STATUS_TONE[story.status] ?? "text-text-muted"
+            STORY_STATUS_INK[story.status] ?? "text-text-muted"
           }`}
         >
           <span

@@ -19,15 +19,20 @@ import { ViewSwitcher } from "@/components/story/ViewSwitcher";
  */
 export function StoryShell({
   graph,
+  userEmail,
   children,
 }: {
   graph: GraphResult;
+  /** For the drawer's account section — see loadStory. */
+  userEmail: string;
   children: ReactNode;
 }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-bg">
       <StoryHeader
         story={graph.story}
+        workspace={graph.workspace}
+        userEmail={userEmail}
         stats={graph.stats}
         frontierCount={graph.frontier.length}
       />

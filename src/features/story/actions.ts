@@ -200,3 +200,45 @@ export async function deleteStoryAction(
     };
   }
 }
+
+/**
+ * The stories the drawer offers to switch to.
+ *
+ * Fetched when the drawer opens rather than rendered into every page,
+ * because a list of stories is only ever looked at by someone who has
+ * just asked to go somewhere else — and every page that carried it
+ * would pay a query for it whether or not it was ever opened. It is
+ * also then always current, which a copy rendered at page load would
+ * stop being the moment a story was renamed.
+ *
+ * The workspace is named by the caller: on a story page that is the
+ * story's own workspace, which the cookie may disagree with after a
+ * deep link. Nothing is trusted about it either way — RLS decides what
+ * is visible, so an id that isn't yours simply returns nothing.
+ */
+export async function listStoryLinksAction(
+  workspaceId: string,
+): Promise<ActionResult<storyRepository.StoryLink[]>> {
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    return {
+      success: true,
+      data: await storyRepository.listStoryLinks(supabase, workspaceId),
+    };
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to load stories.",
+      },
+    };
+  }
+}

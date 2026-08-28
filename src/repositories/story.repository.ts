@@ -61,6 +61,36 @@ function byUrgency(a: StoryFrontierTask, b: StoryFrontierTask): number {
   return a.title.localeCompare(b.title);
 }
 
+/** A story as somewhere to go: just enough to name it in a menu. */
+export interface StoryLink {
+  id: string;
+  title: string;
+  status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
+}
+
+/**
+ * Every story in the workspace, for switching between them.
+ *
+ * Deliberately not listStoriesForWorkspace: that one counts every node
+ * in every story to draw the cards, and a menu of names has no use for
+ * any of it. Most recently touched first, which is the order you are
+ * most likely to want to go back to.
+ */
+export async function listStoryLinks(
+  supabase: Client,
+  workspaceId: string,
+): Promise<StoryLink[]> {
+  const { data, error } = await supabase
+    .from("stories")
+    .select("id, title, status")
+    .eq("workspace_id", workspaceId)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  return data;
+}
+
 export async function listStoriesForWorkspace(
   supabase: Client,
   workspaceId: string,

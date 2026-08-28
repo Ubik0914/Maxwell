@@ -36,6 +36,14 @@ export interface GraphResult {
     description: string | null;
     status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
   };
+  /**
+   * The workspace this story belongs to — read from the story rather
+   * than from the workspace cookie, which is a hint about where you
+   * were last and not a fact about what you are looking at. A link
+   * straight into a story has to name the right workspace in the
+   * drawer, and after a fresh login there is no cookie at all.
+   */
+  workspace: { id: string; name: string };
   nodes: GraphNode[];
   edges: GraphEdge[];
   stats: StoryStats;
@@ -78,22 +86,27 @@ export async function getGraph(
   supabase: Client,
   storyId: string,
 ): Promise<GraphResult | null> {
+  // The workspace comes along the foreign key rather than in a query
+  // of its own: it is one join on a row already being fetched.
   const { data: story, error } = await supabase
     .from("stories")
-    .select("id, title, description, status")
+    .select("id, title, description, status, workspaces(id, name)")
     .eq("id", storyId)
     .maybeSingle();
 
   if (error) throw error;
-  if (!story) return null;
+  if (!story || !story.workspaces) return null;
 
   const [nodes, edges] = await Promise.all([
     nodeRepository.findByStoryId(supabase, storyId),
     edgeRepository.findByStoryId(supabase, storyId),
   ]);
 
+  const { workspaces, ...storyRow } = story;
+
   return {
-    story,
+    story: storyRow,
+    workspace: workspaces,
     nodes,
     edges,
     stats: computeStats(nodes),

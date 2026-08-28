@@ -16,17 +16,24 @@ import { AppNav } from "@/components/layout/AppNav";
  * a full repaint.
  */
 export function AppShell({
+  workspaceId,
   workspaceName,
   userEmail,
   children,
 }: {
+  /** Which workspace's stories the drawer offers to switch to. */
+  workspaceId?: string;
   workspaceName?: string;
   userEmail?: string;
   children: ReactNode;
 }) {
   return (
     <div className="flex min-h-dvh w-full flex-col overflow-x-hidden bg-bg">
-      <AppNav workspaceName={workspaceName} userEmail={userEmail} />
+      <AppNav
+        workspaceId={workspaceId}
+        workspaceName={workspaceName}
+        userEmail={userEmail}
+      />
       <main className="min-w-0 flex-1 bg-bg">{children}</main>
     </div>
   );
