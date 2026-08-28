@@ -37,8 +37,8 @@ export function Chip({
 
 /**
  * Strips a control back to text so the chip's border is the only frame.
- * Exported because the chips holding an <input> (a date, an assignee)
- * need exactly the same treatment as the ones holding a <select>.
+ * Exported because the chip holding a plain <input> (the assignee)
+ * needs exactly the same treatment as the ones holding a dropdown.
  */
 export const CHIP_CONTROL =
   "cursor-pointer appearance-none bg-transparent text-xs text-current focus:outline-none";

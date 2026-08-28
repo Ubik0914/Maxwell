@@ -13,6 +13,20 @@ import { test, expect, type Page } from "@playwright/test";
  * Supabase-backed deployment: `npm run test:e2e`.
  */
 
+/**
+ * Sets the open task panel's status.
+ *
+ * `selectOption` doesn't reach it any more: the status control is the
+ * app's own listbox rather than a `<select>`, so it is opened and its
+ * option pressed the way a person would. What is asserted is what the
+ * chip reads, which is what they see.
+ */
+async function setStatus(page: Page, label: string) {
+  await page.click("#panel-status");
+  await page.click(`[role="option"]:has-text("${label}")`);
+  await expect(page.locator('[role="listbox"]')).toHaveCount(0);
+}
+
 async function signUpAndReachWorkspaces(page: Page) {
   const email = `e2e-${Date.now()}@example.com`;
   const password = "password123";
@@ -75,20 +89,20 @@ test("sign up, build a graph, and complete the story", async ({ page }) => {
 
   // Task B should now show BLOCKED
   await page.click(`text=Task B`);
-  await expect(page.locator("#panel-status")).toHaveValue("BLOCKED");
+  await expect(page.locator("#panel-status")).toHaveText("Blocked");
   await page.click('button[aria-label="Close"]');
 
   // Mark Task A DONE
   await page.click("text=Task A");
-  await page.selectOption("#panel-status", "DONE");
+  await setStatus(page, "Done");
   await page.click('button[aria-label="Close"]');
 
   // Task B should now be READY
   await page.click("text=Task B");
-  await expect(page.locator("#panel-status")).toHaveValue("READY");
+  await expect(page.locator("#panel-status")).toHaveText("Ready");
 
   // Mark Task B DONE — this should complete the story
-  await page.selectOption("#panel-status", "DONE");
+  await setStatus(page, "Done");
   await page.click('button[aria-label="Close"]');
 
   await expect(page.getByText("COMPLETED")).toBeVisible();

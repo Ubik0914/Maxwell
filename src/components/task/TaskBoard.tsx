@@ -242,7 +242,7 @@ export function TaskBoard({
         </div>
       )}
 
-      <TaskOverlays actions={actions} edges={edges} />
+      <TaskOverlays actions={actions} edges={edges} today={today} />
     </div>
   );
 }

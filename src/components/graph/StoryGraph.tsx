@@ -68,10 +68,12 @@ export function StoryGraph({
   nodes,
   edges,
   storyId,
+  today,
 }: {
   nodes: GraphNode[];
   edges: GraphEdge[];
   storyId: string;
+  today: string;
 }) {
   const router = useRouter();
   const { showError } = useToast();
@@ -238,6 +240,7 @@ export function StoryGraph({
           <TaskPanel
             key={selectedNode.id}
             node={selectedNode}
+            today={today}
             onClose={() => setSelectedNodeId(null)}
           />
         )}

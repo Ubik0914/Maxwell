@@ -17,7 +17,7 @@ import { Select, type SelectOption } from "@/components/ui/Select";
  * All it is now is the Select with the product's rule about status
  * attached: which values are choosable, what colour each one makes the
  * pill, and the dot. The pill, the chevron, the accessible name and the
- * native `<select>` underneath are the shared component's.
+ * list itself are the shared component's.
  *
  * BLOCKED appears only when the task is already in it, and then only as
  * a disabled option: it is the Status Engine's to assign, never a
