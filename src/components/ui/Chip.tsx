@@ -7,10 +7,10 @@ export const CHIP_UNSET = "border-border text-text-muted";
 /**
  * A property as a pill: the value is the label.
  *
- * The shell only — every chip in the app wraps a real form control
- * styled to disappear into it, so the whole surface stays keyboard- and
- * screen-reader-native and a phone still gets its own OS picker on tap,
- * with no custom popover to reimplement badly.
+ * The shell only — what it wraps is either a real form control styled
+ * to disappear into it, or, in a chain of them, a value already
+ * decided. Same pill either way, so a row of them reads as one row
+ * rather than a control with decoration beside it.
  *
  * It lives here rather than beside the task panel because the status
  * dropdown is the same pill and appears in three places the panel knows
