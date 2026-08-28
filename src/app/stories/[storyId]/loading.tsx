@@ -10,7 +10,7 @@ import { StoryHeaderSkeleton } from "@/components/story/StoryHeaderSkeleton";
  */
 export default function StoryGraphLoading() {
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-bg">
+    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
       <StoryHeaderSkeleton />
 
       <div className="canvas-grid relative min-h-0 flex-1 overflow-hidden">

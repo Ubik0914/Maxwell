@@ -25,7 +25,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-bg">
+    <div className="flex min-h-dvh w-full flex-col overflow-x-hidden bg-bg">
       <AppNav workspaceName={workspaceName} userEmail={userEmail} />
       <main className="min-w-0 flex-1 bg-bg">{children}</main>
     </div>
