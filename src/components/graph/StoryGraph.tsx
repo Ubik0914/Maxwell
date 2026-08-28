@@ -209,6 +209,18 @@ export function StoryGraph({
           // nodes readable and hands the overflow to panning, which is
           // what the canvas is for.
           fitViewOptions={{ padding: 0.1, minZoom: 0.65, maxZoom: 1.25 }}
+          /*
+           * Two fingers move the canvas, they don't resize it.
+           *
+           * A two-finger swipe on a trackpad is a scroll, and the
+           * default here is for a scroll to zoom — so trying to move
+           * along a wide graph kept changing how big it was instead.
+           * Panning is what that gesture means everywhere else a canvas
+           * or a map is drawn, and zoom is still a pinch, which is what
+           * a pinch means everywhere else too.
+           */
+          panOnScroll
+          zoomOnScroll={false}
           deleteKeyCode={null}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}

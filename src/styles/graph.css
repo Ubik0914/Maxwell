@@ -167,6 +167,54 @@
   filter: drop-shadow(0 0 6px var(--accent-soft));
 }
 
+/* --- Controls that live on the graph ------------------------------------ */
+
+/*
+ * The "+" on a node and the "+"/"✕" on a connection.
+ *
+ * They were held at low opacity all the time, on the reasoning that
+ * hover doesn't exist on touch and a control you can't reach on a phone
+ * isn't a control. But a graph of any size has one of these per node and
+ * two per edge, and a hundred pale glyphs scattered over the canvas is
+ * not restraint — it is the canvas being about its own controls rather
+ * than about the work.
+ *
+ * So they are hidden where there is a pointer to reveal them with, and
+ * kept as they were where there isn't. Not `display: none`: an invisible
+ * control is still focusable, so Tab still reaches it and bringing it
+ * back costs nothing but opacity.
+ *
+ * They stop taking presses while hidden, though. An invisible button
+ * that still swallows a click is worse than a visible one — every edge
+ * midpoint would be a dead spot on the canvas. Nothing is lost by it:
+ * the pointer cannot arrive at one without first crossing the node or
+ * the connection that reveals it.
+ */
+.canvas-control {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.react-flow__node:hover .canvas-control,
+.canvas-control:focus-within,
+.canvas-control-shown {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/*
+ * A phone has no hover, so nothing there would ever reveal them. They
+ * stay held back at low opacity, which is what the whole canvas looked
+ * like before.
+ */
+@media (hover: none) {
+  .canvas-control {
+    opacity: 0.45;
+    pointer-events: all;
+  }
+}
+
 /* --- Chrome you reach for with a thumb ---------------------------------- */
 
 /*
