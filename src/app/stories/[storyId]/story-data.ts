@@ -15,7 +15,14 @@ import {
  * contains. They also share the auth gate: the redirect belongs next to
  * the load, not copied into every page.
  */
-export async function loadStory(storyId: string): Promise<GraphResult> {
+export interface StoryPageData {
+  graph: GraphResult;
+  /** The signed-in address, for the drawer the header now opens. It
+   *  comes free with the auth check this already makes. */
+  userEmail: string;
+}
+
+export async function loadStory(storyId: string): Promise<StoryPageData> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -31,7 +38,7 @@ export async function loadStory(storyId: string): Promise<GraphResult> {
     notFound();
   }
 
-  return graph;
+  return { graph, userEmail: user.email ?? "" };
 }
 
 /**

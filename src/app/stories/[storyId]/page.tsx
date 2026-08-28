@@ -8,13 +8,13 @@ export default async function StoryGraphPage({
   params: Promise<{ storyId: string }>;
 }) {
   const { storyId } = await params;
-  const graph = await loadStory(storyId);
+  const { graph, userEmail } = await loadStory(storyId);
 
   // The screen *is* the graph here: a thin instrument strip on top, and
   // everything else given to the canvas. min-h-0 is what stops the flex
   // child from being sized by its content and pushing the header off.
   return (
-    <StoryShell graph={graph}>
+    <StoryShell graph={graph} userEmail={userEmail}>
       <div className="graph-enter min-h-0 flex-1">
         <StoryGraph
           nodes={graph.nodes}

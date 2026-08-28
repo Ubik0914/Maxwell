@@ -7,12 +7,7 @@ import type { StoryListItem } from "@/repositories/story.repository";
 import { ChevronDownIcon, SettingsIcon } from "@/components/icons";
 import { StorySettingsDialog } from "@/components/story/StorySettingsDialog";
 import { StoryDetails } from "@/components/story/StoryDetails";
-
-const STATUS_TONE: Record<StoryListItem["status"], string> = {
-  ACTIVE: "text-accent",
-  COMPLETED: "text-success",
-  ARCHIVED: "text-text-faint",
-};
+import { STORY_STATUS_INK } from "@/components/story/status";
 
 function formatRelativeTime(dateString: string): string {
   const diffMinutes = Math.round(
@@ -124,7 +119,7 @@ export function StoryCard({
           </h2>
           <span
             className={`flex shrink-0 items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase ${
-              STATUS_TONE[story.status]
+              STORY_STATUS_INK[story.status]
             }`}
           >
             <span

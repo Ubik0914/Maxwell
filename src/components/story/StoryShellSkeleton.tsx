@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { Skeleton } from "@/components/Skeleton";
-import { ArrowLeftIcon } from "@/components/icons";
+import { MenuButton } from "@/components/layout/MenuButton";
 
 /**
  * StoryShell's exact layout with its content still missing.
@@ -11,25 +10,19 @@ import { ArrowLeftIcon } from "@/components/icons";
  * width — so nothing resizes when the data lands. A frame that jumps a
  * few pixels on arrival undoes the point of showing a skeleton at all.
  *
- * The back link is real and clickable from the first frame: a story
- * that is slow to load must never trap you on the way out. The tabs
- * can't be, because a `loading.tsx` isn't given the route's params and
- * so doesn't know which story it would link to.
+ * The menu is real and usable from the first frame: a story that is
+ * slow to load must never trap you on the way out, and the drawer is
+ * that way out. It opens with its own contents still blank — a
+ * `loading.tsx` isn't given the route's params, so it knows neither
+ * which workspace's stories to offer nor which story it is inside —
+ * which is also why the tabs here are placeholders rather than links.
  */
 export function StoryShellSkeleton({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-bg">
       <header className="z-10 flex shrink-0 flex-col border-b border-border bg-bg">
         <div className="flex min-w-0 items-center gap-2.5 px-3 pt-2 pb-1.5 sm:px-5">
-          <Link
-            href="/stories"
-            title="Back to stories"
-            className="flex shrink-0 items-center gap-1 text-sm text-text-faint transition-colors hover:text-accent"
-          >
-            <ArrowLeftIcon />
-            <span className="hidden sm:inline">Stories</span>
-            <span className="sr-only">Back to stories</span>
-          </Link>
+          <MenuButton className="-ml-1.5 shrink-0" />
           <Skeleton className="h-4 w-40 max-w-[45%]" />
           <Skeleton className="ml-auto h-3 w-16" />
           <Skeleton className="h-4 w-4 rounded-md" />
@@ -47,8 +40,8 @@ export function StoryShellSkeleton({ children }: { children: ReactNode }) {
 
       {children}
 
-      {/* Four, because the bottom bar carries the way back to the
-          stories list as well as the three views. No `flex-col` here
+      {/* Four, because the bottom bar carries the way to the stories
+          list as well as the three views. No `flex-col` here
           either: the tabs stack icon-over-label *inside* each tab, and
           the bar itself is always a row — putting it on the bar turned
           the whole thing into a vertical stack down the middle of the

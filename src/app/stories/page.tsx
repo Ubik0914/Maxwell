@@ -30,7 +30,11 @@ export default async function StoriesPage({
     filter === "ALL" ? stories : stories.filter((s) => s.status === filter);
 
   return (
-    <AppShell workspaceName={workspace.name} userEmail={user.email ?? ""}>
+    <AppShell
+      workspaceId={workspace.id}
+      workspaceName={workspace.name}
+      userEmail={user.email ?? ""}
+    >
       <div className="flex flex-col gap-6 p-4 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-text">Stories</h1>
