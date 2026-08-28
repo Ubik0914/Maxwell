@@ -19,11 +19,16 @@ export const SETTABLE_STATUSES: SettableStatus[] = [
 ];
 
 /**
- * Every column a board shows, in the order work moves through them.
- * BLOCKED leads because it is where work waits before it can begin, and
- * the board should show what is stuck rather than hide it.
+ * Every column a board shows, and the order the filter chips list them.
+ *
+ * BLOCKED sits at the end. It led at first, on the reasoning that the
+ * dammed-up work is what a DAG is for showing — but it is also the one
+ * state you cannot act on, and putting it first makes the first thing
+ * you read the thing you can do nothing about. The states you can move
+ * come first; what is waiting is at the bottom, where you go looking
+ * for it rather than being handed it.
  */
-export const BOARD_STATUSES: TaskStatus[] = ["BLOCKED", ...SETTABLE_STATUSES];
+export const BOARD_STATUSES: TaskStatus[] = [...SETTABLE_STATUSES, "BLOCKED"];
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
   BLOCKED: "Blocked",

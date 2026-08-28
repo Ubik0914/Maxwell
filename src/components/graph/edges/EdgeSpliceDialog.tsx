@@ -2,36 +2,26 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import {
-  insertTaskOnEdgeAction,
-  type EdgeSpliceMode,
-} from "@/features/graph/actions";
+import { insertTaskOnEdgeAction } from "@/features/graph/actions";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
-import { Spinner } from "@/components/Spinner";
 import { SpliceDiagram } from "@/components/graph/SpliceDiagram";
 
-const MODES: {
-  value: EdgeSpliceMode;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: "insert",
-    label: "Insert",
-    hint: "In series — this connection becomes two",
-  },
-  {
-    value: "branch",
-    label: "Branch",
-    hint: "In parallel — a second path, rejoining here",
-  },
-];
-
 /**
- * The dialog behind a connection's "+". It asks which shape to add
- * before it asks for a title, because the shape is the decision — the
- * title is just the label on it.
+ * The dialog behind a connection's "+": a task goes in the middle of
+ * this connection, and the connection becomes two.
+ *
+ * It used to open by asking Insert or Branch. Both operations still
+ * exist, but the question was in the wrong place: a connection is a
+ * line between two things, so the only thing it can mean to add a task
+ * *to a connection* is to put one in the middle. Branching is a
+ * statement about a task, not about a line, and it is asked where that
+ * thought starts — the "+" on the node itself. So this asks one thing,
+ * and the diagram shows what will happen rather than offering a choice
+ * about it.
+ *
+ * The dialog closes before the write goes out, for the reason given in
+ * AddNextTaskDialog: the decision was made when Insert was pressed.
  */
 export function EdgeSpliceDialog({
   edgeId,
@@ -42,30 +32,30 @@ export function EdgeSpliceDialog({
 }) {
   const router = useRouter();
   const { showError } = useToast();
-  const [mode, setMode] = useState<EdgeSpliceMode>("insert");
   const [title, setTitle] = useState("");
-  const [isPending, startTransition] = useTransition();
-
-  const action = MODES.find((m) => m.value === mode)!;
+  const [, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    onClose();
     startTransition(async () => {
-      const result = await insertTaskOnEdgeAction({ edgeId, title, mode });
+      const result = await insertTaskOnEdgeAction({
+        edgeId,
+        title,
+        mode: "insert",
+      });
       if (!result.success) {
         showError(result.error.message);
         return;
       }
-      setTitle("");
-      onClose();
       router.refresh();
     });
   }
 
   return (
     <Modal
-      title="Add Task"
-      subtitle="Put a new node on this connection."
+      title="Insert task"
+      subtitle="This connection becomes two, with the new task between them."
       onClose={onClose}
     >
       <form
@@ -73,38 +63,7 @@ export function EdgeSpliceDialog({
         onSubmit={handleSubmit}
         className="flex flex-col gap-4"
       >
-        <div
-          role="radiogroup"
-          aria-label="How to add the task"
-          className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-bg p-1"
-        >
-          {MODES.map((option) => {
-            const isActive = option.value === mode;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={isActive}
-                onClick={() => setMode(option.value)}
-                className={`rounded-md px-3 py-2 text-left transition-colors ${
-                  isActive
-                    ? "bg-accent-soft text-accent"
-                    : "text-text-muted hover:bg-surface-hover hover:text-text"
-                }`}
-              >
-                <span className="block text-sm font-medium">
-                  {option.label}
-                </span>
-                <span className="mt-0.5 block text-[11px] leading-tight text-text-faint">
-                  {option.hint}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <SpliceDiagram shape={mode} />
+        <SpliceDiagram shape="insert" />
 
         <div className="flex flex-col gap-1">
           <label
@@ -128,17 +87,15 @@ export function EdgeSpliceDialog({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-4 py-2 text-sm font-medium text-text-muted hover:text-text"
+            className="rounded-md px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-text"
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={isPending}
-            className="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse hover:bg-accent-hover disabled:opacity-50"
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
           >
-            {isPending && <Spinner />}
-            {action.label}
+            Insert
           </button>
         </div>
       </form>

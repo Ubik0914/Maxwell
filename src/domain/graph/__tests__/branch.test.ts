@@ -1,4 +1,4 @@
-import { validateBranch } from "@/domain/graph/branch";
+import { rejoinCandidates, validateBranch } from "@/domain/graph/branch";
 import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 
 function node(overrides: Partial<GraphNode> & { id: string }): GraphNode {
@@ -92,5 +92,50 @@ describe("validateBranch", () => {
       valid: false,
       error: expect.objectContaining({ code: "NODE_NOT_FOUND" }),
     });
+  });
+});
+
+describe("rejoinCandidates", () => {
+  const nodes = [
+    node({ id: "START", type: "START" }),
+    node({ id: "A", status: "DONE" }),
+    node({ id: "B", status: "READY" }),
+    node({ id: "C", status: "BLOCKED" }),
+    node({ id: "GOAL", type: "GOAL" }),
+  ];
+  const edges = [
+    edge("START", "A"),
+    edge("A", "B"),
+    edge("A", "C"),
+    edge("B", "GOAL"),
+  ];
+
+  it("offers the node's own successors, then GOAL", () => {
+    expect(rejoinCandidates("A", nodes, edges).map((n) => n.id)).toEqual([
+      "B",
+      "C",
+      "GOAL",
+    ]);
+  });
+
+  it("offers GOAL alone when nothing follows yet", () => {
+    expect(rejoinCandidates("C", nodes, edges).map((n) => n.id)).toEqual([
+      "GOAL",
+    ]);
+  });
+
+  it("does not list GOAL twice when it is already a successor", () => {
+    expect(rejoinCandidates("B", nodes, edges).map((n) => n.id)).toEqual([
+      "GOAL",
+    ]);
+  });
+
+  it("never offers the node itself", () => {
+    expect(rejoinCandidates("GOAL", nodes, edges)).toEqual([]);
+  });
+
+  it("returns nothing when the story has no GOAL and no successors", () => {
+    const orphan = [node({ id: "X" })];
+    expect(rejoinCandidates("X", orphan, [])).toEqual([]);
   });
 });

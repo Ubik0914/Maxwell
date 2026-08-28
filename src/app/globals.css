@@ -30,11 +30,21 @@
   --bg: #0a0d14;
   --surface: #121722;
   --surface-hover: #1a2130;
-  --border: #232b3d;
-  --border-strong: #3a4560;
+  --border: #2c3549;
+  --border-strong: #465270;
   --text: #e7ebf5;
-  --text-muted: #9aa4bc;
-  --text-faint: #5b6480;
+  /*
+   * The two quiet inks used to be quiet enough to disappear.
+   *
+   * --text-faint in particular measured about 3.3:1 against the page,
+   * and almost everywhere it is used it is also small and uppercase —
+   * column headers, chip labels, field hints — which is exactly the
+   * text that can least afford to be dim. Both are now above 4.5:1, so
+   * the hierarchy is still three steps deep but the bottom step is
+   * something you read rather than something you notice.
+   */
+  --text-muted: #a8b2c9;
+  --text-faint: #7d879f;
   --inverse: #04060a;
 
   --accent: #22d3ee;

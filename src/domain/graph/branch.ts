@@ -75,3 +75,43 @@ export function validateBranch(
 
   return { valid: true };
 }
+
+/**
+ * Where a new task added after `nodeId` is allowed to rejoin.
+ *
+ * Its direct successors first — the ordinary case, "do this before what
+ * already follows" — and then GOAL, which every story has and which
+ * nothing leaves, so it is always a safe landing point.
+ *
+ * Every option is downstream of the branch point by construction, so
+ * none of them can close a cycle. GraphService re-checks anyway: this
+ * list is a convenience for building a picker, never an authority.
+ *
+ * It lives in the domain rather than beside the graph canvas because
+ * the list and the board offer the same "add what comes next" action
+ * and must offer the same choices — a second copy of this rule reading
+ * React Flow's node type would be the same rule stated twice.
+ */
+export function rejoinCandidates(
+  nodeId: string,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+): GraphNode[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const candidates: GraphNode[] = [];
+
+  for (const edge of edges) {
+    if (edge.sourceNodeId !== nodeId) continue;
+    const target = byId.get(edge.targetNodeId);
+    if (target && !candidates.some((c) => c.id === target.id)) {
+      candidates.push(target);
+    }
+  }
+
+  const goal = nodes.find((node) => node.type === "GOAL");
+  if (goal && goal.id !== nodeId && !candidates.some((c) => c.id === goal.id)) {
+    candidates.push(goal);
+  }
+
+  return candidates;
+}

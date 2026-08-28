@@ -15,6 +15,7 @@ import {
   type SettableStatus,
 } from "@/components/task/status";
 import { TaskCard } from "@/components/task/TaskCard";
+import { AddNextTaskDialog } from "@/components/task/AddNextTaskDialog";
 import {
   TaskFilterBar,
   type StatusFilter,
@@ -30,12 +31,11 @@ const DROPPABLE = BOARD_STATUSES.filter(
 /**
  * The story as a board.
  *
- * Five columns, BLOCKED first — a Kanban board normally starts at
- * "todo", but here the leftmost column is the one the graph fills by
- * itself, and seeing how much work is dammed up behind unfinished
- * dependencies is the point of having built a DAG in the first place.
+ * Five columns, ending at BLOCKED — the states you can move through
+ * come first, and what the graph is holding back sits at the far end,
+ * where you go looking for it rather than being handed it.
  *
- * That column is read-only in both directions: BLOCKED belongs to the
+ * That column is read-only in one direction: BLOCKED belongs to the
  * Status Engine, which derives it from what a task is waiting on. You
  * can drag a card *out* of it (cancelling blocked work is a legitimate
  * decision, and the engine refuses the moves that aren't), but nothing
@@ -47,7 +47,7 @@ const DROPPABLE = BOARD_STATUSES.filter(
  * lived in the browser would be a lie about what had been saved.
  */
 export function TaskBoard({
-  nodes,
+  nodes: serverNodes,
   edges,
   today,
 }: {
@@ -58,8 +58,12 @@ export function TaskBoard({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [addAfterId, setAddAfterId] = useState<string | null>(null);
   const { showError } = useToast();
-  const { changeStatus, flashClass } = useTaskStatusMutation();
+  // `nodes` already carries any status change still in flight, so a
+  // dropped card is in its new column before the server has answered.
+  const { nodes, changeStatus, flashClass } =
+    useTaskStatusMutation(serverNodes);
 
   const tasks = useMemo(() => onlyTasks(nodes), [nodes]);
   const blockers = useMemo(() => buildBlockerMap(nodes, edges), [nodes, edges]);
@@ -108,9 +112,11 @@ export function TaskBoard({
     ? (tasks.find((task) => task.id === drag.taskId) ?? null)
     : null;
 
-  const selected = selectedId
-    ? (nodes.find((node) => node.id === selectedId) ?? null)
-    : null;
+  const byId = (id: string | null) =>
+    id ? (nodes.find((node) => node.id === id) ?? null) : null;
+
+  const selected = byId(selectedId);
+  const addAfter = byId(addAfterId);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -176,6 +182,7 @@ export function TaskBoard({
                         onOpen={() => setSelectedId(task.id)}
                         onGrab={(event) => start(event, task.id)}
                         onNudge={(direction) => nudge(task, direction)}
+                        onAddNext={() => setAddAfterId(task.id)}
                       />
                     ))}
                     {column.tasks.length === 0 && (
@@ -210,6 +217,15 @@ export function TaskBoard({
             isFlying
           />
         </div>
+      )}
+
+      {addAfter && (
+        <AddNextTaskDialog
+          source={addAfter}
+          nodes={nodes}
+          edges={edges}
+          onClose={() => setAddAfterId(null)}
+        />
       )}
 
       {selected && (
