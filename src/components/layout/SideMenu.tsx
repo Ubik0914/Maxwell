@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/features/auth/actions";
 import { Skeleton } from "@/components/Skeleton";
+import { MotionToggle } from "@/components/MotionToggle";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDrawerDrag } from "@/components/layout/useDrawerDrag";
 import { CloseIcon, MembersIcon, StoriesIcon } from "@/components/icons";
@@ -160,6 +161,11 @@ export function SideMenu({
           </nav>
 
           <div className="mt-auto flex flex-col gap-1.5">
+            <SectionLabel>Motion</SectionLabel>
+            <MotionToggle />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <SectionLabel>Account</SectionLabel>
             {userEmail ? (
               <p className="truncate px-3 text-sm text-text-muted">

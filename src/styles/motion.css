@@ -245,52 +245,83 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
+/*
+ * The suppression keys on an attribute, not on the media query
+ * directly, because the OS setting is the *default* here rather than
+ * the last word. A script in the document head resolves
+ * "stored choice ?? what the OS asks for" into `data-motion` before the
+ * first paint (see src/lib/motion.ts), and everything below reads only
+ * that. One source of truth, and no duplicated block.
+ *
+ * The point of the override is that this product says what it means
+ * with moving light: the sparks running a live edge, the rim light on
+ * work in progress. Reduced motion is right to switch those off by
+ * default, but someone who keeps the OS setting on for everything else
+ * and still wants the graph to flow should be able to say so, once,
+ * instead of choosing between the two.
+ */
+
+html[data-motion="reduced"] {
+  scroll-behavior: auto;
 
   /* Travels or spins: removed outright. `.edge-surge-path` is not here —
      it is pure opacity, so a completed task still visibly propagates. */
-  .edge-spark,
-  .edge-surge,
-  .node-orbit,
-  .story-card .spark-run {
+  & .edge-spark,
+  & .edge-surge,
+  & .node-orbit,
+  & .story-card .spark-run {
     display: none;
   }
 
   /* Entrances keep the fade and lose the displacement. */
-  .animate-toast-in,
-  .modal-panel,
-  .graph-enter {
+  & .animate-toast-in,
+  & .modal-panel,
+  & .graph-enter {
     animation: reduced-appear 200ms ease-out both;
   }
 
-  .story-card-launch {
+  & .story-card-launch {
     animation: reduced-vanish 200ms ease-out both;
   }
 
   /* A node still arrives with its flash of light, just without the pop. */
-  .pulse-genesis {
+  & .pulse-genesis {
     animation: reduced-genesis 500ms ease-out both;
   }
 
   /* The loading sweep is a gradient in motion; a still pulse reports the
      same thing. */
-  .skeleton {
+  & .skeleton {
     background-image: none;
     animation: reduced-breathe 2s ease-in-out infinite;
   }
 
   /* The drawer arrives rather than sliding. Its backdrop still fades, so
      the change of surface is not abrupt. */
-  .drawer-panel {
+  & .drawer-panel {
     transition: none;
   }
 
-  .story-card,
-  .story-card:hover,
-  .story-card:active {
+  & .story-card,
+  & .story-card:hover,
+  & .story-card:active {
     transform: none;
+  }
+}
+
+/*
+ * Without JavaScript the attribute never gets set, so the things most
+ * worth suppressing for a vestibular reason — the ones that actually
+ * travel across the screen — fall back to the media query on their own.
+ * Deliberately just these: a no-JS visitor of a React app is an edge
+ * case, and this is the part of the policy that is about safety rather
+ * than taste.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion]) .edge-spark,
+  html:not([data-motion]) .edge-surge,
+  html:not([data-motion]) .node-orbit,
+  html:not([data-motion]) .story-card .spark-run {
+    display: none;
   }
 }
