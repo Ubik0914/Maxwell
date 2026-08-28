@@ -31,6 +31,7 @@ import {
 } from "@/features/graph/actions";
 import { useGraphRealtime } from "@/features/graph/hooks/useGraphRealtime";
 import { useGraphPresentation } from "@/features/graph/hooks/useGraphPresentation";
+import { layoutGraph } from "@/domain/graph/layout";
 import { useToast } from "@/components/Toast";
 
 const nodeTypes: NodeTypes = {
@@ -74,6 +75,9 @@ export function StoryGraph({
   const router = useRouter();
   const { showError } = useToast();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // Only true while an auto-layout is gliding into place — see the
+  // .graph-settling rule, which must not apply to ordinary dragging.
+  const [isSettling, setIsSettling] = useState(false);
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<FlowNode>(
     toFlowNodes(nodes),
   );
@@ -114,6 +118,58 @@ export function StoryGraph({
     storyId,
   });
 
+  /**
+   * Arranges the graph by dependency order and saves where everything
+   * landed.
+   *
+   * The canvas moves first and the writes follow: the arrangement is
+   * already computed, so making the user watch a round-trip before
+   * seeing it would be latency for nothing. Only nodes that actually
+   * moved are written, which on a tidy graph is none of them.
+   */
+  const handleAutoLayout = useCallback(() => {
+    const positions = layoutGraph(
+      flowNodes.map((node) => node.data),
+      flowEdges.map((edge) => ({
+        id: edge.id,
+        storyId,
+        sourceNodeId: edge.source,
+        targetNodeId: edge.target,
+      })),
+    );
+
+    const moved = flowNodes.filter((node) => {
+      const next = positions.get(node.id);
+      return next && (next.x !== node.position.x || next.y !== node.position.y);
+    });
+    if (moved.length === 0) return;
+
+    setIsSettling(true);
+    setFlowNodes((prev) =>
+      prev.map((node) => {
+        const next = positions.get(node.id);
+        return next ? { ...node, position: next } : node;
+      }),
+    );
+    // Long enough for the glide to finish; the class only exists to stop
+    // the transition applying to ordinary dragging.
+    setTimeout(() => setIsSettling(false), 500);
+
+    void Promise.all(
+      moved.map((node) => {
+        const next = positions.get(node.id)!;
+        return updateNodePositionAction({
+          nodeId: node.id,
+          x: next.x,
+          y: next.y,
+        });
+      }),
+    ).then((results) => {
+      const failure = results.find((result) => !result.success);
+      if (failure && !failure.success) showError(failure.error.message);
+    });
+  }, [flowNodes, flowEdges, storyId, setFlowNodes, showError]);
+
   async function handleConnect(connection: Connection) {
     if (!connection.source || !connection.target) return;
 
@@ -132,7 +188,9 @@ export function StoryGraph({
 
   return (
     <ReactFlowProvider>
-      <div className="relative h-full w-full bg-bg">
+      <div
+        className={`relative h-full w-full bg-bg ${isSettling ? "graph-settling" : ""}`}
+      >
         <ReactFlow
           nodes={displayNodes}
           edges={displayEdges}
@@ -168,7 +226,7 @@ export function StoryGraph({
         >
           <Background color="var(--border-strong)" gap={24} />
         </ReactFlow>
-        <GraphToolbar storyId={storyId} />
+        <GraphToolbar storyId={storyId} onAutoLayout={handleAutoLayout} />
         {selectedNode && (
           <TaskPanel
             key={selectedNode.id}
