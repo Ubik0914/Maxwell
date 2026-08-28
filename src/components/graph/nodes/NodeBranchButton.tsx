@@ -13,9 +13,9 @@ import { PlusIcon } from "@/components/icons";
  * branching off a node you had just branched into a hunt for the right
  * line. This puts the same operation where the thought starts.
  *
- * Held at low opacity like the edge controls rather than revealed on
- * hover: hover doesn't exist on touch, and a control you cannot reach
- * on a phone is not a control. `nodrag`/`nopan` keep the press from
+ * Revealed when the node is hovered, and held at low opacity where
+ * there is no hover to reveal it with — see `.canvas-control`, which
+ * the edge controls share. `nodrag`/`nopan` keep the press from
  * becoming a node drag, and the click is stopped from bubbling so it
  * doesn't also open the task panel behind the dialog.
  */
@@ -33,7 +33,7 @@ export function NodeBranchButton({ nodeId }: { nodeId: string }) {
         }}
         aria-label="Branch from this task"
         title="Branch from this task"
-        className="nodrag nopan absolute -right-2 -bottom-2 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-text-muted opacity-45 shadow-sm transition hover:border-accent hover:text-accent hover:opacity-100 focus-visible:opacity-100"
+        className="nodrag nopan canvas-control absolute -right-2 -bottom-2 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-sm transition-colors hover:border-accent hover:text-accent"
       >
         <PlusIcon className="h-3 w-3" />
       </button>

@@ -33,10 +33,15 @@ const SPARK_DURATION = "2.4s";
  * so they keep following it while a node is being dragged, with no
  * geometry duplicated here.
  *
- * A small "+" (add a task here, in series or in parallel — see
- * EdgeSpliceDialog) / "x" (delete this edge) control sits at the
- * midpoint, held back at low opacity so the canvas stays about the
- * graph until you reach for it.
+ * A small "+" (add a task here — see EdgeSpliceDialog) / "x" (delete
+ * this edge) control sits at the midpoint, and appears when the pointer
+ * is on the connection. It cannot be revealed by CSS the way a node's
+ * "+" is: EdgeLabelRenderer portals it out of the edge and into a layer
+ * of its own, so there is no ancestor to hang `:hover` on and the hover
+ * has to be tracked here. The band that does the revealing is wider
+ * than the line — a 2px target is not one — and the control keeps
+ * itself shown while the pointer is on it, since by then the pointer
+ * has left the band.
  */
 export function CustomEdge({
   id,
@@ -63,6 +68,7 @@ export function CustomEdge({
   const surgeId = data?.surgeId ?? null;
 
   const [isSpliceOpen, setIsSpliceOpen] = useState(false);
+  const [isPointerOn, setIsPointerOn] = useState(false);
   const [isPending, startTransition] = useTransition();
   useEscapeKey(() => setIsSpliceOpen(false), isSpliceOpen);
 
@@ -80,6 +86,20 @@ export function CustomEdge({
   return (
     <>
       <BaseEdge id={id} path={edgePath} />
+
+      {/* Over the line rather than under it, so it is what the pointer
+          meets. Events still bubble to the edge itself, so nothing the
+          canvas does with a connection is intercepted — this only
+          watches. */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={28}
+        style={{ pointerEvents: "stroke" }}
+        onPointerEnter={() => setIsPointerOn(true)}
+        onPointerLeave={() => setIsPointerOn(false)}
+      />
 
       {isLive &&
         SPARK_OFFSETS.map((begin) => (
@@ -126,9 +146,12 @@ export function CustomEdge({
           style={{
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            pointerEvents: "all",
           }}
-          className="nodrag nopan flex items-center gap-1 opacity-45 transition-opacity duration-150 hover:opacity-100 focus-within:opacity-100"
+          onPointerEnter={() => setIsPointerOn(true)}
+          onPointerLeave={() => setIsPointerOn(false)}
+          className={`nodrag nopan canvas-control flex items-center gap-1 ${
+            isPointerOn ? "canvas-control-shown" : ""
+          }`}
         >
           <button
             type="button"
