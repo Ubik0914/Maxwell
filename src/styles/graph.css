@@ -41,9 +41,18 @@
   opacity: 0.55;
 }
 
+/*
+ * A white-hot core with a cyan halo, not a cyan dot.
+ *
+ * The spark used to be `fill: var(--accent)` — the same colour as the
+ * conduit it runs along. On a phone, where the graph is fitted at 0.65
+ * zoom, that is a ~1.4px cyan dot on a cyan line: present in the DOM,
+ * invisible in practice. A charge carrier should not be the colour of
+ * the wire.
+ */
 .edge-spark {
-  fill: var(--accent);
-  filter: drop-shadow(0 0 4px var(--accent));
+  fill: #f2fdff;
+  filter: drop-shadow(0 0 5px var(--accent)) drop-shadow(0 0 2px #ffffff);
   animation: spark-fade 2.4s linear infinite;
 }
 
@@ -56,7 +65,7 @@
   }
   18%,
   82% {
-    opacity: 0.9;
+    opacity: 1;
   }
 }
 

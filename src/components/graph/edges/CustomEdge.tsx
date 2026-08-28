@@ -83,14 +83,22 @@ export function CustomEdge({
 
       {isLive &&
         SPARK_OFFSETS.map((begin) => (
-          <circle key={begin} className="edge-spark" r="2.2">
+          <circle key={begin} className="edge-spark" r="3.2">
+            {/* The geometry goes in `path` rather than a <mpath href>
+                pointing at the edge. mpath is the tidier form — it
+                follows the line live while a node is dragged — but it
+                resolves an id, and WebKit has never been reliable about
+                doing that for the SVG2 `href` spelling. `path` has been
+                in animateMotion since SVG 1.1 and resolves nothing, so
+                it works the same everywhere. The cost is that a spark
+                restarts while its node is being dragged, which is a
+                moment nobody is watching the flow anyway. */}
             <animateMotion
+              path={edgePath}
               dur={SPARK_DURATION}
               begin={begin}
               repeatCount="indefinite"
-            >
-              <mpath href={`#${id}`} />
-            </animateMotion>
+            />
           </circle>
         ))}
 
@@ -99,10 +107,16 @@ export function CustomEdge({
       {surgeId !== null && (
         <g key={surgeId}>
           <path className="edge-surge-path" d={edgePath} />
-          <circle className="edge-surge" r="4.5">
-            <animateMotion dur="0.65s" fill="freeze" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.3 0 0.2 1">
-              <mpath href={`#${id}`} />
-            </animateMotion>
+          <circle className="edge-surge" r="5">
+            <animateMotion
+              path={edgePath}
+              dur="0.65s"
+              fill="freeze"
+              keyPoints="0;1"
+              keyTimes="0;1"
+              calcMode="spline"
+              keySplines="0.3 0 0.2 1"
+            />
           </circle>
         </g>
       )}
