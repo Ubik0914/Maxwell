@@ -18,7 +18,30 @@ function toGraphNode(row: NodeRow): GraphNode {
     dueDate: row.due_date,
     positionX: row.position_x,
     positionY: row.position_y,
+    sortOrder: row.sort_order,
   };
+}
+
+/**
+ * Rewrites a story's manual order from a complete list of ids.
+ *
+ * The whole order goes over rather than the one row that moved: the
+ * client then never has to reason about what its neighbours currently
+ * are, and two people reordering at once end up with one of their two
+ * orders instead of an interleaving of both. The RPC checks every id
+ * belongs to the story and renumbers in a single transaction.
+ */
+export async function reorderNodes(
+  supabase: Client,
+  storyId: string,
+  nodeIds: string[],
+): Promise<void> {
+  const { error } = await supabase.rpc("reorder_nodes", {
+    p_story_id: storyId,
+    p_node_ids: nodeIds,
+  });
+
+  if (error) throw error;
 }
 
 export async function findById(

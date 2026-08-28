@@ -27,6 +27,13 @@ export interface GraphNode {
   dueDate: string | null;
   positionX: number;
   positionY: number;
+  /**
+   * Where this task has been placed by hand within its story, or null
+   * for one nobody has moved. Every other ordering in the product is
+   * derived; this is the one that is simply asserted, which is why it
+   * has to be stored rather than computed. See task-order's "manual".
+   */
+  sortOrder: number | null;
 }
 
 export interface GraphEdge {

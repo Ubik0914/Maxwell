@@ -28,6 +28,7 @@ function nodeRowToFlowNode(row: NodeRow): FlowNode {
     dueDate: row.due_date,
     positionX: row.position_x,
     positionY: row.position_y,
+    sortOrder: row.sort_order,
   };
 
   return {

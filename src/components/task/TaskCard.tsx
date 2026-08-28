@@ -57,7 +57,9 @@ export function TaskCard({
 
   return (
     <div
-      data-card
+      // Carries the id so a drop can measure the cards on screen and
+      // skip the one being carried — see useCardDrag's locate().
+      data-card={task.id}
       {...(onLongPress ? press : {})}
       {...(onOpen
         ? {

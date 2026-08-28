@@ -6,6 +6,7 @@ import { buildBlockerMap } from "@/domain/graph/blockers";
 import { sortTasks, type TaskSortKey } from "@/domain/graph/task-order";
 import { countByStatus, matchesQuery, onlyTasks } from "@/features/tasks/filter";
 import { useTaskActions } from "@/features/tasks/hooks/useTaskActions";
+import { useCardDrag, type DropTarget } from "@/features/tasks/hooks/useCardDrag";
 import { statusOf } from "@/components/task/status";
 import { TaskRow } from "@/components/task/TaskRow";
 import { TaskOverlays } from "@/components/task/TaskOverlays";
@@ -13,6 +14,7 @@ import {
   TaskFilterBar,
   type StatusFilter,
 } from "@/components/task/TaskFilterBar";
+import { GripIcon } from "@/components/icons";
 
 interface Column {
   /** null where the column has nothing to sort by — see below. */
@@ -61,10 +63,12 @@ const COLUMNS: Column[] = [
 export function TaskTable({
   nodes: serverNodes,
   edges,
+  storyId,
   today,
 }: {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  storyId: string;
   today: string;
 }) {
   const [query, setQuery] = useState("");
@@ -74,7 +78,7 @@ export function TaskTable({
   // `actions.nodes` already carries any status change still in flight,
   // so everything below — the order, the counts, the blockers —
   // reflects the press rather than the round-trip.
-  const actions = useTaskActions(serverNodes);
+  const actions = useTaskActions(serverNodes, storyId);
   const { nodes } = actions;
 
   const tasks = useMemo(() => onlyTasks(nodes), [nodes]);
@@ -90,6 +94,16 @@ export function TaskTable({
     const sorted = sortTasks(filtered, sortKey);
     return isDescending ? sorted.reverse() : sorted;
   }, [tasks, query, statusFilter, sortKey, isDescending]);
+
+  // Only a hand-made order can be rearranged by hand. Dragging a row
+  // while the list is sorted by due date would either lie (the row
+  // springs back) or silently switch the sort out from under you.
+  const isManual = sortKey === "manual";
+
+  const { drag, start } = useCardDrag({
+    onDrop: (taskId: string, target: DropTarget) =>
+      actions.reorder(taskId, visible, target.index),
+  });
 
   function sortBy(key: TaskSortKey) {
     if (key === sortKey) {
@@ -109,7 +123,26 @@ export function TaskTable({
         onStatusChange={setStatusFilter}
         counts={counts}
         total={tasks.length}
-      />
+      >
+        <button
+          type="button"
+          onClick={() => sortBy(isManual ? "urgency" : "manual")}
+          aria-pressed={isManual}
+          title={
+            isManual
+              ? "Back to urgency order"
+              : "Arrange these by hand"
+          }
+          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs whitespace-nowrap transition-colors ${
+            isManual
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-border text-text-muted hover:border-border-strong hover:text-text"
+          }`}
+        >
+          <GripIcon className="h-3.5 w-3.5" />
+          Manual
+        </button>
+      </TaskFilterBar>
 
       <div className="min-h-0 flex-1 overflow-auto">
         {visible.length === 0 ? (
@@ -118,6 +151,10 @@ export function TaskTable({
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-bg">
               <tr className="border-b border-border text-left">
+                {/* The handle column only exists in manual order, so the
+                    header has to grow one too or every cell below it
+                    lands under the wrong heading. */}
+                {isManual && <th scope="col" className="w-px" />}
                 {COLUMNS.map((column) => {
                   const isSorted = column.key !== null && sortKey === column.key;
                   const heading = (
@@ -166,7 +203,7 @@ export function TaskTable({
                 })}
               </tr>
             </thead>
-            <tbody>
+            <tbody data-drop-zone="LIST">
               {visible.map((task) => (
                 <TaskRow
                   key={task.id}
@@ -179,6 +216,12 @@ export function TaskTable({
                   onAddNext={() => actions.askAddAfter(task.id)}
                   onStatusChange={(next) => actions.changeStatus(task.id, next)}
                   onLongPress={(point) => actions.openMenu(task, point)}
+                  isLifted={drag?.taskId === task.id}
+                  onGrab={
+                    isManual
+                      ? (event) => start(event, task.id)
+                      : undefined
+                  }
                 />
               ))}
             </tbody>

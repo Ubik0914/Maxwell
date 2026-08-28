@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export interface DropTarget {
+  /** The `data-drop-zone` value under the pointer. */
+  zone: string;
+  /** Where in that zone the card would land, counting without itself. */
+  index: number;
+}
+
 export interface DragState {
   taskId: string;
   /** Where the flying card should be drawn, in viewport coordinates. */
@@ -9,23 +16,28 @@ export interface DragState {
   y: number;
   width: number;
   height: number;
-  /** The `data-drop-zone` value under the pointer, or null. */
-  over: string | null;
+  over: DropTarget | null;
 }
 
 /**
- * Dragging a card from one column to another.
+ * Dragging a card — between zones, and to a place within one.
  *
  * Pointer events rather than HTML5 drag-and-drop, which has no usable
- * touch story at all — on a phone the native API simply never fires, and
- * a board you can only use with a mouse is not a board. Pointer events
- * are one code path for mouse, touch and pen.
+ * touch story at all — on a phone the native API simply never fires,
+ * and a board you can only use with a mouse is not a board. Pointer
+ * events are one code path for mouse, touch and pen.
  *
- * The drop target is resolved with elementFromPoint on each move rather
- * than by dragover handlers on the columns, because the card being
- * carried sits under the pointer the whole time. It is drawn with
+ * The target is resolved with elementFromPoint on each move rather than
+ * by dragover handlers on the zones, because the card being carried
+ * sits under the pointer the whole time. It is drawn with
  * `pointer-events: none` (see .board-card-flying) precisely so this
- * lookup sees the column underneath it.
+ * lookup sees what is underneath it.
+ *
+ * The insertion index is measured from the cards actually on screen
+ * rather than tracked in state: the pointer is either above or below
+ * each card's midpoint, and that is the entire rule. The card being
+ * dragged is skipped, so "put it back where it was" reports the index
+ * it already had rather than one past it.
  *
  * The grab has to start on a handle, not on the card: a card that moves
  * when you touch it anywhere cannot be tapped to open, and a column that
@@ -36,7 +48,7 @@ export interface DragState {
 export function useCardDrag({
   onDrop,
 }: {
-  onDrop: (taskId: string, zone: string) => void;
+  onDrop: (taskId: string, target: DropTarget) => void;
 }) {
   const [drag, setDrag] = useState<DragState | null>(null);
   // Read by the window listeners, which are attached once per gesture
@@ -55,7 +67,7 @@ export function useCardDrag({
     detachRef.current = null;
   }, []);
 
-  // A gesture still in flight when the board unmounts would otherwise
+  // A gesture still in flight when the view unmounts would otherwise
   // leave its listeners on the window forever.
   useEffect(() => detach, [detach]);
 
@@ -82,7 +94,7 @@ export function useCardDrag({
         y: rect.top,
         width: rect.width,
         height: rect.height,
-        over: zoneAt(event.clientX, event.clientY),
+        over: locate(event.clientX, event.clientY, taskId),
       });
 
       // Listened for on the window, not on the card: a fast drag outruns
@@ -95,17 +107,15 @@ export function useCardDrag({
           ...current,
           x: moveEvent.clientX - offsetRef.current.x,
           y: moveEvent.clientY - offsetRef.current.y,
-          over: zoneAt(moveEvent.clientX, moveEvent.clientY),
+          over: locate(moveEvent.clientX, moveEvent.clientY, taskId),
         });
       };
 
       const finish = (upEvent: PointerEvent) => {
-        const current = dragRef.current;
         detach();
         update(null);
-        if (!current) return;
-        const zone = zoneAt(upEvent.clientX, upEvent.clientY);
-        if (zone) onDrop(current.taskId, zone);
+        const target = locate(upEvent.clientX, upEvent.clientY, taskId);
+        if (target) onDrop(taskId, target);
       };
 
       // A cancelled pointer (the OS took over, the tab lost focus) puts
@@ -133,9 +143,24 @@ export function useCardDrag({
   return { drag, start };
 }
 
-function zoneAt(x: number, y: number): string | null {
-  const element = document.elementFromPoint(x, y);
-  return (
-    element?.closest<HTMLElement>("[data-drop-zone]")?.dataset.dropZone ?? null
+function locate(x: number, y: number, movingId: string): DropTarget | null {
+  const zone = document
+    .elementFromPoint(x, y)
+    ?.closest<HTMLElement>("[data-drop-zone]");
+  if (!zone?.dataset.dropZone) return null;
+
+  const cards = [...zone.querySelectorAll<HTMLElement>("[data-card]")].filter(
+    (card) => card.dataset.card !== movingId,
   );
+
+  let index = cards.length;
+  for (let i = 0; i < cards.length; i += 1) {
+    const rect = cards[i].getBoundingClientRect();
+    if (y < rect.top + rect.height / 2) {
+      index = i;
+      break;
+    }
+  }
+
+  return { zone: zone.dataset.dropZone, index };
 }
