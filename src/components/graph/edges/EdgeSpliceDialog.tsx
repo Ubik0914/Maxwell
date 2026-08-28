@@ -66,7 +66,7 @@ export function EdgeSpliceDialog({
         onSubmit={handleSubmit}
         className="flex flex-col gap-4"
       >
-        <SpliceDiagram shape="insert" />
+        <SpliceDiagram />
 
         <div className="flex flex-col gap-1">
           <label

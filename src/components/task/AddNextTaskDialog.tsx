@@ -8,8 +8,9 @@ import { branchTaskFromNodeAction } from "@/features/graph/actions";
 import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { Modal } from "@/components/Modal";
-import { SpliceDiagram } from "@/components/graph/SpliceDiagram";
+import { Chip, CHIP_SET } from "@/components/ui/Chip";
 import { Select } from "@/components/ui/Select";
+import { ArrowLeftIcon } from "@/components/icons";
 
 /**
  * "What comes after this one?" — the graph's branch operation, asked in
@@ -22,12 +23,52 @@ import { Select } from "@/components/ui/Select";
  * from. Every story ends at GOAL, so there is always somewhere to
  * rejoin and never a dead-end task hanging off the side of the graph.
  *
+ * The second decision used to be a field labelled "Before", which named
+ * the right task and framed it backwards: you arrive here having
+ * pressed "+" on something, thinking forwards, and are asked what the
+ * new task comes *before*. The chain says it the way round it happened
+ * instead — where you started, what you are adding, and then the one
+ * end still open, which is the only part you choose. Sitting third in a
+ * left-to-right run is what makes the picker unambiguous; a label
+ * cannot do that on its own, since "After: Ship the release" reads
+ * equally well as either direction.
+ *
  * The dialog closes before the write goes out. The decision was made
  * when Add was pressed; keeping a spinner on screen until the server
  * agrees makes the interface feel like it is asking permission. If the
  * write fails, a toast says so — one failure interrupting is better
  * than every success waiting.
  */
+/**
+ * A fixed link in the chain — something already decided, in the same
+ * pill the picker beside it wears so the run reads as one row of
+ * equals rather than a control with decoration either side.
+ */
+function Pill({
+  tone,
+  children,
+}: {
+  tone?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Chip tone={tone} className="max-w-[11rem]">
+      <span className="min-w-0 truncate">{children}</span>
+    </Chip>
+  );
+}
+
+function Link({ children }: { children: React.ReactNode }) {
+  return <span className="flex items-center gap-1.5">{children}</span>;
+}
+
+function Arrow() {
+  return (
+    // Already aria-hidden: every icon in the set is decorative.
+    <ArrowLeftIcon className="h-3 w-3 shrink-0 rotate-180 text-text-faint" />
+  );
+}
+
 export function AddNextTaskDialog({
   source,
   nodes,
@@ -47,6 +88,7 @@ export function AddNextTaskDialog({
   );
 
   const [targetNodeId, setTargetNodeId] = useState(candidates[0]?.id ?? "");
+  const targetTitle = candidates.find((c) => c.id === targetNodeId)?.title;
   const [title, setTitle] = useState("");
   const [, startTransition] = useTransition();
   // Owned here rather than left to the caller. The graph's two entry
@@ -85,8 +127,6 @@ export function AddNextTaskDialog({
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <SpliceDiagram shape="branch" />
-
           <div className="flex flex-col gap-1">
             <label
               htmlFor="next-task-title"
@@ -105,17 +145,48 @@ export function AddNextTaskDialog({
             />
           </div>
 
-          <Select
-            id="next-task-rejoin"
-            label="Before"
-            value={targetNodeId}
-            options={candidates.map((candidate) => ({
-              value: candidate.id,
-              label: candidate.title,
-            }))}
-            onChange={setTargetNodeId}
-            hint="The new task has to be done before this one can start."
-          />
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-text-muted">
+              What it leads to
+            </span>
+            <div
+              role="group"
+              aria-label="Where the new task sits"
+              className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-bg/60 p-2.5"
+            >
+              <Pill>{source.title}</Pill>
+              {/* Each arrow travels with what it points at, so a chain
+                  too wide for the dialog wraps between links rather
+                  than leaving an arrow pointing off the end of a
+                  line. */}
+              <Link>
+                <Arrow />
+                <Pill tone="border-accent/40 bg-accent-soft text-accent">
+                  {title.trim() || "New task"}
+                </Pill>
+              </Link>
+              <Link>
+                <Arrow />
+                <Select
+                  id="next-task-rejoin"
+                  label="What comes after the new task"
+                  variant="chip"
+                  tone={CHIP_SET}
+                  value={targetNodeId}
+                  options={candidates.map((candidate) => ({
+                    value: candidate.id,
+                    label: candidate.title,
+                  }))}
+                  onChange={setTargetNodeId}
+                />
+              </Link>
+            </div>
+            <p className="text-xs text-text-faint">
+              {targetTitle
+                ? `“${targetTitle}” can only start once the new task is done.`
+                : "Pick where this line of work rejoins."}
+            </p>
+          </div>
 
           <div className="flex justify-end gap-2">
             <button
