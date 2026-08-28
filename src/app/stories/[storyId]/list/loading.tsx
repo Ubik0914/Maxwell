@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/Skeleton";
-import { StoryHeaderSkeleton } from "@/components/story/StoryHeaderSkeleton";
+import { StoryShellSkeleton } from "@/components/story/StoryShellSkeleton";
 
 /* Varied on purpose: a stack of identical bars reads as a pattern, and a
    pattern reads as decoration rather than as content on its way. */
@@ -22,9 +22,7 @@ const ROW_WIDTHS = [
  */
 export default function StoryListLoading() {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
-      <StoryHeaderSkeleton />
-
+    <StoryShellSkeleton>
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-5">
         <Skeleton className="h-8 w-full rounded-md sm:w-64" />
         <Skeleton className="h-6 w-16 rounded-full" />
@@ -49,6 +47,6 @@ export default function StoryListLoading() {
         ))}
         <span className="sr-only">Loading tasks…</span>
       </div>
-    </div>
+    </StoryShellSkeleton>
   );
 }

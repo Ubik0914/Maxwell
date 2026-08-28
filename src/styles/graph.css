@@ -167,6 +167,32 @@
   filter: drop-shadow(0 0 6px var(--accent-soft));
 }
 
+/* --- Chrome you reach for with a thumb ---------------------------------- */
+
+/*
+ * Icon sizes for the canvas controls and the tab bar live here rather
+ * than as utility classes on the icons themselves.
+ *
+ * The icons carry their own `h-4 w-4` default, and whether a caller's
+ * `h-5` beats it is decided by the order Tailwind happens to emit those
+ * two utilities in — not by which is written last. Unlayered CSS beats
+ * the utilities layer outright, so this is the one spelling that is
+ * certain to hold.
+ */
+.toolbar-button svg,
+.view-tab svg {
+  width: 22px;
+  height: 22px;
+}
+
+@media (min-width: 640px) {
+  .toolbar-button svg,
+  .view-tab svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
 /* --- The overview ------------------------------------------------------ */
 
 /*
@@ -178,7 +204,14 @@
 .graph-minimap {
   position: absolute;
   right: 0.75rem;
-  bottom: 0.75rem;
+  /*
+   * Above the toolbar, not beside it. Once the toolbar's buttons grew
+   * to a thumb's width it took ~290px of a 412px screen, which left
+   * less room than the map needs — so on a phone the two stack. The
+   * offset is the toolbar's own bottom (0.75rem) plus its height (a
+   * 44px button in a 4px frame) plus a gap.
+   */
+  bottom: 4.5rem;
   z-index: 5;
   width: 116px;
   height: 78px;
@@ -201,6 +234,7 @@
 @media (min-width: 640px) {
   .graph-minimap {
     right: 1rem;
+    /* Side by side again: a 32px toolbar leaves room to spare. */
     bottom: 1rem;
     width: 176px;
     height: 118px;

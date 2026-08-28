@@ -1,4 +1,4 @@
-import { StoryHeader } from "@/components/story/StoryHeader";
+import { StoryShell } from "@/components/story/StoryShell";
 import { StoryGraph } from "@/components/graph/StoryGraph";
 import { loadStory } from "@/app/stories/[storyId]/story-data";
 
@@ -14,12 +14,7 @@ export default async function StoryGraphPage({
   // everything else given to the canvas. min-h-0 is what stops the flex
   // child from being sized by its content and pushing the header off.
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
-      <StoryHeader
-        story={graph.story}
-        stats={graph.stats}
-        frontierCount={graph.frontier.length}
-      />
+    <StoryShell graph={graph}>
       <div className="graph-enter min-h-0 flex-1">
         <StoryGraph
           nodes={graph.nodes}
@@ -27,6 +22,6 @@ export default async function StoryGraphPage({
           storyId={graph.story.id}
         />
       </div>
-    </div>
+    </StoryShell>
   );
 }

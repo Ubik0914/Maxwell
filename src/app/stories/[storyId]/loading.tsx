@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/Skeleton";
-import { StoryHeaderSkeleton } from "@/components/story/StoryHeaderSkeleton";
+import { StoryShellSkeleton } from "@/components/story/StoryShellSkeleton";
 
 /**
  * Shown while a story's graph is fetched.
@@ -10,9 +10,7 @@ import { StoryHeaderSkeleton } from "@/components/story/StoryHeaderSkeleton";
  */
 export default function StoryGraphLoading() {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg">
-      <StoryHeaderSkeleton />
-
+    <StoryShellSkeleton>
       <div className="canvas-grid relative min-h-0 flex-1 overflow-hidden">
         <div className="flex h-full items-center justify-center px-4">
           <div className="flex items-center">
@@ -28,6 +26,6 @@ export default function StoryGraphLoading() {
         </div>
         <span className="sr-only">Loading graph…</span>
       </div>
-    </div>
+    </StoryShellSkeleton>
   );
 }
