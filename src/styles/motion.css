@@ -183,6 +183,31 @@
   animation: toast-in 180ms ease-out;
 }
 
+/* A menu appears where the press was, so it grows from that corner
+   rather than fading in over the whole row. */
+.menu-panel {
+  animation: menu-in 120ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+  transform-origin: top left;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+/* Long-pressing a card must not raise iOS's own text callout over the
+   menu we are about to open. Selection is left alone — this suppresses
+   the callout, not the ability to select. */
+.longpress {
+  -webkit-touch-callout: none;
+}
+
 /* --- Task views: the same state change, told without a graph ----------- */
 
 /*

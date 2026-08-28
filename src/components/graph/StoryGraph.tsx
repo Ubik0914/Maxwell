@@ -24,6 +24,7 @@ import { TaskNode } from "@/components/graph/nodes/TaskNode";
 import { GoalNode } from "@/components/graph/nodes/GoalNode";
 import { CustomEdge } from "@/components/graph/edges/CustomEdge";
 import { GraphToolbar } from "@/components/graph/GraphToolbar";
+import { GraphMiniMap } from "@/components/graph/GraphMiniMap";
 import { TaskPanel } from "@/components/graph/TaskPanel";
 import {
   updateNodePositionAction,
@@ -225,6 +226,7 @@ export function StoryGraph({
           onPaneClick={() => setSelectedNodeId(null)}
         >
           <Background color="var(--border-strong)" gap={24} />
+          <GraphMiniMap />
         </ReactFlow>
         <GraphToolbar storyId={storyId} onAutoLayout={handleAutoLayout} />
         {selectedNode && (

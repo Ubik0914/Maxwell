@@ -167,6 +167,32 @@
   filter: drop-shadow(0 0 6px var(--accent-soft));
 }
 
+/* --- The overview ------------------------------------------------------ */
+
+/*
+ * React Flow's minimap ships light-themed and desktop-sized. Sized here
+ * rather than by props because it has to shrink on a phone, where it is
+ * most useful (small window, wide graph) and least affordable.
+ */
+.react-flow__minimap.graph-minimap {
+  width: 116px;
+  height: 78px;
+  margin: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: color-mix(in srgb, var(--surface) 85%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+@media (min-width: 640px) {
+  .react-flow__minimap.graph-minimap {
+    width: 176px;
+    height: 118px;
+    margin: 1rem;
+  }
+}
+
 /* --- Nodes: ambient state (looping, faint) ----------------------------- */
 
 /* Ready = charged and waiting. A slow breath, nothing more. */

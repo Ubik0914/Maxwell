@@ -50,10 +50,15 @@ export function TaskFilterBar({
         />
       </div>
 
+      {/* One line that runs off the side, not two that fold. Six pills
+          wrapping cost the list a whole row of height for controls you
+          glance at once. `-mx-3` + matching padding lets the row bleed
+          to the screen edge, so a chip scrolled to the end sits flush
+          rather than in a gutter. */}
       <div
         role="group"
         aria-label="Filter by status"
-        className="flex flex-wrap items-center gap-1"
+        className="scroll-x -mx-3 flex w-full min-w-0 items-center gap-1 px-3 sm:mx-0 sm:w-auto sm:flex-1 sm:px-0"
       >
         <FilterChip
           isActive={status === null}
@@ -99,7 +104,7 @@ function FilterChip({
       // An empty state is still worth showing — "0 blocked" is
       // information — but it shouldn't compete with the states that have
       // something in them.
-      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs whitespace-nowrap transition-colors ${
         isActive
           ? "border-accent bg-accent-soft text-accent"
           : `border-border hover:border-border-strong ${count > 0 ? ink : "text-text-faint"}`

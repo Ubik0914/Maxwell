@@ -121,3 +121,26 @@ textarea,
 }
 
 
+
+/*
+ * A row that runs off the side rather than folding.
+ *
+ * Filter chips wrapped to a second line on a phone, which cost the
+ * list a row of height for a set of controls you glance at once. A
+ * horizontal scroller keeps them on one line; the chips visibly cut off
+ * at the edge is signal enough that there are more, so the scrollbar
+ * itself is hidden — a permanent gutter under six pills is more chrome
+ * than the pills.
+ *
+ * -x-contain stops a swipe that runs out of chips from turning into a
+ * back-navigation or a bounce of the page behind it.
+ */
+.scroll-x {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}

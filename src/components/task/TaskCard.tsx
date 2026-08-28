@@ -3,6 +3,9 @@
 import type { GraphNode } from "@/domain/graph/types";
 import { GripIcon, PlusIcon } from "@/components/icons";
 import { DueDate, PriorityTag, WaitingOn } from "@/components/task/TaskFields";
+import { useLongPress, type PressPoint } from "@/hooks/useLongPress";
+
+function noop() {}
 
 /**
  * A task on the board.
@@ -34,6 +37,7 @@ export function TaskCard({
   onGrab,
   onNudge,
   onAddNext,
+  onLongPress,
 }: {
   task: GraphNode;
   blockers: GraphNode[];
@@ -45,10 +49,16 @@ export function TaskCard({
   onGrab?: (event: React.PointerEvent) => void;
   onNudge?: (direction: -1 | 1) => void;
   onAddNext?: () => void;
+  onLongPress?: (point: PressPoint) => void;
 }) {
+  // Always called — hooks cannot be conditional — but the handlers are
+  // only attached to a card that has somewhere to send the gesture.
+  const press = useLongPress(onLongPress ?? noop);
+
   return (
     <div
       data-card
+      {...(onLongPress ? press : {})}
       {...(onOpen
         ? {
             tabIndex: 0,
@@ -62,7 +72,7 @@ export function TaskCard({
             },
           }
         : {})}
-      className={`flex items-start gap-1 rounded-lg border border-border bg-surface p-2.5 transition-colors focus-visible:border-accent focus-visible:outline-none ${
+      className={`longpress flex items-start gap-1 rounded-lg border border-border bg-surface p-2.5 transition-colors focus-visible:border-accent focus-visible:outline-none ${
         onOpen ? "cursor-pointer hover:border-border-strong" : ""
       } ${isLifted ? "board-card-lifted" : ""} ${
         isFlying ? "board-card-held" : ""
@@ -95,8 +105,14 @@ export function TaskCard({
           {onGrab && (
             <button
               type="button"
-              onPointerDown={onGrab}
+              onPointerDown={(event) => {
+                // Kept off the card, or a slow deliberate grab would
+                // also be a long press and open a menu mid-drag.
+                event.stopPropagation();
+                onGrab(event);
+              }}
               onClick={(event) => event.stopPropagation()}
+              onContextMenu={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
                 event.stopPropagation();
                 if (event.key === "ArrowLeft") {
