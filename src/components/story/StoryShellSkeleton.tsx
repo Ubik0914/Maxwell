@@ -35,7 +35,7 @@ export function StoryShellSkeleton({ children }: { children: ReactNode }) {
           <Skeleton className="h-4 w-4 rounded-md" />
         </div>
 
-        <TabsSkeleton className="hidden sm:flex" />
+        <TabsSkeleton count={3} className="hidden sm:flex" />
 
         <div className="flex items-center gap-x-3 border-t border-border/60 px-3 py-1.5 sm:gap-x-4 sm:px-5">
           <Skeleton className="h-3.5 w-14" />
@@ -47,21 +47,36 @@ export function StoryShellSkeleton({ children }: { children: ReactNode }) {
 
       {children}
 
-      <TabsSkeleton className="shrink-0 flex-col border-t border-border sm:hidden" />
+      {/* Four, because the bottom bar carries the way back to the
+          stories list as well as the three views. No `flex-col` here
+          either: the tabs stack icon-over-label *inside* each tab, and
+          the bar itself is always a row — putting it on the bar turned
+          the whole thing into a vertical stack down the middle of the
+          screen. */}
+      <TabsSkeleton
+        count={4}
+        className="shrink-0 border-t border-border sm:hidden"
+      />
     </div>
   );
 }
 
-function TabsSkeleton({ className }: { className: string }) {
+function TabsSkeleton({
+  count,
+  className,
+}: {
+  count: number;
+  className: string;
+}) {
   return (
     <div className={`flex w-full items-stretch ${className}`}>
-      {[0, 1, 2].map((tab) => (
+      {Array.from({ length: count }, (_, tab) => (
         <div
           key={tab}
           className="flex flex-1 flex-col items-center justify-center gap-1 py-2.5 sm:flex-row"
         >
           <Skeleton className="h-[22px] w-[22px] rounded-md sm:h-3.5 sm:w-3.5" />
-          <Skeleton className="h-2.5 w-10 sm:h-3.5 sm:w-12" />
+          <Skeleton className="h-4 w-10 sm:h-3.5 sm:w-12" />
         </div>
       ))}
     </div>
