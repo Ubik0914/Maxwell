@@ -1,27 +1,38 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { StoryLink } from "@/repositories/story.repository";
 import { logoutAction } from "@/features/auth/actions";
 import { storySwitchHref } from "@/features/story/switch-href";
+import {
+  STORY_FILTER_ORDER,
+  type StoryFilter,
+} from "@/features/story/filter";
 import { Skeleton } from "@/components/Skeleton";
 import { MotionToggle } from "@/components/MotionToggle";
+import { CreateStoryDialog } from "@/components/story/CreateStoryDialog";
 import { STORY_STATUS_INK } from "@/components/story/status";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDrawerDrag } from "@/components/layout/useDrawerDrag";
-import { CloseIcon, MembersIcon, StoriesIcon } from "@/components/icons";
+import { CloseIcon, MembersIcon, PlusIcon } from "@/components/icons";
 
 const NAV_ITEMS = [
-  { href: "/stories", label: "Stories", Icon: StoriesIcon },
   { href: "/settings/members", label: "Members", Icon: MembersIcon },
 ];
 
+const FILTER_LABEL: Record<StoryFilter, string> = {
+  ALL: "All",
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  ARCHIVED: "Archived",
+};
+
 function SectionLabel({ children }: { children: string }) {
   return (
-    <p className="px-3 text-[10px] font-semibold tracking-[0.16em] text-text-faint uppercase">
+    <p className="text-[10px] font-semibold tracking-[0.16em] text-text-faint uppercase">
       {children}
     </p>
   );
@@ -31,10 +42,8 @@ function SectionLabel({ children }: { children: string }) {
  * The workspace's stories, as a list of places to go.
  *
  * Named only — a dot for the state and the title — because this is a
- * way of getting somewhere, not a second stories page. Anything more
- * (how far along, what is ready) is what the cards on that page are
- * for, and putting it here would make the drawer a place you read
- * rather than a place you pass through.
+ * way of getting somewhere. What a story contains is what the story
+ * itself shows you, one press away.
  */
 function StoryLinks({
   stories,
@@ -62,9 +71,7 @@ function StoryLinks({
   if (!stories) return null;
 
   if (stories.length === 0) {
-    return (
-      <p className="px-3 py-1 text-xs text-text-faint">No stories yet.</p>
-    );
+    return <p className="px-3 py-1 text-xs text-text-faint">Nothing here.</p>;
   }
 
   return (
@@ -100,15 +107,18 @@ function StoryLinks({
 }
 
 /**
- * The app's drawer: everything about *where you are and who you are* —
- * workspace, navigation, account — in one surface, so the header can
- * stay out of the content's way.
+ * The app's drawer, which is now where stories are kept.
  *
- * It carries the workspace's stories too, so switching between them is
- * one press from inside one of them rather than a trip out to the list
- * and back in. They sit under the Stories link, which still leads to
- * the full list — the drawer names stories, the page is where you
- * filter, create and settle them.
+ * There used to be a page of story cards to filter, browse and add to.
+ * It was a screen you passed through on the way to the one you wanted
+ * and then left, which is a page's worth of chrome for a decision that
+ * is really just "which one" — so the whole of it (the filters, the
+ * list, the New Story button) is here, and the app is always showing a
+ * story rather than sometimes showing a list of them.
+ *
+ * The filters are state rather than URL, unlike the page they replace.
+ * A filter here narrows a menu while it is open; it is not somewhere
+ * you are, and it should not be somewhere the back button can take you.
  *
  * It can be dragged as well as toggled; the gesture arithmetic lives in
  * useDrawerDrag. The grab strip that starts an opening drag exists only
@@ -119,6 +129,7 @@ function StoryLinks({
 export function SideMenu({
   open,
   onOpenChange,
+  workspaceId,
   workspaceName,
   userEmail,
   stories,
@@ -127,6 +138,7 @@ export function SideMenu({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  workspaceId?: string;
   workspaceName?: string;
   userEmail?: string;
   /** null until the first load has answered. */
@@ -136,8 +148,10 @@ export function SideMenu({
 }) {
   const pathname = usePathname();
   const { panelRef, drag, handlers } = useDrawerDrag({ onSettle: onOpenChange });
+  const [filter, setFilter] = useState<StoryFilter>("ALL");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  useEscapeKey(() => onOpenChange(false), open);
+  useEscapeKey(() => onOpenChange(false), open && !isCreateOpen);
 
   // The page behind a drawer shouldn't scroll out from under it.
   useEffect(() => {
@@ -150,6 +164,11 @@ export function SideMenu({
   }, [open]);
 
   if (typeof document === "undefined") return null;
+
+  const shown =
+    stories && filter !== "ALL"
+      ? stories.filter((story) => story.status === filter)
+      : stories;
 
   /*
    * Portalled to the body rather than left where the button is.
@@ -200,31 +219,30 @@ export function SideMenu({
           // property — which an inline `transform` cannot override. So
           // the class comes off entirely for the duration of a drag,
           // and the inline transform is the only thing positioning it.
-          className={`drawer-panel absolute inset-y-0 left-0 flex w-72 max-w-[84vw] touch-pan-y flex-col gap-5 border-r border-border bg-surface py-4 shadow-[8px_0_40px_rgba(0,0,0,0.5)] transition-transform duration-300 ease-out ${
+          className={`drawer-panel absolute inset-y-0 left-0 flex w-72 max-w-[84vw] touch-pan-y flex-col gap-4 border-r border-border bg-surface py-3 shadow-[8px_0_40px_rgba(0,0,0,0.5)] transition-transform duration-300 ease-out ${
             drag ? "" : open ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex items-center justify-between px-3">
-            <span className="font-semibold tracking-wide text-accent">
-              Maxwell
-            </span>
+          {/* The product's own name used to sit here. It said nothing
+              you didn't already know, on every screen, forever. */}
+          <div className="flex justify-end px-3">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
               aria-label="Close menu"
-              className="rounded-full p-1.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
+              className="-m-1 rounded-full p-1.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
             >
               <CloseIcon />
             </button>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 px-3">
             <SectionLabel>Workspace</SectionLabel>
             {workspaceName ? (
               <Link
                 href="/workspaces"
                 onClick={() => onOpenChange(false)}
-                className="mx-1.5 flex items-center justify-between gap-2 rounded-lg px-1.5 py-2 transition-colors hover:bg-surface-hover"
+                className="-mx-1.5 flex items-center justify-between gap-2 rounded-lg px-1.5 py-2 transition-colors hover:bg-surface-hover"
               >
                 <span className="truncate text-sm text-text">
                   {workspaceName}
@@ -234,74 +252,99 @@ export function SideMenu({
                 </span>
               </Link>
             ) : (
-              <Skeleton className="mx-3 h-5 w-32" />
+              <Skeleton className="h-5 w-32" />
             )}
           </div>
 
-          {/* The one part that can outgrow the drawer, so it is the one
-              part that scrolls. Everything below stays put — and the
-              two destinations stay at the top of it, above however many
-              stories there turn out to be. */}
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-            <nav className="flex flex-col gap-0.5 px-1.5">
-              {NAV_ITEMS.map(({ href, label, Icon }) => {
-                // On a story page the Stories link is not where you
-                // are — the story named below it is — so being under
-                // /stories is not enough to claim the highlight.
-                const isActive =
-                  pathname.startsWith(href) &&
-                  !(currentStoryId && href === "/stories");
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => onOpenChange(false)}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-                      isActive
-                        ? "bg-accent-soft text-accent"
-                        : "text-text-muted hover:bg-surface-hover hover:text-text"
+          {/* The stories: the one part that can outgrow the drawer, so
+              the one part that scrolls. Its heading and filters stay
+              put above it, and everything below stays put too. */}
+          {workspaceId && (
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <div className="flex items-center justify-between gap-2 px-3">
+                <SectionLabel>Stories</SectionLabel>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(true)}
+                  aria-label="New story"
+                  title="New story"
+                  className="-m-1 rounded-full p-1 text-text-faint transition-colors hover:bg-surface-hover hover:text-accent"
+                >
+                  <PlusIcon />
+                </button>
+              </div>
+
+              {/* Four filters do not fit across 288px, and wrapping them
+                  costs a line of the list. They scroll instead, the way
+                  the task filters do. */}
+              <div className="scroll-x flex gap-1.5 px-3">
+                {STORY_FILTER_ORDER.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFilter(value)}
+                    aria-pressed={filter === value}
+                    className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                      filter === value
+                        ? "border-accent bg-accent-soft text-accent"
+                        : "border-border text-text-muted hover:border-border-strong hover:text-text"
                     }`}
                   >
-                    <Icon />
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
+                    {FILTER_LABEL[value]}
+                  </button>
+                ))}
+              </div>
 
-            {(isLoadingStories || stories) && (
-              <div className="flex flex-col gap-1.5">
-                <SectionLabel>Switch story</SectionLabel>
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 <StoryLinks
-                  stories={stories}
+                  stories={shown}
                   isLoading={isLoadingStories}
                   currentStoryId={currentStoryId}
                   pathname={pathname}
                   onNavigate={() => onOpenChange(false)}
                 />
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="flex flex-col gap-1.5">
+          <nav className="flex flex-col gap-0.5 px-1.5">
+            {NAV_ITEMS.map(({ href, label, Icon }) => {
+              const isActive = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => onOpenChange(false)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "bg-accent-soft text-accent"
+                      : "text-text-muted hover:bg-surface-hover hover:text-text"
+                  }`}
+                >
+                  <Icon />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="flex flex-col gap-1.5 px-3">
             <SectionLabel>Motion</SectionLabel>
             <MotionToggle />
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 px-3">
             <SectionLabel>Account</SectionLabel>
             {userEmail ? (
-              <p className="truncate px-3 text-sm text-text-muted">
-                {userEmail}
-              </p>
+              <p className="truncate text-sm text-text-muted">{userEmail}</p>
             ) : (
-              <Skeleton className="mx-3 h-4 w-40" />
+              <Skeleton className="h-4 w-40" />
             )}
-            <form action={logoutAction} className="px-1.5">
+            <form action={logoutAction}>
               <button
                 type="submit"
-                className="w-full rounded-lg px-1.5 py-2 text-left text-sm text-text-faint transition-colors hover:bg-surface-hover hover:text-danger"
+                className="-mx-1.5 w-full rounded-lg px-1.5 py-1.5 text-left text-sm text-text-faint transition-colors hover:bg-surface-hover hover:text-danger"
               >
                 Log out
               </button>
@@ -309,6 +352,13 @@ export function SideMenu({
           </div>
         </aside>
       </div>
+
+      {isCreateOpen && workspaceId && (
+        <CreateStoryDialog
+          workspaceId={workspaceId}
+          onClose={() => setIsCreateOpen(false)}
+        />
+      )}
     </>,
     document.body,
   );

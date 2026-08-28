@@ -4,8 +4,11 @@ import { Skeleton } from "@/components/Skeleton";
 /**
  * The top bar. Everything that is *about the account* rather than about
  * the page — switching workspace, who you are, logging out — lives in
- * the drawer now; what stays here is the way in, the product name, and
- * the current workspace as orientation only.
+ * the drawer; what stays here is the way in and the current workspace
+ * as orientation.
+ *
+ * The product's name was here too, and said nothing to someone already
+ * inside the product. What is left is a way in and where you are.
  *
  * No state of its own any more, so no "use client": the button and the
  * drawer it owns are the only part of this that has to run in the
@@ -28,12 +31,8 @@ export function AppNav({
         userEmail={userEmail}
         className="-ml-1"
       />
-      <span className="font-semibold tracking-wide text-accent">Maxwell</span>
       {workspaceName ? (
-        <span className="min-w-0 truncate text-sm text-text-faint">
-          <span aria-hidden="true" className="mr-2">
-            ·
-          </span>
+        <span className="min-w-0 truncate text-sm text-text-muted">
           {workspaceName}
         </span>
       ) : (

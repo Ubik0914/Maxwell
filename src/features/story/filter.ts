@@ -1,8 +1,15 @@
 export type StoryFilter = "ALL" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
 
 /**
- * The filters in the order they are shown, which is also the order a
- * swipe walks them.
+ * The filters in the order they are shown.
+ *
+ * "All" leads because it is the absence of a filter, and the rest run
+ * from the state a story spends its life in to the one it ends up in.
+ *
+ * They used to be URLs, back when stories were a page — a filter was
+ * somewhere you could be, and the back button could take you there. In
+ * the drawer a filter narrows a menu while it is open and is gone when
+ * it closes, which is what it always really was.
  */
 export const STORY_FILTER_ORDER: StoryFilter[] = [
   "ALL",
@@ -10,28 +17,3 @@ export const STORY_FILTER_ORDER: StoryFilter[] = [
   "COMPLETED",
   "ARCHIVED",
 ];
-
-export function isStoryFilter(value: string): value is StoryFilter {
-  return (STORY_FILTER_ORDER as string[]).includes(value);
-}
-
-/** "All" is the absence of a filter, so it is the bare URL. */
-export function storyFilterHref(value: StoryFilter): string {
-  return value === "ALL" ? "/stories" : `/stories?status=${value}`;
-}
-
-/**
- * The filter one step along, or null at either end.
- *
- * Deliberately does not wrap. Running off the edge of a list and
- * landing back at the start is disorienting, and the end of the row is
- * worth being able to feel.
- */
-export function stepStoryFilter(
-  current: string,
-  step: -1 | 1,
-): StoryFilter | null {
-  const at = STORY_FILTER_ORDER.indexOf(current as StoryFilter);
-  if (at === -1) return null;
-  return STORY_FILTER_ORDER[at + step] ?? null;
-}

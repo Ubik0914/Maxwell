@@ -1,12 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import {
-  BoardIcon,
-  GraphViewIcon,
-  ListIcon,
-  StoriesIcon,
-} from "@/components/icons";
+import { BoardIcon, GraphViewIcon, ListIcon } from "@/components/icons";
 import { TabBar } from "@/components/ui/TabBar";
 
 const VIEWS = [
@@ -16,19 +11,13 @@ const VIEWS = [
 ] as const;
 
 /**
- * The same story, three ways to look at it — and, on a phone, the way
- * back to the list of them.
+ * The same story, three ways to look at it.
  *
- * That fourth tab exists only in the bottom bar. Up top there is a
- * "← Stories" link right next to the title, and a second way out three
- * inches away would be one too many. At the bottom there isn't one: the
- * back arrow is a small target in the far corner of a phone, which is
- * the corner a thumb reaches last. A bar that can move between a
- * story's views but not out of the story is half a navigation.
- *
- * It leads rather than follows the three views, because it is the level
- * above them — the same order the back arrow and the title sit in up
- * top, read left to right.
+ * It carried a fourth tab to the stories list, back when that was a
+ * page. It isn't one now — the stories live in the drawer, which opens
+ * from the header button and, on a phone, from a drag off the left
+ * edge. A tab leading to a route that only redirects would send you
+ * somewhere you didn't ask to go.
  *
  * Real links throughout, so each view has a URL you can send to someone
  * and the back button does what it should. Which one is active is read
@@ -62,23 +51,7 @@ export function ViewSwitcher({
       label="Story view"
       placement={placement}
       className={className}
-      tabs={
-        placement === "bottom"
-          ? [
-              {
-                key: "Stories",
-                href: "/stories",
-                label: "Stories",
-                // Never active: leaving here means leaving this bar
-                // behind, so marking it would claim a destination the
-                // bar cannot be showing.
-                isActive: false,
-                icon: <StoriesIcon />,
-              },
-              ...views,
-            ]
-          : views
-      }
+      tabs={views}
     />
   );
 }
