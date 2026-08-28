@@ -1,0 +1,296 @@
+
+/* --- Loading: the shell is here, the content is still arriving --------- */
+
+/*
+ * A slow sweep across a placeholder, not a blinking block: navigation
+ * between the story list and a graph goes to the server, and without
+ * this the screen simply holds the previous page and looks frozen. The
+ * sweep is the proof that something is in flight.
+ */
+.skeleton {
+  background-color: var(--surface);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--surface-hover) 45%,
+    transparent 90%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-sweep 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+/* The canvas's own dot grid, so a loading graph screen sits on the same
+   ground the real one does instead of on a blank panel. React Flow
+   draws this at a 24px gap once it mounts. */
+.canvas-grid {
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+
+/* --- Modals: the graph recedes, the panel condenses -------------------- */
+
+.modal-backdrop {
+  animation: modal-backdrop 200ms ease-out both;
+}
+
+@keyframes modal-backdrop {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(6px);
+  }
+}
+
+.modal-panel {
+  animation: modal-panel 240ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+@keyframes modal-panel {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* --- Story card -> graph ---------------------------------------------- */
+
+/* Clicking a story expands its card toward the viewer while the rest of
+   the grid drops back, and the graph page fades up from the same scale —
+   so the card reads as having become the graph rather than as a page
+   swap. */
+.story-card {
+  transition:
+    transform 200ms cubic-bezier(0.16, 0.9, 0.28, 1),
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    opacity 260ms ease;
+}
+
+@media (hover: hover) {
+  .story-card:hover {
+    transform: scale(1.02);
+  }
+}
+
+.story-card:active {
+  transform: scale(0.995);
+}
+
+.story-card-launch {
+  animation: story-launch 420ms cubic-bezier(0.3, 0, 0.2, 1) both;
+  z-index: 1;
+}
+
+@keyframes story-launch {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0;
+    box-shadow: 0 0 60px rgba(34, 211, 238, 0.35);
+    border-color: var(--accent);
+  }
+}
+
+.story-grid:has(.story-card-launch) .story-card:not(.story-card-launch) {
+  opacity: 0.15;
+  transform: scale(0.97);
+}
+
+.graph-enter {
+  animation: graph-enter 420ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+/* Ends at `none`, not `scale(1)`: any transform value other than none
+   makes an element the containing block for its position: fixed
+   descendants, and this one wraps the whole canvas. Landing on scale(1)
+   would leave every dialog inside the graph resolving "fixed inset-0"
+   against this box forever after. (Modal portals out of here as a second
+   line of defence — but the animation must not lay the trap.) */
+@keyframes graph-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The spark riding a story card's rail, on hover only. `left` rather
+   than a transform because the rail is fluid-width and a percentage
+   translate would resolve against the 5px spark itself. */
+.story-card .spark-run {
+  left: 0;
+  opacity: 0;
+}
+
+@media (hover: hover) {
+  .story-card:hover .spark-run {
+    animation: spark-run 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes spark-run {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  20%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+
+/* --- Toasts ------------------------------------------------------------ */
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 180ms ease-out;
+}
+
+/* ==========================================================================
+ * Reduced motion
+ *
+ * This block used to be a blanket `*` rule crushing every duration to
+ * 0.01ms, which switched the entire product off for anyone with "reduce
+ * motion" enabled — and that setting is common on phones. Nothing was
+ * broken; everything was simply told not to run.
+ *
+ * The setting asks for less *movement*, not less feedback. So what this
+ * app says with light — a node breathing, a fault ticking, a status
+ * pulsing, an edge flashing as work propagates downstream — keeps
+ * running: none of it moves anything, and switching it off would take
+ * the product's whole state language with it. What goes is anything
+ * that travels, spins, or scales, and where that was the only signal, a
+ * still substitute takes its place: the surge dot goes but its path
+ * flash stays, the orbiting rim light goes but the node keeps a steady
+ * one (see TaskNode).
+ *
+ * Direct responses to the user's own hand — dragging the drawer,
+ * pressing a control — are left alone. They are not autonomous motion.
+ * ==========================================================================
+ */
+
+@keyframes reduced-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes reduced-vanish {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes reduced-genesis {
+  from {
+    opacity: 0;
+    box-shadow: 0 0 34px rgba(34, 211, 238, 0.8);
+  }
+  to {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.12);
+  }
+}
+
+@keyframes reduced-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  /* Travels or spins: removed outright. `.edge-surge-path` is not here —
+     it is pure opacity, so a completed task still visibly propagates. */
+  .edge-spark,
+  .edge-surge,
+  .node-orbit,
+  .story-card .spark-run {
+    display: none;
+  }
+
+  /* Entrances keep the fade and lose the displacement. */
+  .animate-toast-in,
+  .modal-panel,
+  .graph-enter {
+    animation: reduced-appear 200ms ease-out both;
+  }
+
+  .story-card-launch {
+    animation: reduced-vanish 200ms ease-out both;
+  }
+
+  /* A node still arrives with its flash of light, just without the pop. */
+  .pulse-genesis {
+    animation: reduced-genesis 500ms ease-out both;
+  }
+
+  /* The loading sweep is a gradient in motion; a still pulse reports the
+     same thing. */
+  .skeleton {
+    background-image: none;
+    animation: reduced-breathe 2s ease-in-out infinite;
+  }
+
+  /* The drawer arrives rather than sliding. Its backdrop still fades, so
+     the change of surface is not abrupt. */
+  .drawer-panel {
+    transition: none;
+  }
+
+  .story-card,
+  .story-card:hover,
+  .story-card:active {
+    transform: none;
+  }
+}

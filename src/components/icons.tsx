@@ -111,3 +111,27 @@ export function ResetViewIcon({ className }: { className?: string }) {
     </Icon>
   );
 }
+
+/** Three nodes wired together: the stories list. */
+export function StoriesIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <circle cx="4" cy="10" r="2" />
+      <circle cx="16" cy="4" r="2" />
+      <circle cx="16" cy="16" r="2" />
+      <path d="M6 9.2 14 5M6 10.8l8 5.2" />
+    </Icon>
+  );
+}
+
+/** Two figures: workspace members. */
+export function MembersIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <circle cx="7" cy="6" r="2.5" />
+      <path d="M2.5 16c.6-3 2.2-4.5 4.5-4.5s3.9 1.5 4.5 4.5" />
+      <circle cx="14.5" cy="7" r="2" />
+      <path d="M12.5 11.2c1.9.3 3.1 1.6 3.6 4.3" />
+    </Icon>
+  );
+}

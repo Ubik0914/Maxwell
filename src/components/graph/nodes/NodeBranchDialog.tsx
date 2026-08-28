@@ -8,6 +8,7 @@ import { branchTaskFromNodeAction } from "@/features/graph/actions";
 import { useToast } from "@/components/Toast";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
+import { SpliceDiagram } from "@/components/graph/SpliceDiagram";
 
 /**
  * Where a branch from `nodeId` is allowed to rejoin.
@@ -41,53 +42,6 @@ function rejoinCandidates(
   }
 
   return candidates;
-}
-
-/** The shape being added, so the rejoin choice is visible, not implied. */
-function BranchDiagram() {
-  return (
-    <svg viewBox="0 0 220 72" className="h-16 w-full" aria-hidden="true">
-      <path
-        d="M20 20H200"
-        stroke="var(--border-strong)"
-        strokeWidth="2"
-        fill="none"
-      />
-      <path
-        d="M20 20C60 20 60 52 110 52C160 52 160 20 200 20"
-        stroke="var(--accent)"
-        strokeWidth="2"
-        fill="none"
-        opacity="0.7"
-      />
-      <rect
-        x="90"
-        y="43"
-        width="40"
-        height="18"
-        rx="5"
-        fill="var(--surface)"
-        stroke="var(--accent)"
-        strokeWidth="1.5"
-      />
-      <circle
-        cx="20"
-        cy="20"
-        r="5"
-        fill="var(--surface)"
-        stroke="var(--accent)"
-        strokeWidth="2"
-      />
-      <circle
-        cx="200"
-        cy="20"
-        r="5"
-        fill="var(--surface)"
-        stroke="var(--border-strong)"
-        strokeWidth="2"
-      />
-    </svg>
-  );
 }
 
 export function NodeBranchDialog({
@@ -155,7 +109,7 @@ export function NodeBranchDialog({
           onSubmit={handleSubmit}
           className="flex flex-col gap-4"
         >
-          <BranchDiagram />
+          <SpliceDiagram shape="branch" />
 
           <div className="flex flex-col gap-1">
             <label
