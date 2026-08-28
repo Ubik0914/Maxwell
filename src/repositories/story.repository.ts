@@ -13,6 +13,9 @@ export interface StoryStats {
 export interface StoryListItem {
   id: string;
   title: string;
+  /** Carried so a card can open story settings without fetching the
+   *  story again for one column. */
+  description: string | null;
   status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
   updatedAt: string;
   stats: StoryStats;
@@ -28,7 +31,7 @@ export async function listStoriesForWorkspace(
 ): Promise<StoryListItem[]> {
   const { data: stories, error: storiesError } = await supabase
     .from("stories")
-    .select("id, title, status, updated_at")
+    .select("id, title, description, status, updated_at")
     .eq("workspace_id", workspaceId)
     .order("updated_at", { ascending: false });
 
@@ -74,6 +77,7 @@ export async function listStoriesForWorkspace(
   return stories.map((story) => ({
     id: story.id,
     title: story.title,
+    description: story.description,
     status: story.status,
     updatedAt: story.updated_at,
     stats: statsByStory.get(story.id) ?? emptyStats(),

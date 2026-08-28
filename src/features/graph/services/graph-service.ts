@@ -26,6 +26,9 @@ export interface GraphResult {
   story: {
     id: string;
     title: string;
+    /** Carried so the header can open story settings without a
+     *  second round-trip for one column. */
+    description: string | null;
     status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
   };
   nodes: GraphNode[];
@@ -72,7 +75,7 @@ export async function getGraph(
 ): Promise<GraphResult | null> {
   const { data: story, error } = await supabase
     .from("stories")
-    .select("id, title, status")
+    .select("id, title, description, status")
     .eq("id", storyId)
     .maybeSingle();
 
