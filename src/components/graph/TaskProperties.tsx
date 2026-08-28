@@ -2,29 +2,8 @@
 
 import type { ReactNode } from "react";
 import type { TaskStatus } from "@/domain/graph/types";
-
-const PRIORITY_LABEL: Record<number, string> = {
-  1: "Low",
-  2: "Medium",
-  3: "High",
-  4: "Urgent",
-};
-
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  BLOCKED: "Blocked",
-  READY: "Ready",
-  IN_PROGRESS: "In progress",
-  DONE: "Done",
-  CANCELLED: "Cancelled",
-};
-
-const STATUS_TONE: Record<TaskStatus, string> = {
-  BLOCKED: "text-text-faint border-border",
-  READY: "text-accent border-accent/40 bg-accent-soft",
-  IN_PROGRESS: "text-warning border-warning/40 bg-warning-soft",
-  DONE: "text-success border-success/40 bg-success-soft",
-  CANCELLED: "text-text-faint border-border",
-};
+import { PRIORITY_LABEL, type SettableStatus } from "@/components/task/status";
+import { StatusSelect } from "@/components/task/StatusSelect";
 
 const SET = "border-border text-text";
 const UNSET = "border-border text-text-muted";
@@ -43,18 +22,15 @@ const BARE =
  */
 function Chip({
   tone = UNSET,
-  dot,
   children,
 }: {
   tone?: string;
-  dot?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div
       className={`relative flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors focus-within:border-accent ${tone}`}
     >
-      {dot}
       {children}
     </div>
   );
@@ -68,6 +44,11 @@ function Chip({
  * It owns no state: each control reports upward and the panel decides
  * what to save and when, because status goes through the Status Engine
  * while the rest are plain field updates.
+ *
+ * The status chip is StatusSelect, the same component the list and the
+ * board use. It used to be spelled out here, which meant three places
+ * would have had to agree on which statuses are choosable — a rule that
+ * belongs in one file, not in whichever surfaces happen to show it.
  */
 export function TaskProperties({
   status,
@@ -81,7 +62,7 @@ export function TaskProperties({
   onAssigneeCommit,
 }: {
   status: TaskStatus;
-  onStatusChange: (status: "READY" | "IN_PROGRESS" | "DONE" | "CANCELLED") => void;
+  onStatusChange: (status: SettableStatus) => void;
   priority: number;
   onPriorityChange: (priority: number) => void;
   dueDate: string;
@@ -92,40 +73,7 @@ export function TaskProperties({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <Chip
-        tone={STATUS_TONE[status]}
-        dot={
-          <span
-            aria-hidden="true"
-            className="h-1.5 w-1.5 shrink-0 rounded-full bg-current"
-          />
-        }
-      >
-        <label htmlFor="panel-status" className="sr-only">
-          Status
-        </label>
-        <select
-          id="panel-status"
-          value={status}
-          onChange={(e) =>
-            onStatusChange(
-              e.target.value as "READY" | "IN_PROGRESS" | "DONE" | "CANCELLED",
-            )
-          }
-          className={BARE}
-        >
-          {/* Only reachable by the engine, never by choosing it. */}
-          {status === "BLOCKED" && (
-            <option value="BLOCKED" disabled>
-              {STATUS_LABEL.BLOCKED}
-            </option>
-          )}
-          <option value="READY">{STATUS_LABEL.READY}</option>
-          <option value="IN_PROGRESS">{STATUS_LABEL.IN_PROGRESS}</option>
-          <option value="DONE">{STATUS_LABEL.DONE}</option>
-          <option value="CANCELLED">{STATUS_LABEL.CANCELLED}</option>
-        </select>
-      </Chip>
+      <StatusSelect id="panel-status" status={status} onChange={onStatusChange} />
 
       <Chip tone={priority ? SET : UNSET}>
         <label htmlFor="panel-priority" className="sr-only">
