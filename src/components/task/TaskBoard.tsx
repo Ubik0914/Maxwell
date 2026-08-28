@@ -5,7 +5,7 @@ import type { GraphEdge, GraphNode, TaskStatus } from "@/domain/graph/types";
 import { buildBlockerMap } from "@/domain/graph/blockers";
 import { sortTasks } from "@/domain/graph/task-order";
 import { countByStatus, matchesQuery, onlyTasks } from "@/features/tasks/filter";
-import { useCardDrag } from "@/features/tasks/hooks/useCardDrag";
+import { useCardDrag, type DropTarget } from "@/features/tasks/hooks/useCardDrag";
 import { useTaskActions } from "@/features/tasks/hooks/useTaskActions";
 import {
   BOARD_STATUSES,
@@ -41,17 +41,20 @@ const DROPPABLE = BOARD_STATUSES.filter(
  * can be dropped in — the way to block a task is to give it a
  * dependency, on the graph.
  *
- * Columns hold their own sort (urgency order) rather than a manual one:
- * there is no per-column rank in the schema, and inventing one that only
- * lived in the browser would be a lie about what had been saved.
+ * Cards can be dragged within a column as well as between them. The
+ * rank behind that is story-wide, not per column, so a card keeps its
+ * place when you move it to In progress and back — which is what you
+ * want, and what a per-column rank could not give you.
  */
 export function TaskBoard({
   nodes: serverNodes,
   edges,
+  storyId,
   today,
 }: {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  storyId: string;
   today: string;
 }) {
   const [query, setQuery] = useState("");
@@ -59,7 +62,7 @@ export function TaskBoard({
   const { showError } = useToast();
   // `actions.nodes` already carries any status change still in flight,
   // so a dropped card is in its new column before the server answers.
-  const actions = useTaskActions(serverNodes);
+  const actions = useTaskActions(serverNodes, storyId);
   const { nodes, changeStatus, flashClass } = actions;
 
   const tasks = useMemo(() => onlyTasks(nodes), [nodes]);
@@ -76,23 +79,38 @@ export function TaskBoard({
     }
     return BOARD_STATUSES.map((status) => ({
       status,
-      tasks: sortTasks(byStatus.get(status) ?? [], "urgency"),
+      // Manual rank first, urgency among whatever nobody has placed —
+      // so a column reads as the order it was arranged in, and a new
+      // task still arrives somewhere sensible rather than at the top.
+      tasks: sortTasks(byStatus.get(status) ?? [], "manual"),
     }));
   }, [tasks, query]);
 
-  function move(taskId: string, target: string) {
-    if (target === "BLOCKED") {
+  function drop(taskId: string, target: DropTarget) {
+    const task = tasks.find((candidate) => candidate.id === taskId);
+    if (!task) return;
+
+    if (target.zone === "BLOCKED") {
       showError(
         "Blocked is set by the graph — add or complete a dependency instead.",
       );
       return;
     }
-    const task = tasks.find((candidate) => candidate.id === taskId);
-    if (!task || statusOf(task.status) === target) return;
-    changeStatus(taskId, target as SettableStatus);
+
+    // Position always, status only when the column actually changed.
+    // Dropping a card two places up inside its own column is a
+    // reordering, not a state change, and writing the status it already
+    // has would send the whole graph through the Status Engine for
+    // nothing.
+    const column = columns.find((c) => c.status === target.zone);
+    actions.reorder(taskId, column?.tasks ?? [], target.index);
+
+    if (statusOf(task.status) !== target.zone) {
+      changeStatus(taskId, target.zone as SettableStatus);
+    }
   }
 
-  const { drag, start } = useCardDrag({ onDrop: move });
+  const { drag, start } = useCardDrag({ onDrop: drop });
 
   /** Arrow keys on the grip: the same move, one column at a time. */
   function nudge(task: GraphNode, direction: -1 | 1) {
@@ -134,9 +152,9 @@ export function TaskBoard({
             )
             .map((column) => {
               const isRefusing =
-                drag?.over === column.status && column.status === "BLOCKED";
+                drag?.over?.zone === column.status && column.status === "BLOCKED";
               const isOver =
-                drag?.over === column.status && column.status !== "BLOCKED";
+                drag?.over?.zone === column.status && column.status !== "BLOCKED";
 
               return (
                 <section

@@ -13,6 +13,7 @@ function node(overrides: Partial<GraphNode> & { id: string }): GraphNode {
     dueDate: null,
     positionX: 0,
     positionY: 0,
+    sortOrder: null,
     ...overrides,
   };
 }
@@ -150,5 +151,60 @@ describe("sortTasks", () => {
 
     expect(order(nodes, "priority")).toEqual(["readyUrgent", "startedLow"]);
     expect(order(nodes, "urgency")).toEqual(["startedLow", "readyUrgent"]);
+  });
+});
+
+describe("the manual order", () => {
+  it("follows the rank someone put the tasks in", () => {
+    const nodes = [
+      node({ id: "third", status: "IN_PROGRESS", sortOrder: 2 }),
+      node({ id: "first", status: "BLOCKED", sortOrder: 0 }),
+      node({ id: "second", status: "DONE", sortOrder: 1 }),
+    ];
+
+    // The rank wins outright: this is the one order the product does
+    // not have an opinion about.
+    expect(order(nodes, "manual")).toEqual(["first", "second", "third"]);
+  });
+
+  it("puts never-placed tasks after every placed one", () => {
+    // A task nobody has moved belongs at the end of a hand-made list,
+    // not silently at the top of it.
+    const nodes = [
+      node({ id: "new", status: "IN_PROGRESS" }),
+      node({ id: "placed", status: "DONE", sortOrder: 5 }),
+    ];
+
+    expect(order(nodes, "manual")).toEqual(["placed", "new"]);
+  });
+
+  it("falls back to urgency among the never-placed", () => {
+    const nodes = [
+      node({ id: "blocked", status: "BLOCKED" }),
+      node({ id: "started", status: "IN_PROGRESS" }),
+      node({ id: "ready", status: "READY" }),
+    ];
+
+    // A story nobody has ever reordered reads exactly as it does under
+    // the default order.
+    expect(order(nodes, "manual")).toEqual(order(nodes, "urgency"));
+  });
+
+  it("keeps a rank of 0 distinct from having no rank", () => {
+    const nodes = [
+      node({ id: "unplaced", status: "IN_PROGRESS" }),
+      node({ id: "top", status: "BLOCKED", sortOrder: 0 }),
+    ];
+
+    expect(order(nodes, "manual")).toEqual(["top", "unplaced"]);
+  });
+
+  it("does not let the rank leak into the default order", () => {
+    const nodes = [
+      node({ id: "rankedLast", status: "IN_PROGRESS", sortOrder: 99 }),
+      node({ id: "rankedFirst", status: "BLOCKED", sortOrder: 0 }),
+    ];
+
+    expect(order(nodes, "urgency")).toEqual(["rankedLast", "rankedFirst"]);
   });
 });

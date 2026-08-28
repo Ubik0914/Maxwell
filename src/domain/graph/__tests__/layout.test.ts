@@ -15,6 +15,7 @@ function node(overrides: Partial<GraphNode> & { id: string }): GraphNode {
     // positions it is about to replace.
     positionX: 0,
     positionY: 0,
+    sortOrder: null,
     ...overrides,
   };
 }

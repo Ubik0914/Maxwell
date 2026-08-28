@@ -54,3 +54,16 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type UpdateNodePositionInput = z.infer<typeof updateNodePositionSchema>;
 export type UpdateTaskStatusInput = z.infer<typeof updateTaskStatusSchema>;
+
+/**
+ * The whole order, not the one row that moved — see reorderNodes for
+ * why. Capped so a malformed or hostile call can't ask the database to
+ * renumber an unbounded list; a story with more than a thousand tasks
+ * has a bigger problem than its sort order.
+ */
+export const reorderTasksSchema = z.object({
+  storyId: z.string().uuid(),
+  taskIds: z.array(z.string().uuid()).min(1).max(1000),
+});
+
+export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;

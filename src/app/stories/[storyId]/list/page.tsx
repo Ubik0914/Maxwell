@@ -21,6 +21,7 @@ export default async function StoryListPage({
         <TaskTable
           nodes={graph.nodes}
           edges={graph.edges}
+          storyId={graph.story.id}
           today={todayIso()}
         />
       </div>

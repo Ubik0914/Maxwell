@@ -130,6 +130,7 @@ export type Database = {
           due_date: string | null;
           position_x: number;
           position_y: number;
+          sort_order: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -151,6 +152,7 @@ export type Database = {
           due_date?: string | null;
           position_x?: number;
           position_y?: number;
+          sort_order?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -172,6 +174,7 @@ export type Database = {
           due_date?: string | null;
           position_x?: number;
           position_y?: number;
+          sort_order?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -268,6 +271,13 @@ export type Database = {
           p_description: string | null;
         };
         Returns: string;
+      };
+      reorder_nodes: {
+        Args: {
+          p_story_id: string;
+          p_node_ids: string[];
+        };
+        Returns: void;
       };
     };
     Enums: Record<string, never>;

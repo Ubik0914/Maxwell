@@ -1,6 +1,12 @@
 import type { GraphNode, TaskStatus } from "@/domain/graph/types";
 
-export type TaskSortKey = "urgency" | "title" | "status" | "priority" | "due";
+export type TaskSortKey =
+  | "urgency"
+  | "manual"
+  | "title"
+  | "status"
+  | "priority"
+  | "due";
 
 /**
  * Which state deserves attention first.
@@ -69,11 +75,28 @@ export function compareByUrgency(a: GraphNode, b: GraphNode): number {
   );
 }
 
+/**
+ * The order someone put these in themselves.
+ *
+ * A task nobody has placed by hand sorts after every task that has
+ * been, rather than at position zero — a new task should appear at the
+ * end of a hand-made list, not silently at the top of it. Among the
+ * unplaced, the urgency rule decides, so a story nobody has ever
+ * reordered reads exactly as it does under the default order.
+ */
+function byManual(a: GraphNode, b: GraphNode): number {
+  const gap = nullsLast(a.sortOrder, b.sortOrder);
+  if (gap !== 0) return gap;
+  if (a.sortOrder === null || b.sortOrder === null) return 0;
+  return a.sortOrder - b.sortOrder;
+}
+
 const COMPARATORS: Record<
   TaskSortKey,
   (a: GraphNode, b: GraphNode) => number
 > = {
   urgency: compareByUrgency,
+  manual: (a, b) => byManual(a, b) || compareByUrgency(a, b),
   status: (a, b) => byStatus(a, b) || compareByUrgency(a, b),
   priority: (a, b) => byPriority(a, b) || compareByUrgency(a, b),
   due: (a, b) => byDue(a, b) || compareByUrgency(a, b),

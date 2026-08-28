@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { GraphNode } from "@/domain/graph/types";
-import { deleteTaskAction } from "@/features/graph/actions";
+import {
+  deleteTaskAction,
+  reorderTasksAction,
+} from "@/features/graph/actions";
+import { reorderWithin } from "@/domain/graph/reorder";
+import { sortTasks } from "@/domain/graph/task-order";
+import { onlyTasks } from "@/features/tasks/filter";
 import { useToast } from "@/components/Toast";
 import { useTaskStatusMutation } from "@/features/tasks/hooks/useTaskStatusMutation";
 import type { PressPoint } from "@/hooks/useLongPress";
@@ -28,11 +34,30 @@ export interface MenuTarget {
  * change made from the menu re-sorts the list the same instant as one
  * made from the status chip.
  */
-export function useTaskActions(serverNodes: GraphNode[]) {
+export function useTaskActions(serverNodes: GraphNode[], storyId: string) {
   const router = useRouter();
   const { showError } = useToast();
   const { nodes, changeStatus, flashClass } =
     useTaskStatusMutation(serverNodes);
+  /**
+   * The manual rank applied locally, so a dropped card stays where it
+   * was dropped instead of snapping back for a round-trip. Cleared when
+   * the server's own order arrives, exactly like the optimistic status.
+   */
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
+
+  /*
+   * Drop the local order the moment fresh server data arrives.
+   *
+   * Adjusted during render rather than in an effect, so the new nodes
+   * and the cleared override land in the same commit — an effect would
+   * paint one frame of the server's order underneath a stale local one.
+   */
+  const [seenNodes, setSeenNodes] = useState(serverNodes);
+  if (serverNodes !== seenNodes) {
+    setSeenNodes(serverNodes);
+    setLocalOrder(null);
+  }
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addAfterId, setAddAfterId] = useState<string | null>(null);
@@ -40,10 +65,52 @@ export function useTaskActions(serverNodes: GraphNode[]) {
   const [menu, setMenu] = useState<MenuTarget | null>(null);
   const [, startTransition] = useTransition();
 
+  // The graph as it should be drawn: the server's, plus any status
+  // change and any drop still in flight.
+  const shownNodes = useMemo(() => {
+    if (!localOrder) return nodes;
+    const rank = new Map(localOrder.map((id, index) => [id, index]));
+    return nodes.map((node) =>
+      rank.has(node.id) ? { ...node, sortOrder: rank.get(node.id)! } : node,
+    );
+  }, [nodes, localOrder]);
+
   const byId = useCallback(
     (id: string | null) =>
-      id ? (nodes.find((node) => node.id === id) ?? null) : null,
-    [nodes],
+      id ? (shownNodes.find((node) => node.id === id) ?? null) : null,
+    [shownNodes],
+  );
+
+  /**
+   * A card was dropped at `index` within `visible` — an ordered view of
+   * some of the story's tasks (one board column, or the list as it is
+   * currently filtered).
+   *
+   * The view moves first and the write follows, like every other
+   * mutation here: a card that springs back to where it came from for
+   * the length of a round-trip reads as a drop that failed.
+   */
+  const reorder = useCallback(
+    (movedId: string, visible: GraphNode[], index: number) => {
+      const ordered = sortTasks(onlyTasks(shownNodes), "manual");
+      const before = ordered.map((task) => task.id);
+      const after = reorderWithin(ordered, visible, movedId, index);
+      // Dropped back where it already was. Writing the same order would
+      // be a round-trip and a refresh for nothing.
+      if (before.every((id, i) => id === after[i])) return;
+
+      setLocalOrder(after);
+      startTransition(async () => {
+        const result = await reorderTasksAction({ storyId, taskIds: after });
+        if (!result.success) {
+          showError(result.error.message);
+          setLocalOrder(null);
+          return;
+        }
+        router.refresh();
+      });
+    },
+    [shownNodes, storyId, router, showError],
   );
 
   const openMenu = useCallback((task: GraphNode, at: PressPoint) => {
@@ -68,9 +135,10 @@ export function useTaskActions(serverNodes: GraphNode[]) {
   }, [deleting, selectedId, router, showError]);
 
   return {
-    nodes,
+    nodes: shownNodes,
     changeStatus,
     flashClass,
+    reorder,
 
     selected: byId(selectedId),
     selectedId,

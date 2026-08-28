@@ -76,9 +76,21 @@ export function TaskFilterBar({
             ink={STATUS_INK[value]}
           />
         ))}
-      </div>
 
-      {children}
+        {/* Inside the scroller, not after it. Anything the caller adds
+            here is another pill that changes what the list shows, and
+            parking it outside would put it on a second line on a phone
+            — the exact thing the scroller exists to avoid. */}
+        {children && (
+          <>
+            <span
+              aria-hidden="true"
+              className="mx-1 h-4 w-px shrink-0 bg-border"
+            />
+            {children}
+          </>
+        )}
+      </div>
     </div>
   );
 }

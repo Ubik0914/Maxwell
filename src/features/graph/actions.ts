@@ -6,6 +6,7 @@ import {
   updateTaskSchema,
   updateNodePositionSchema,
   updateTaskStatusSchema,
+  reorderTasksSchema,
 } from "@/lib/validation/task";
 import {
   branchTaskFromNodeSchema,
@@ -453,6 +454,48 @@ export async function updateTaskStatusAction(input: {
       error: {
         code: ErrorCode.INTERNAL_ERROR,
         message: "Failed to update status.",
+      },
+    };
+  }
+}
+
+export async function reorderTasksAction(input: {
+  storyId: string;
+  taskIds: string[];
+}): Promise<ActionResult<null>> {
+  const parsed = reorderTasksSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.VALIDATION_ERROR,
+        message: parsed.error.issues[0]?.message ?? "Invalid order",
+      },
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    await nodeRepository.reorderNodes(
+      supabase,
+      parsed.data.storyId,
+      parsed.data.taskIds,
+    );
+    return { success: true, data: null };
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to save the new order.",
       },
     };
   }

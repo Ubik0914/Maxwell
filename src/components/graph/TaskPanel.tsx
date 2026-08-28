@@ -13,8 +13,9 @@ import { TaskProperties } from "@/components/graph/TaskProperties";
 import { useToast } from "@/components/Toast";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
+import { useSheetDismiss } from "@/hooks/useSheetDismiss";
 import { Spinner } from "@/components/Spinner";
-import { CloseIcon, TrashIcon } from "@/components/icons";
+import { ChevronDownIcon, CloseIcon, TrashIcon } from "@/components/icons";
 
 /**
  * The task detail surface.
@@ -57,6 +58,7 @@ export function TaskPanel({
   // portalled dialog is not a click outside this panel.
   useEscapeKey(onClose, !isDeleteOpen);
   useOutsideClick(panelRef, onClose, !isDeleteOpen);
+  const sheet = useSheetDismiss(onClose);
 
   /*
    * The status shown is the status just chosen, not the status the
@@ -124,26 +126,45 @@ export function TaskPanel({
     // in it — and a panel beside the graph once there's room for both.
     <div
       ref={panelRef}
-      className="absolute inset-0 z-20 flex flex-col gap-4 overflow-y-auto border-border bg-surface p-4 shadow-[-8px_0_40px_rgba(0,0,0,0.5)] sm:inset-y-0 sm:left-auto sm:w-96 sm:border-l sm:p-5"
+      style={sheet.sheetStyle}
+      className="absolute inset-0 z-20 flex flex-col gap-4 overflow-y-auto rounded-t-2xl border-border bg-surface p-4 shadow-[-8px_0_40px_rgba(0,0,0,0.5)] sm:inset-y-0 sm:left-auto sm:w-96 sm:rounded-none sm:border-l sm:p-5"
     >
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="-ml-1.5 rounded-full p-1.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
-        >
-          <CloseIcon />
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsDeleteOpen(true)}
-          aria-label="Delete task"
-          title="Delete task"
-          className="-mr-1.5 rounded-full p-1.5 text-text-faint transition-colors hover:bg-danger-soft hover:text-danger"
-        >
-          <TrashIcon />
-        </button>
+      {/*
+       * On a phone this is a sheet, so it says so: a grab bar, and a
+       * chevron rather than an ✕ — you are putting the task back down,
+       * not destroying a window. The whole header is the grab area, not
+       * just the bar, because a 36px pill is a poor target for a thumb
+       * and the bar's job is to say the gesture exists rather than to
+       * be the only place it works.
+       */}
+      <div {...sheet.handleProps}>
+        <span
+          aria-hidden="true"
+          className="mx-auto mb-3 block h-1 w-9 rounded-full bg-border-strong sm:hidden"
+        />
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="-ml-1.5 rounded-full p-1.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
+          >
+            {/* No size override: `h-5` beside the Icon wrapper's own
+                `h-4` is a Tailwind conflict decided by stylesheet order,
+                not by which is written last. */}
+            <ChevronDownIcon className="sm:hidden" />
+            <CloseIcon className="hidden sm:block" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsDeleteOpen(true)}
+            aria-label="Delete task"
+            title="Delete task"
+            className="-mr-1.5 rounded-full p-1.5 text-text-faint transition-colors hover:bg-danger-soft hover:text-danger"
+          >
+            <TrashIcon />
+          </button>
+        </div>
       </div>
 
       <label htmlFor="panel-title" className="sr-only">

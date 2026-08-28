@@ -13,6 +13,7 @@ function node(overrides: Partial<GraphNode> & { id: string }): GraphNode {
     dueDate: null,
     positionX: 0,
     positionY: 0,
+    sortOrder: null,
     ...overrides,
   };
 }

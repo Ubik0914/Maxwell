@@ -9,7 +9,7 @@ import {
   PriorityTag,
   WaitingOn,
 } from "@/components/task/TaskFields";
-import { PlusIcon } from "@/components/icons";
+import { GripIcon, PlusIcon } from "@/components/icons";
 import { useLongPress, type PressPoint } from "@/hooks/useLongPress";
 
 /**
@@ -34,6 +34,8 @@ export function TaskRow({
   onAddNext,
   onStatusChange,
   onLongPress,
+  onGrab,
+  isLifted,
 }: {
   task: GraphNode;
   blockers: GraphNode[];
@@ -44,6 +46,9 @@ export function TaskRow({
   onAddNext: () => void;
   onStatusChange: (status: SettableStatus) => void;
   onLongPress: (point: PressPoint) => void;
+  /** Only in manual order — nothing else is a rank to drag within. */
+  onGrab?: (event: React.PointerEvent) => void;
+  isLifted?: boolean;
 }) {
   const press = useLongPress(onLongPress);
   const status = statusOf(task.status);
@@ -51,6 +56,7 @@ export function TaskRow({
   return (
     <tr
       {...press}
+      data-card={task.id}
       tabIndex={0}
       aria-label={`Open ${task.title}`}
       onClick={onOpen}
@@ -62,8 +68,31 @@ export function TaskRow({
       }}
       className={`longpress cursor-pointer border-b border-border/60 transition-colors hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none ${
         isSelected ? "bg-surface" : ""
-      } ${flashClass}`}
+      } ${isLifted ? "board-card-lifted" : ""} ${flashClass}`}
     >
+      {onGrab && (
+        <td
+          className="w-px py-2 pl-2 whitespace-nowrap"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              // Kept off the row, or a slow deliberate grab would also
+              // be a long press and open a menu mid-drag.
+              event.stopPropagation();
+              onGrab(event);
+            }}
+            onContextMenu={(event) => event.stopPropagation()}
+            aria-label={`Reorder ${task.title}`}
+            title="Drag to reorder"
+            className="cursor-grab touch-none rounded p-1 text-text-faint transition-colors hover:bg-surface-hover hover:text-text active:cursor-grabbing"
+          >
+            <GripIcon className="h-3.5 w-3.5" />
+          </button>
+        </td>
+      )}
+
       {/* The one editable cell. The press that opens a picker must not
           also open the panel behind it. */}
       <td
