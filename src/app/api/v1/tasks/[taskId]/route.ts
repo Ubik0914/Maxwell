@@ -4,6 +4,7 @@ import { apiSuccess, apiError } from "@/lib/api/response";
 import { ErrorCode } from "@/lib/errors/codes";
 import { updateTaskSchema } from "@/lib/validation/task";
 import * as nodeRepository from "@/repositories/node.repository";
+import * as graphService from "@/features/graph/services/graph-service";
 
 export async function PATCH(
   request: NextRequest,
@@ -45,7 +46,7 @@ export async function DELETE(
   const { taskId } = await params;
 
   try {
-    await nodeRepository.deleteNode(supabase, taskId);
+    await graphService.deleteTask(supabase, taskId);
     return apiSuccess(null);
   } catch {
     return apiError(ErrorCode.INTERNAL_ERROR, "Failed to delete task.");

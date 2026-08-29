@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { requireApiUser } from "@/lib/api/auth";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { ErrorCode } from "@/lib/errors/codes";
-import * as edgeRepository from "@/repositories/edge.repository";
+import * as graphService from "@/features/graph/services/graph-service";
 
 export async function DELETE(
   _request: NextRequest,
@@ -16,7 +16,7 @@ export async function DELETE(
   const { edgeId } = await params;
 
   try {
-    await edgeRepository.deleteEdge(supabase, edgeId);
+    await graphService.disconnectNodes(supabase, edgeId);
     return apiSuccess(null);
   } catch {
     return apiError(ErrorCode.INTERNAL_ERROR, "Failed to delete connection.");

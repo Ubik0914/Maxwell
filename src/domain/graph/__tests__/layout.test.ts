@@ -179,3 +179,81 @@ describe("layoutGraph", () => {
     expect(yAboveX).toBe(aAboveB);
   });
 });
+
+/**
+ * The graph from the reading list that showed the problem: three books
+ * start at once, one of them runs straight to the goal four columns
+ * along, and another jumps three columns to the last task.
+ */
+const READING_LIST = {
+  nodes: [
+    node({ id: "START", type: "START" }),
+    node({ id: "android" }),
+    node({ id: "shoujo" }),
+    node({ id: "sapiens-1" }),
+    node({ id: "sapiens-2" }),
+    node({ id: "homo-1" }),
+    node({ id: "homo-2" }),
+    node({ id: "GOAL", type: "GOAL" }),
+  ],
+  edges: [
+    edge("START", "android"),
+    edge("START", "shoujo"),
+    edge("START", "sapiens-1"),
+    edge("sapiens-1", "sapiens-2"),
+    edge("sapiens-2", "homo-1"),
+    edge("homo-1", "homo-2"),
+    edge("android", "homo-2"),
+    edge("shoujo", "GOAL"),
+    edge("homo-2", "GOAL"),
+  ],
+};
+
+describe("long edges", () => {
+  const positions = layoutGraph(READING_LIST.nodes, READING_LIST.edges);
+  const { nodeHeight } = DEFAULT_LAYOUT;
+
+  /**
+   * Where a straight line between two placed nodes sits at a given
+   * column — which is what the canvas draws, since a bezier between two
+   * points at the same height is a horizontal line.
+   */
+  function lineAt(from: string, to: string, column: number): number {
+    const a = positions.get(from)!;
+    const b = positions.get(to)!;
+    const x = column * STRIDE_X;
+    return a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
+  }
+
+  function occupantsOf(column: number): number[] {
+    return [...positions.entries()]
+      .filter(([, point]) => columnOf(point.x) === column)
+      .map(([, point]) => point.y);
+  }
+
+  it.each([
+    ["android", "homo-2"],
+    ["shoujo", "GOAL"],
+  ])("runs %s -> %s clear of the nodes it passes", (from, to) => {
+    const fromColumn = columnOf(positions.get(from)!.x);
+    const toColumn = columnOf(positions.get(to)!.x);
+
+    for (let column = fromColumn + 1; column < toColumn; column += 1) {
+      const line = lineAt(from, to, column);
+      for (const top of occupantsOf(column)) {
+        // The line must miss every box in the column, not merely its
+        // centre: a placeholder holds a whole row open.
+        const missesBox = line + 1 < top || line > top + nodeHeight;
+        expect(missesBox).toBe(true);
+      }
+    }
+  });
+
+  it("still reads left to right, every task after what it waits on", () => {
+    for (const { sourceNodeId, targetNodeId } of READING_LIST.edges) {
+      expect(positions.get(sourceNodeId)!.x).toBeLessThan(
+        positions.get(targetNodeId)!.x,
+      );
+    }
+  });
+});
