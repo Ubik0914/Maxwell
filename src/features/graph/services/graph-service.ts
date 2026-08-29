@@ -9,6 +9,7 @@ import { validateBranch } from "@/domain/graph/branch";
 import {
   calculateTaskAvailability,
   recalculateDownstream,
+  recalculateFrom,
 } from "@/domain/graph/availability";
 import { calculateStoryStatus } from "@/domain/graph/story-status";
 import { validateStatusChange } from "@/domain/graph/status-change";
@@ -191,6 +192,119 @@ export async function connectNodes(
   }
 
   return { success: true, edge };
+}
+
+/**
+ * Removes a connection, and re-derives what it was holding back.
+ *
+ * The deletion on its own was the whole operation for a long time, and
+ * it left the graph saying something untrue: a task blocked by a
+ * dependency that no longer exists stayed BLOCKED, with nothing on
+ * screen to explain why. Every other edit to the shape of the graph
+ * re-derives the states around it — this one has to as well.
+ *
+ * The target is what changed, not the source: it is the node that just
+ * lost a prerequisite. recalculateDownstream starts from a node whose
+ * own status moved and could not be used here, because by the time the
+ * edge is gone the source no longer points at anything.
+ */
+export async function disconnectNodes(
+  supabase: Client,
+  edgeId: string,
+): Promise<void> {
+  const edge = await edgeRepository.findById(supabase, edgeId);
+  if (!edge) return;
+
+  const [nodes, edges] = await Promise.all([
+    nodeRepository.findByStoryId(supabase, edge.storyId),
+    edgeRepository.findByStoryId(supabase, edge.storyId),
+  ]);
+
+  await edgeRepository.deleteEdge(supabase, edgeId);
+
+  await settle(
+    supabase,
+    edge.storyId,
+    nodes,
+    edges.filter((other) => other.id !== edgeId),
+    [edge.targetNodeId],
+  );
+}
+
+/**
+ * Removes a task, and re-derives whatever was waiting behind it.
+ *
+ * Its connections go with it (the edges table cascades on the node's
+ * foreign key), which is exactly why this is needed: every successor
+ * silently loses a prerequisite, and without this they keep a BLOCKED
+ * they can no longer be talked out of.
+ */
+export async function deleteTask(
+  supabase: Client,
+  taskId: string,
+): Promise<void> {
+  const task = await nodeRepository.findById(supabase, taskId);
+  if (!task) return;
+
+  const [nodes, edges] = await Promise.all([
+    nodeRepository.findByStoryId(supabase, task.storyId),
+    edgeRepository.findByStoryId(supabase, task.storyId),
+  ]);
+
+  const successors = edges
+    .filter((edge) => edge.sourceNodeId === taskId)
+    .map((edge) => edge.targetNodeId);
+
+  await nodeRepository.deleteNode(supabase, taskId);
+
+  await settle(
+    supabase,
+    task.storyId,
+    nodes.filter((node) => node.id !== taskId),
+    edges.filter(
+      (edge) => edge.sourceNodeId !== taskId && edge.targetNodeId !== taskId,
+    ),
+    successors,
+  );
+}
+
+/**
+ * Writes back whatever re-deriving from `changed` moved, and then asks
+ * the story whether it is still what it says it is.
+ *
+ * The second half matters as much as the first: unblocking a task can
+ * put work back in front of a GOAL that had nothing left before it, and
+ * a story that stayed COMPLETED past that would be the same kind of
+ * stale claim this function exists to prevent.
+ */
+async function settle(
+  supabase: Client,
+  storyId: string,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  changed: string[],
+): Promise<void> {
+  const affected = recalculateFrom(changed, nodes, edges);
+  if (affected.length === 0) return;
+
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  for (const node of affected) {
+    if (!node.status) continue;
+    const saved = await nodeRepository.updateStatus(
+      supabase,
+      node.id,
+      node.status,
+    );
+    nodesById.set(saved.id, saved);
+  }
+
+  const storyStatus = await storyRepository.getStatus(supabase, storyId);
+  if (!storyStatus || storyStatus === "ARCHIVED") return;
+
+  const nextStoryStatus = calculateStoryStatus([...nodesById.values()], edges);
+  if (nextStoryStatus !== storyStatus) {
+    await storyRepository.updateStatus(supabase, storyId, nextStoryStatus);
+  }
 }
 
 export interface InsertTaskOnEdgeInput {

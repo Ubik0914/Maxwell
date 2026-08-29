@@ -15,7 +15,6 @@ import {
 } from "@/lib/validation/edge";
 import { ErrorCode } from "@/lib/errors/codes";
 import * as nodeRepository from "@/repositories/node.repository";
-import * as edgeRepository from "@/repositories/edge.repository";
 import * as graphService from "@/features/graph/services/graph-service";
 import type { ActionResult } from "@/types/action-result";
 import type { GraphNode } from "@/domain/graph/types";
@@ -138,7 +137,11 @@ export async function deleteTaskAction(
   }
 
   try {
-    await nodeRepository.deleteNode(supabase, taskId);
+    // Through the service, not straight at the table: deleting a task
+    // takes its connections with it, and everything that was waiting
+    // behind it has to be re-derived or it keeps a BLOCKED nothing can
+    // talk it out of.
+    await graphService.deleteTask(supabase, taskId);
     return { success: true, data: null };
   } catch {
     return {
@@ -264,7 +267,10 @@ export async function deleteEdgeAction(
   }
 
   try {
-    await edgeRepository.deleteEdge(supabase, edgeId);
+    // Through the service, for the same reason deleting a task is:
+    // whatever this connection was holding back has just lost a
+    // prerequisite and needs re-deriving.
+    await graphService.disconnectNodes(supabase, edgeId);
     return { success: true, data: null };
   } catch {
     return {

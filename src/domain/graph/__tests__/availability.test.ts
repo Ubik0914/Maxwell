@@ -1,6 +1,7 @@
 import {
   calculateTaskAvailability,
   recalculateDownstream,
+  recalculateFrom,
 } from "@/domain/graph/availability";
 import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 
@@ -188,5 +189,59 @@ describe("recalculateDownstream", () => {
     expect(affected).toEqual([
       expect.objectContaining({ id: "B", status: "BLOCKED" }),
     ]);
+  });
+});
+
+describe("recalculateFrom", () => {
+  const nodes = [
+    node({ id: "START", type: "START" }),
+    node({ id: "A", status: "READY" }),
+    node({ id: "B", status: "BLOCKED" }),
+    node({ id: "C", status: "BLOCKED" }),
+  ];
+
+  it("frees a task once the thing it waited on is gone", () => {
+    // START -> B and A -> B; the A -> B edge has just been deleted, so
+    // only START is left in front of B.
+    const affected = recalculateFrom(
+      ["B"],
+      nodes,
+      [edge("START", "B")],
+    );
+    expect(affected.map((n) => [n.id, n.status])).toEqual([["B", "READY"]]);
+  });
+
+  it("leaves it blocked while anything unfinished still precedes it", () => {
+    const affected = recalculateFrom(
+      ["B"],
+      nodes,
+      [edge("START", "B"), edge("A", "B")],
+    );
+    expect(affected).toEqual([]);
+  });
+
+  it("frees a task that has nothing in front of it at all", () => {
+    // Every edge into C went with the task that was deleted.
+    expect(
+      recalculateFrom(["C"], nodes, []).map((n) => [n.id, n.status]),
+    ).toEqual([["C", "READY"]]);
+  });
+
+  it("re-derives several at once, which is what deleting a task leaves", () => {
+    const affected = recalculateFrom(["B", "C"], nodes, []);
+    expect(affected.map((n) => n.id).sort()).toEqual(["B", "C"]);
+  });
+
+  it("does not touch a status a person chose", () => {
+    const chosen = [
+      node({ id: "START", type: "START" }),
+      node({ id: "D", status: "IN_PROGRESS" }),
+    ];
+    expect(recalculateFrom(["D"], chosen, [])).toEqual([]);
+  });
+
+  it("says nothing about a task that was already right", () => {
+    const settled = [node({ id: "E", status: "READY" })];
+    expect(recalculateFrom(["E"], settled, [])).toEqual([]);
   });
 });

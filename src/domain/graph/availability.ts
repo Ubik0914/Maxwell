@@ -52,6 +52,45 @@ export function recalculateDownstream(
   nodes: GraphNode[],
   edges: GraphEdge[],
 ): GraphNode[] {
+  return walk(outgoingFrom(changedNodeId, edges), nodes, edges);
+}
+
+/**
+ * Re-evaluates the given tasks themselves, and cascades from there.
+ *
+ * The counterpart to recalculateDownstream, for the other way a task's
+ * availability changes: not because something upstream moved, but
+ * because what it was waiting on is no longer there. Deleting a
+ * connection, or deleting a task that others were behind, leaves nodes
+ * whose dependencies have changed while their own status has not — and
+ * nothing was re-deriving them, so a task blocked by something that no
+ * longer exists stayed blocked forever.
+ *
+ * Removing a dependency can only make a task more available, never
+ * less, so in practice this promotes BLOCKED to READY and stops. It is
+ * written as the general walk anyway, because that is one rule rather
+ * than two, and the general one is the one already proved by the
+ * cascade tests.
+ */
+export function recalculateFrom(
+  nodeIds: string[],
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+): GraphNode[] {
+  return walk([...nodeIds], nodes, edges);
+}
+
+function outgoingFrom(nodeId: string, edges: GraphEdge[]): string[] {
+  return edges
+    .filter((edge) => edge.sourceNodeId === nodeId)
+    .map((edge) => edge.targetNodeId);
+}
+
+function walk(
+  queue: string[],
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+): GraphNode[] {
   const workingById = new Map(nodes.map((node) => [node.id, node]));
   const outgoingByNode = new Map<string, string[]>();
   for (const edge of edges) {
@@ -64,7 +103,6 @@ export function recalculateDownstream(
   }
 
   const affected: GraphNode[] = [];
-  const queue = [...(outgoingByNode.get(changedNodeId) ?? [])];
   const visited = new Set<string>();
 
   while (queue.length > 0) {

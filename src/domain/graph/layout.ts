@@ -12,9 +12,20 @@ export interface LayoutOptions {
   gapY: number;
 }
 
+/**
+ * Measured from the node the graph actually draws, not estimated: 170
+ * wide by 75 tall, which is a two-line title — the most it can be,
+ * since the title is clamped at two lines.
+ *
+ * The height was 64, between a one-line node and a two-line one, so two
+ * long titles stacked left 37px of air where the gap says 48 and the
+ * rows read as crowded. A layout that assumes a node is smaller than it
+ * is will always draw them too close together; assuming the largest is
+ * the only assumption that cannot be wrong in the direction that shows.
+ */
 export const DEFAULT_LAYOUT: LayoutOptions = {
   nodeWidth: 170,
-  nodeHeight: 64,
+  nodeHeight: 75,
   gapX: 110,
   gapY: 48,
 };
@@ -38,6 +49,16 @@ const SWEEPS = 4;
  * most crossings fall out. This is the cheap half of Sugiyama and not
  * the optimal answer — crossing minimisation is NP-hard, and a task
  * graph someone is reading does not need the optimal answer.
+ *
+ * An edge that spans more than one column gets a placeholder in each
+ * column it passes over. Without them a task in column 1 that runs
+ * straight to the goal in column 5 is drawn as a line across three
+ * columns of nodes, over whatever happens to be in the way — and the
+ * ordering could not see the edge at all, because a barycentre is only
+ * meaningful between neighbouring columns. The placeholders are never
+ * drawn. They take a row of their own in each column they cross, which
+ * is what leaves an empty lane for the line to run along, and they give
+ * both ends something adjacent to be pulled level with.
  */
 export function layoutGraph(
   nodes: GraphNode[],
@@ -78,9 +99,67 @@ export function layoutGraph(
   }
 
   const columns = groupByColumn(nodes, column);
-  orderWithinColumns(columns, predecessors, successors);
+  const spanned = addPlaceholders(columns, column, live);
+  orderWithinColumns(columns, spanned.predecessors, spanned.successors);
 
-  return toPositions(columns, options);
+  return toPositions(columns, spanned.predecessors, options);
+}
+
+/** A row in a column: a real node, or a lane held for a long edge. */
+interface Slot {
+  id: string;
+  real: boolean;
+}
+
+/**
+ * Breaks every edge that spans more than one column into single-column
+ * hops, adding a placeholder row in each column it crosses.
+ *
+ * The adjacency handed back is over those hops rather than over the
+ * original edges, which is what makes the barycentre sweeps meaningful:
+ * every neighbour is now exactly one column away, so "the average
+ * position of my neighbours" is a position in the column next door
+ * instead of an index into some column three along.
+ */
+function addPlaceholders(
+  columns: Slot[][],
+  column: Map<string, number>,
+  edges: GraphEdge[],
+): {
+  predecessors: Map<string, string[]>;
+  successors: Map<string, string[]>;
+} {
+  const predecessors = new Map<string, string[]>();
+  const successors = new Map<string, string[]>();
+  const link = (from: string, to: string) => {
+    successors.set(from, [...(successors.get(from) ?? []), to]);
+    predecessors.set(to, [...(predecessors.get(to) ?? []), from]);
+  };
+
+  edges.forEach((edge, index) => {
+    const from = column.get(edge.sourceNodeId) ?? 0;
+    const to = column.get(edge.targetNodeId) ?? 0;
+
+    // Backwards or within a column: nothing to route around. Longest-
+    // path layering makes this impossible for a DAG, and it is checked
+    // rather than assumed because a layout must not hang on a graph it
+    // did not expect.
+    if (to - from <= 1) {
+      link(edge.sourceNodeId, edge.targetNodeId);
+      return;
+    }
+
+    let previous = edge.sourceNodeId;
+    for (let at = from + 1; at < to; at += 1) {
+      const placeholder = `lane:${index}:${at}`;
+      columns[at].push({ id: placeholder, real: false });
+      link(previous, placeholder);
+      previous = placeholder;
+    }
+    link(previous, edge.targetNodeId);
+  });
+
+  return { predecessors, successors };
 }
 
 /**
@@ -119,10 +198,12 @@ function assignColumns(
 function groupByColumn(
   nodes: GraphNode[],
   column: Map<string, number>,
-): GraphNode[][] {
+): Slot[][] {
   const width = Math.max(...column.values()) + 1;
-  const columns: GraphNode[][] = Array.from({ length: width }, () => []);
-  for (const node of nodes) columns[column.get(node.id) ?? 0].push(node);
+  const columns: Slot[][] = Array.from({ length: width }, () => []);
+  for (const node of nodes) {
+    columns[column.get(node.id) ?? 0].push({ id: node.id, real: true });
+  }
   return columns;
 }
 
@@ -133,7 +214,7 @@ function groupByColumn(
  * its current place instead of collecting at the top.
  */
 function orderWithinColumns(
-  columns: GraphNode[][],
+  columns: Slot[][],
   predecessors: Map<string, string[]>,
   successors: Map<string, string[]>,
 ): void {
@@ -145,7 +226,7 @@ function orderWithinColumns(
   };
   reindex();
 
-  const sweep = (column: GraphNode[], neighbours: Map<string, string[]>) => {
+  const sweep = (column: Slot[], neighbours: Map<string, string[]>) => {
     const barycentre = new Map<string, number>();
     column.forEach((node, index) => {
       const ranks = (neighbours.get(node.id) ?? [])
@@ -172,28 +253,115 @@ function orderWithinColumns(
 }
 
 /**
- * Columns are centred on a shared axis rather than hung from the top,
- * so a story reads as one spine with work branching off it — and adding
- * a parallel task nudges its column apart symmetrically instead of
- * pushing the whole graph downward.
+ * Where each row actually sits.
+ *
+ * Not "row index times a stride, centred in its column", which is what
+ * this was: a column of one and a column of three centre differently,
+ * so the same row is at a different height in each, and a lane held
+ * open across three columns is not a lane at all — it is three
+ * unrelated gaps. That is what put a line through a node box.
+ *
+ * So a slot is placed level with the average of what feeds it, sweeping
+ * left to right, and then the column is pushed apart just enough to
+ * keep the order it was given. Feeding a placeholder chain the same
+ * number at every step is what makes a long edge come out as a
+ * horizontal line, and the same rule keeps a task level with its
+ * predecessor when nothing is in the way — which is the spine the
+ * centring was there to produce, arrived at from the graph rather than
+ * imposed on it.
+ *
+ * The whole thing is then centred once, so the story still sits around
+ * the origin.
  */
 function toPositions(
-  columns: GraphNode[][],
+  columns: Slot[][],
+  predecessors: Map<string, string[]>,
   { nodeWidth, nodeHeight, gapX, gapY }: LayoutOptions,
 ): Map<string, Point> {
-  const positions = new Map<string, Point>();
   const strideX = nodeWidth + gapX;
   const strideY = nodeHeight + gapY;
+  const y = new Map<string, number>();
 
   columns.forEach((column, index) => {
-    const offset = ((column.length - 1) * strideY) / 2;
-    column.forEach((node, row) => {
-      positions.set(node.id, {
-        x: index * strideX,
-        y: row * strideY - offset,
-      });
+    // Where each slot would like to be: level with what feeds it, or —
+    // for anything nothing reaches — where a plain centred column would
+    // have put it, so an unconnected task doesn't collect on the axis.
+    const wanted = new Map(
+      column.map((slot, row) => {
+        const feeding = (predecessors.get(slot.id) ?? [])
+          .map((id) => y.get(id))
+          .filter((value): value is number => value !== undefined);
+        return [
+          slot.id,
+          feeding.length === 0
+            ? row * strideY - ((column.length - 1) * strideY) / 2
+            : mean(feeding),
+        ] as const;
+      }),
+    );
+
+    // Sorted by where they want to be, not left in the order the
+    // sweeps chose. The two are the same idea — the average of your
+    // neighbours — but one is in ranks and this one is in pixels, and
+    // if they disagree the column is drawn in an order that contradicts
+    // its own heights. The sweeps still decide the first column and
+    // anything nothing feeds; from there the graph does.
+    //
+    // A lane wins a tie. It is a line that has to stay level with
+    // itself across several columns, while a node beside it only has to
+    // be somewhere sensible.
+    if (index > 0) {
+      column.sort(
+        (a, b) =>
+          wanted.get(a.id)! - wanted.get(b.id)! ||
+          Number(a.real) - Number(b.real),
+      );
+    }
+
+    // Pushed apart just enough to keep that order, then slid back so
+    // the column still straddles where it wanted to be rather than
+    // drifting downward every time two slots want the same height.
+    const placed: number[] = [];
+    column.forEach((slot, row) => {
+      const want = wanted.get(slot.id)!;
+      placed.push(row === 0 ? want : Math.max(want, placed[row - 1] + strideY));
     });
+
+    // Slid back to put the lanes where they asked to be, when there are
+    // any: the whole point of a lane is that the line through it stays
+    // level, and a node that had to be moved aside for one has only
+    // been moved aside. With no lanes in the column there is nothing to
+    // hold, so it straddles its own average as before.
+    const anchors = column
+      .map((slot, row) => ({ slot, row }))
+      .filter(({ slot }) => !slot.real);
+    const held = anchors.length > 0 ? anchors : column.map((slot, row) => ({ slot, row }));
+    const drift =
+      mean(held.map(({ row }) => placed[row])) -
+      mean(held.map(({ slot }) => wanted.get(slot.id)!));
+
+    column.forEach((slot, row) => y.set(slot.id, placed[row] - drift));
   });
 
+  const positions = new Map<string, Point>();
+  columns.forEach((column, index) => {
+    for (const slot of column) {
+      // Placeholders are only here to hold a lane open; there is
+      // nothing to place at one.
+      if (!slot.real) continue;
+      positions.set(slot.id, { x: index * strideX, y: y.get(slot.id) ?? 0 });
+    }
+  });
+
+  const centre = mean([...positions.values()].map((point) => point.y));
+  for (const [id, point] of positions) {
+    positions.set(id, { x: point.x, y: point.y - centre });
+  }
+
   return positions;
+}
+
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
