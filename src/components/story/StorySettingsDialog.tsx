@@ -40,11 +40,21 @@ export function StorySettingsDialog({
   story,
   onClose,
   onDeleted,
+  onChanged,
 }: {
   story: EditableStory;
   onClose: () => void;
   /** The list refreshes; the story's own page has to leave. */
   onDeleted: () => void;
+  /**
+   * A rename or an archive went through.
+   *
+   * `router.refresh()` reaches anything the server rendered, which is
+   * not everything any more: the drawer's list of stories is fetched by
+   * the browser when it opens, so it has to be told separately that
+   * what it holds is now out of date.
+   */
+  onChanged?: () => void;
 }) {
   const router = useRouter();
   const { showError } = useToast();
@@ -53,8 +63,10 @@ export function StorySettingsDialog({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [, startTransition] = useTransition();
   // The confirmation, when open, owns Escape — a small window closes
-  // before the surface behind it.
-  useEscapeKey(onClose, !isDeleteOpen);
+  // before the surface behind it. Exclusive, because this can be opened
+  // from the drawer, which is listening too: one press should put away
+  // one thing.
+  useEscapeKey(onClose, !isDeleteOpen, { exclusive: true });
 
   const isArchived = story.status === "ARCHIVED";
   const isUnchanged =
@@ -79,6 +91,7 @@ export function StorySettingsDialog({
         return;
       }
       router.refresh();
+      onChanged?.();
     });
   }
 
@@ -93,6 +106,7 @@ export function StorySettingsDialog({
         return;
       }
       router.refresh();
+      onChanged?.();
     });
   }
 

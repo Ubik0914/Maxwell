@@ -201,8 +201,23 @@ export async function deleteStoryAction(
   }
 }
 
+export interface DrawerStories {
+  stories: storyRepository.StoryListItem[];
+  /**
+   * When this answer was given, as an ISO timestamp.
+   *
+   * "Updated 3 hr ago" and "due today" are both measured from it,
+   * rather than from the browser's clock: reading the clock while
+   * rendering is impure, and the two would disagree anyway. It is a
+   * snapshot taken when the drawer opened, which is what it looks
+   * like.
+   */
+  now: string;
+}
+
 /**
- * The stories the drawer offers to switch to.
+ * The stories the drawer offers to switch to, and everything it says
+ * about them.
  *
  * Fetched when the drawer opens rather than rendered into every page,
  * because a list of stories is only ever looked at by someone who has
@@ -211,14 +226,20 @@ export async function deleteStoryAction(
  * also then always current, which a copy rendered at page load would
  * stop being the moment a story was renamed.
  *
+ * This is the full record rather than a name and a state. The drawer
+ * replaced a page of cards and inherited what that page was for:
+ * seeing how far each story has got and settling the ones that are
+ * done. A menu that only names them can switch between stories but
+ * cannot manage them.
+ *
  * The workspace is named by the caller: on a story page that is the
  * story's own workspace, which the cookie may disagree with after a
  * deep link. Nothing is trusted about it either way — RLS decides what
  * is visible, so an id that isn't yours simply returns nothing.
  */
-export async function listStoryLinksAction(
+export async function listStoriesAction(
   workspaceId: string,
-): Promise<ActionResult<storyRepository.StoryLink[]>> {
+): Promise<ActionResult<DrawerStories>> {
   const { supabase, user } = await requireUser();
   if (!user) {
     return {
@@ -230,7 +251,13 @@ export async function listStoryLinksAction(
   try {
     return {
       success: true,
-      data: await storyRepository.listStoryLinks(supabase, workspaceId),
+      data: {
+        stories: await storyRepository.listStoriesForWorkspace(
+          supabase,
+          workspaceId,
+        ),
+        now: new Date().toISOString(),
+      },
     };
   } catch {
     return {
