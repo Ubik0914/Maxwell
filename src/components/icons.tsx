@@ -212,6 +212,26 @@ export function ChevronDownIcon({ className }: { className?: string }) {
  * detail that turns to mush at 16px in this stroke weight, and two
  * lines with a knob on each survive it.
  */
+/**
+ * More — three dots stacked, the shape a row's own actions are kept
+ * behind everywhere. Filled rather than stroked: at 14px a stroked
+ * circle of 1.5 is mostly hole.
+ */
+export function MoreIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+      className={`h-4 w-4 ${className}`}
+    >
+      <circle cx="10" cy="4.5" r="1.5" />
+      <circle cx="10" cy="10" r="1.5" />
+      <circle cx="10" cy="15.5" r="1.5" />
+    </svg>
+  );
+}
+
 export function SettingsIcon({ className }: { className?: string }) {
   return (
     <Icon className={className}>
