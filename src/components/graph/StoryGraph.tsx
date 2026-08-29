@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -87,6 +87,16 @@ export function StoryGraph({
   // Only true while an auto-layout is gliding into place — see the
   // .graph-settling rule, which must not apply to ordinary dragging.
   const [isSettling, setIsSettling] = useState(false);
+  /**
+   * Which connection the pointer is on, so that one can show its
+   * controls.
+   *
+   * Read from the canvas rather than from each edge, because React
+   * Flow already maintains a wide invisible path per edge for exactly
+   * this and drawing a second one puts a ribbon of pointer target
+   * along every line, over whatever it passes across.
+   */
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<FlowNode>(
     toFlowNodes(nodes),
   );
@@ -126,6 +136,20 @@ export function StoryGraph({
     flowEdges,
     storyId,
   });
+
+  // Only the hovered edge is rebuilt; every other one keeps the
+  // identity it had, so hovering a line does not re-render the graph.
+  const shownEdges = useMemo(
+    () =>
+      hoveredEdgeId === null
+        ? displayEdges
+        : displayEdges.map((edge) =>
+            edge.id === hoveredEdgeId
+              ? { ...edge, data: { ...edge.data!, hovered: true } }
+              : edge,
+          ),
+    [displayEdges, hoveredEdgeId],
+  );
 
   /**
    * Arranges the graph by dependency order and saves where everything
@@ -218,7 +242,7 @@ export function StoryGraph({
       >
         <ReactFlow
           nodes={displayNodes}
-          edges={displayEdges}
+          edges={shownEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           colorMode="dark"
@@ -246,6 +270,8 @@ export function StoryGraph({
           deleteKeyCode={null}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onEdgeMouseEnter={(_event, edge) => setHoveredEdgeId(edge.id)}
+          onEdgeMouseLeave={() => setHoveredEdgeId(null)}
           onConnect={(connection) => {
             void handleConnect(connection);
           }}

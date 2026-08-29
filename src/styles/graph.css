@@ -196,23 +196,28 @@
   transition: opacity 150ms ease;
 }
 
-.react-flow__node:hover .canvas-control,
-.canvas-control:focus-within,
-.canvas-control-shown {
-  opacity: 1;
-  pointer-events: all;
-}
-
 /*
  * A phone has no hover, so nothing there would ever reveal them. They
  * stay held back at low opacity, which is what the whole canvas looked
  * like before.
+ *
+ * Before the rules that reveal them, not after: it is a different
+ * resting state, not a ceiling. Below them it would also override
+ * `.canvas-control-shown`, which is the same weight, and an edge's
+ * controls could never come up to full on a touch device.
  */
 @media (hover: none) {
   .canvas-control {
     opacity: 0.45;
     pointer-events: all;
   }
+}
+
+.react-flow__node:hover .canvas-control,
+.canvas-control:focus-within,
+.canvas-control-shown {
+  opacity: 1;
+  pointer-events: all;
 }
 
 /* --- Chrome you reach for with a thumb ---------------------------------- */

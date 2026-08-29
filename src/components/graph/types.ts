@@ -33,10 +33,12 @@ export type FlowNode = Node<FlowNodeData>;
  *               the boundary the energised part of the graph stops at
  *   - `surgeId` a one-shot propagation just fired along this edge; the
  *               changing number is what replays the animation
+ *   - `hovered` the pointer is on this connection, so its controls show
  */
 export type FlowEdgeData = {
   live: boolean;
   waiting: boolean;
   surgeId: number | null;
+  hovered?: boolean;
 } & Record<string, unknown>;
 export type FlowEdge = Edge<FlowEdgeData>;

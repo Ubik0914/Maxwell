@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -148,6 +148,22 @@ export function SideMenu({
 }) {
   const pathname = usePathname();
   const { panelRef, drag, handlers } = useDrawerDrag({ onSettle: onOpenChange });
+  /*
+   * Whether there is a document to portal into.
+   *
+   * A bare `typeof document === "undefined"` would be right about the
+   * server and wrong about hydration: the client's first render would
+   * produce a portal where the server produced nothing, and React
+   * throws away the whole server tree over the mismatch. Reading it as
+   * an external store gives the hydration pass the server's answer and
+   * the portal on the render after, which is what a portal that is
+   * always mounted needs.
+   */
+  const isBrowser = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [filter, setFilter] = useState<StoryFilter>("ALL");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -163,7 +179,7 @@ export function SideMenu({
     };
   }, [open]);
 
-  if (typeof document === "undefined") return null;
+  if (!isBrowser) return null;
 
   const shown =
     stories && filter !== "ALL"

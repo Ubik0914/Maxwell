@@ -38,11 +38,18 @@ const SPARK_DURATION = "2.4s";
  * this edge) control sits at the midpoint, and appears when the pointer
  * is on the connection. It cannot be revealed by CSS the way a node's
  * "+" is: EdgeLabelRenderer portals it out of the edge and into a layer
- * of its own, so there is no ancestor to hang `:hover` on and the hover
- * has to be tracked here. The band that does the revealing is wider
- * than the line — a 2px target is not one — and the control keeps
- * itself shown while the pointer is on it, since by then the pointer
- * has left the band.
+ * of its own, so there is no ancestor to hang `:hover` on.
+ *
+ * So the canvas reports it instead — onEdgeMouseEnter, which fires off
+ * React Flow's own wide invisible interaction path. This used to draw a
+ * second such path of its own, which worked and also put a 28px ribbon
+ * of pointer target along every connection, over whatever the line
+ * happened to pass across. Reusing the one React Flow already maintains
+ * costs nothing and covers nothing.
+ *
+ * The control still keeps itself shown while the pointer is on it: by
+ * then the pointer has left the line, and the canvas has already said
+ * so.
  */
 export function CustomEdge({
   id,
@@ -72,8 +79,9 @@ export function CustomEdge({
   const surgeId = data?.surgeId ?? null;
 
   const [isSpliceOpen, setIsSpliceOpen] = useState(false);
-  const [isPointerOn, setIsPointerOn] = useState(false);
+  const [isOnControl, setIsOnControl] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const isShown = (data?.hovered ?? false) || isOnControl;
   useEscapeKey(() => setIsSpliceOpen(false), isSpliceOpen);
 
   /** The line goes first; the write follows it. */
@@ -93,20 +101,6 @@ export function CustomEdge({
   return (
     <>
       <BaseEdge id={id} path={edgePath} />
-
-      {/* Over the line rather than under it, so it is what the pointer
-          meets. Events still bubble to the edge itself, so nothing the
-          canvas does with a connection is intercepted — this only
-          watches. */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke="transparent"
-        strokeWidth={28}
-        style={{ pointerEvents: "stroke" }}
-        onPointerEnter={() => setIsPointerOn(true)}
-        onPointerLeave={() => setIsPointerOn(false)}
-      />
 
       {isLive &&
         SPARK_OFFSETS.map((begin) => (
@@ -154,10 +148,10 @@ export function CustomEdge({
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
           }}
-          onPointerEnter={() => setIsPointerOn(true)}
-          onPointerLeave={() => setIsPointerOn(false)}
+          onPointerEnter={() => setIsOnControl(true)}
+          onPointerLeave={() => setIsOnControl(false)}
           className={`nodrag nopan canvas-control flex items-center gap-1 ${
-            isPointerOn ? "canvas-control-shown" : ""
+            isShown ? "canvas-control-shown" : ""
           }`}
         >
           <button
