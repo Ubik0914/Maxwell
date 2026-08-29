@@ -55,7 +55,10 @@ export function Menu({
     null,
   );
 
-  useEscapeKey(onClose, true);
+  // Exclusive: a menu is the innermost thing on screen, and the
+  // surface it was opened from — a drawer, a panel — is listening for
+  // Escape too. One press should put away one thing.
+  useEscapeKey(onClose, true, { exclusive: true });
 
   useEffect(() => {
     const element = ref.current;

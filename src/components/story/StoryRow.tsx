@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { StoryListItem } from "@/repositories/story.repository";
 import { storySwitchHref } from "@/features/story/switch-href";
 import { STORY_STATUS_INK } from "@/components/story/status";
 import { StoryDetails } from "@/components/story/StoryDetails";
 import { StorySettingsDialog } from "@/components/story/StorySettingsDialog";
-import { ChevronDownIcon, SettingsIcon } from "@/components/icons";
+import { Menu, type MenuItemSpec } from "@/components/ui/Menu";
+import type { PressPoint } from "@/hooks/useLongPress";
+import { ChevronDownIcon, MoreIcon, SettingsIcon } from "@/components/icons";
 
 /**
  * How long ago, measured from when the list was fetched.
@@ -63,11 +65,19 @@ function Tally({ value, label, tone }: {
  *
  * Three lines at rest, which is the most a menu can spend per row and
  * still be scannable. Everything beyond that — what the story is for,
- * what it says, what could be picked up — is behind the chevron.
+ * what it says, what could be picked up, and the settings — is behind
+ * one "⋮".
  *
- * The row is a frame with a link inside it, not a link with buttons
+ * One control rather than the two icons that were here first. A row 320
+ * pixels wide with a gear and a chevron stacked in its corner spends
+ * more of itself on its own controls than on the story, and neither
+ * icon says what it does until you have already learned it. "⋮" is the
+ * shape everything else in this app keeps a row's actions behind, and
+ * inside it the two are words.
+ *
+ * The row is a frame with a link inside it, not a link with a button
  * inside: a button in an anchor is two controls fighting over one
- * press, and both of these do something other than "go there".
+ * press, and this one does something other than "go there".
  */
 export function StoryRow({
   story,
@@ -87,7 +97,28 @@ export function StoryRow({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [menuAt, setMenuAt] = useState<PressPoint | null>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
   const detailsId = useId();
+
+  const items: MenuItemSpec[] = [
+    {
+      key: "details",
+      label: isExpanded ? "Hide details" : "Details",
+      icon: (
+        <ChevronDownIcon
+          className={`h-3.5 w-3.5 ${isExpanded ? "rotate-180" : ""}`}
+        />
+      ),
+      onSelect: () => setIsExpanded((open) => !open),
+    },
+    {
+      key: "settings",
+      label: "Story settings…",
+      icon: <SettingsIcon className="h-3.5 w-3.5" />,
+      onSelect: () => setIsSettingsOpen(true),
+    },
+  ];
 
   const { done, ready, inProgress, blocked } = story.stats;
   const total = done + ready + inProgress + blocked;
@@ -156,33 +187,29 @@ export function StoryRow({
           </span>
         </Link>
 
-        <span className="flex shrink-0 flex-col items-center gap-0.5 py-2">
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            aria-label={`Settings for ${story.title}`}
-            title="Story settings"
-            className="rounded-md p-1 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
-          >
-            <SettingsIcon className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsExpanded((open) => !open)}
-            aria-expanded={isExpanded}
-            aria-controls={detailsId}
-            aria-label={`Details of ${story.title}`}
-            title="Details"
-            className="rounded-md p-1 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
-          >
-            <ChevronDownIcon
-              className={`h-3.5 w-3.5 transition-transform ${
-                isExpanded ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-        </span>
+        <button
+          ref={moreRef}
+          type="button"
+          // Opened under its own corner rather than at the pointer: this
+          // is a button, not a whole row, so there is a corner to open
+          // from and a keyboard press has no point to use.
+          onClick={() => {
+            const box = moreRef.current?.getBoundingClientRect();
+            setMenuAt({ x: box?.left ?? 0, y: box?.bottom ?? 0 });
+          }}
+          aria-haspopup="menu"
+          aria-expanded={menuAt !== null}
+          aria-label={`Actions for ${story.title}`}
+          title="More"
+          className="mt-2 shrink-0 rounded-md p-1 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
+        >
+          <MoreIcon className="h-4 w-4" />
+        </button>
       </div>
+
+      {menuAt && (
+        <Menu at={menuAt} items={items} onClose={() => setMenuAt(null)} />
+      )}
 
       {isExpanded && (
         <StoryDetails
