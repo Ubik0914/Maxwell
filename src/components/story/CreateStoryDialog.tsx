@@ -31,7 +31,9 @@ export function CreateStoryDialog({
     createStoryAction,
     initialState,
   );
-  useEscapeKey(onClose, true);
+  // Exclusive: this is opened from the drawer, which listens for
+  // Escape as well, and one press should put away one thing.
+  useEscapeKey(onClose, true, { exclusive: true });
 
   return (
     <Modal

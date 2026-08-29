@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { StoryLink } from "@/repositories/story.repository";
-import { listStoryLinksAction } from "@/features/story/actions";
+import type { DrawerStories } from "@/features/story/actions";
+import { listStoriesAction } from "@/features/story/actions";
 import { SideMenu } from "@/components/layout/SideMenu";
 
 /**
@@ -82,21 +82,29 @@ export function MenuButton({
   className?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [stories, setStories] = useState<StoryLink[] | null>(null);
+  const [stories, setStories] = useState<DrawerStories | null>(null);
   const [isLoadingStories, setIsLoadingStories] = useState(false);
 
-  function setOpen(next: boolean) {
-    setIsOpen(next);
-    if (!next || !workspaceId) return;
-
-    // Re-read every time it opens. The last list is kept on screen
-    // while it happens, so reopening shows what was there rather than
-    // a skeleton where the names just were.
+  /**
+   * Reads the list again.
+   *
+   * On every open, and again whenever the drawer changes something in
+   * it — a rename, an archive, a delete. The last answer is kept on
+   * screen while it happens, so reopening shows what was there rather
+   * than a skeleton where the names just were.
+   */
+  function reload() {
+    if (!workspaceId) return;
     setIsLoadingStories(true);
-    void listStoryLinksAction(workspaceId).then((result) => {
+    void listStoriesAction(workspaceId).then((result) => {
       if (result.success) setStories(result.data);
       setIsLoadingStories(false);
     });
+  }
+
+  function setOpen(next: boolean) {
+    setIsOpen(next);
+    if (next) reload();
   }
 
   return (
@@ -119,6 +127,7 @@ export function MenuButton({
         userEmail={userEmail}
         stories={stories}
         isLoadingStories={isLoadingStories && stories === null}
+        onReload={reload}
         currentStoryId={currentStoryId}
       />
     </>
