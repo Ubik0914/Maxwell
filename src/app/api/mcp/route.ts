@@ -66,11 +66,20 @@ export async function POST(request: NextRequest) {
   // Every method here is protected, tools/list included: what tools
   // exist is a fact about a Maxwell, not a public directory. 401 with a
   // challenge is what tells a client to go and get a token rather than
-  // that the server is broken.
+  // that the server is broken. resource_metadata (RFC 9728) is what
+  // turns that challenge into a client that can actually get one on its
+  // own — it is the first hop of the discovery chain a claude.ai/Claude
+  // Desktop connector follows down to /oauth/authorize.
   if (!request.headers.get("authorization")) {
+    const resourceMetadataUrl = `${request.nextUrl.origin}/.well-known/oauth-protected-resource`;
     return NextResponse.json(
       { error: { code: "AUTH_REQUIRED", message: "Bearer token required." } },
-      { status: 401, headers: { "WWW-Authenticate": "Bearer" } },
+      {
+        status: 401,
+        headers: {
+          "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl}"`,
+        },
+      },
     );
   }
 
