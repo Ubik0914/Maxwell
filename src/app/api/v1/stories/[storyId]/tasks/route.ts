@@ -3,6 +3,7 @@ import { requireApiUser } from "@/lib/api/auth";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { ErrorCode } from "@/lib/errors/codes";
 import { createTaskSchema } from "@/lib/validation/task";
+import { nextFreeSpot } from "@/domain/graph/layout";
 import * as nodeRepository from "@/repositories/node.repository";
 
 export async function POST(
@@ -25,12 +26,17 @@ export async function POST(
   }
 
   try {
+    // A caller with no canvas doesn't say where; the graph decides.
+    const position =
+      parsed.data.position ??
+      nextFreeSpot(await nodeRepository.findByStoryId(supabase, storyId));
+
     const node = await nodeRepository.createTask(supabase, {
       storyId: parsed.data.storyId,
       title: parsed.data.title,
       description: parsed.data.description,
-      positionX: parsed.data.position.x,
-      positionY: parsed.data.position.y,
+      positionX: position.x,
+      positionY: position.y,
     });
     return apiSuccess({ id: node.id, status: node.status }, 201);
   } catch {

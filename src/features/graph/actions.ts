@@ -14,6 +14,7 @@ import {
   insertTaskOnEdgeSchema,
 } from "@/lib/validation/edge";
 import { ErrorCode } from "@/lib/errors/codes";
+import { nextFreeSpot } from "@/domain/graph/layout";
 import * as nodeRepository from "@/repositories/node.repository";
 import * as graphService from "@/features/graph/services/graph-service";
 import type { ActionResult } from "@/types/action-result";
@@ -62,12 +63,20 @@ export async function createTaskAction(
   }
 
   try {
+    // The canvas always says where; the fallback is for the form that
+    // forgets to, which would otherwise land the task on the origin.
+    const position =
+      parsed.data.position ??
+      nextFreeSpot(
+        await nodeRepository.findByStoryId(supabase, parsed.data.storyId),
+      );
+
     const node = await nodeRepository.createTask(supabase, {
       storyId: parsed.data.storyId,
       title: parsed.data.title,
       description: parsed.data.description,
-      positionX: parsed.data.position.x,
-      positionY: parsed.data.position.y,
+      positionX: position.x,
+      positionY: position.y,
     });
     return { success: true, data: { id: node.id } };
   } catch {
