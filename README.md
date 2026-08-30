@@ -47,13 +47,19 @@ maxwell task status <task-id> DONE
 /api/v1/auth/token` で発行・更新）。どちらも user-scoped クライアントに
 なるため RLS の効き方は同じで、Service Role Key は使わない。
 
-MCPサーバー (`mcp/maxwell-mcp.mjs`) は同じAPIを12個のツールとして公開
-する。認証は CLI の `maxwell login` が残したトークンを読むだけで、
-サインインはツールにしていない — パスワードはツール引数ではない。
+MCPサーバーは同じAPIを12個のツールとして公開する。繋ぎ方は2つ:
 
 ```bash
+# リモート — クローン不要。URLとトークンだけ
+claude mcp add --transport http maxwell https://maxwell-bay.vercel.app/api/mcp \
+  --header "Authorization: Bearer $TOKEN"
+
+# ローカル — クローン + maxwell login
 claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 ```
+
+同じ12ツール・同じディスパッチで、違うのは「APIへの到達手段」だけ。
+サインインはツールにしていない — パスワードはツール引数ではない。
 
 エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)、
 MCPのツール一覧は [`mcp/README.md`](mcp/README.md)。

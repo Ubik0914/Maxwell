@@ -1,16 +1,19 @@
 import {
-  handle as handleUntyped,
-  TOOLS as TOOLS_UNTYPED,
-  PROTOCOL_VERSIONS as VERSIONS_UNTYPED,
+  handle as dispatch,
+  TOOLS,
+  PROTOCOL_VERSIONS,
+  type Tool,
+  type ToolSchema,
 } from "../maxwell-mcp.mjs";
 
 /**
  * The MCP server is plain JavaScript for the same reason the CLI is —
  * no build step, no dependencies, runnable from wherever a host points
- * at it — so its exports arrive untyped. The shape is asserted once
- * here rather than at each call.
+ * at it — so the shapes live in maxwell-mcp.d.mts beside it. What a
+ * result carries is narrowed here, because `handle` is declared to
+ * return the envelope and the payload is per-method.
  */
-interface JsonRpcResponse {
+interface Answer {
   jsonrpc: "2.0";
   id: string | number | null;
   result?: {
@@ -18,32 +21,14 @@ interface JsonRpcResponse {
     serverInfo?: { name: string; version: string };
     capabilities?: { tools?: unknown };
     instructions?: string;
-    tools?: { name: string; description: string; inputSchema: Schema }[];
+    tools?: { name: string; description: string; inputSchema: ToolSchema }[];
     content?: { type: string; text: string }[];
     isError?: boolean;
   };
   error?: { code: number; message: string };
 }
-interface Schema {
-  type: string;
-  properties?: Record<string, unknown>;
-  required?: string[];
-  additionalProperties?: boolean;
-}
-interface Tool {
-  name: string;
-  title: string;
-  description: string;
-  inputSchema: Schema;
-  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
-  run: (args: Record<string, unknown>) => Promise<unknown>;
-}
 
-const handle = handleUntyped as (
-  message: unknown,
-) => Promise<JsonRpcResponse | null>;
-const TOOLS = TOOLS_UNTYPED as Tool[];
-const PROTOCOL_VERSIONS = VERSIONS_UNTYPED as string[];
+const handle = dispatch as (message: unknown) => Promise<Answer | null>;
 
 const request = (method: string, params?: unknown) =>
   handle({ jsonrpc: "2.0", id: 1, method, params });
@@ -173,6 +158,33 @@ describe("tools/call", () => {
     expect(JSON.parse(content.text)).toEqual([
       { workspaceId: "w1", name: "Home", role: "OWNER" },
     ]);
+  });
+
+  it("hands the tool whichever way of reaching the API it was given", async () => {
+    // What makes one catalogue serve both transports: the tool is
+    // handed the request function rather than closing over one, so the
+    // stdio server's token-carrying client and /api/mcp's forwarded
+    // request are the same tool doing the same thing.
+    const asked: string[] = [];
+    const call = async (path: string) => {
+      asked.push(path);
+      return path === "/api/v1/me"
+        ? { id: "u1", email: "a@b.c" }
+        : [{ workspaceId: "w1" }];
+    };
+
+    const response = await dispatch(
+      { jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "whoami", arguments: {} } },
+      call,
+    );
+
+    expect(asked.sort()).toEqual(["/api/v1/me", "/api/v1/workspaces"]);
+    const text = (response as Answer).result!.content![0].text;
+    expect(JSON.parse(text)).toEqual({
+      userId: "u1",
+      email: "a@b.c",
+      workspaces: 1,
+    });
   });
 
   it("reports a failed call as a result, not as a transport error", async () => {

@@ -2,22 +2,28 @@
 /**
  * maxwell-mcp — Maxwell as a set of tools a model can call.
  *
- * An MCP server over stdio: JSON-RPC 2.0, one message per line, requests
- * in on stdin and responses out on stdout. Nothing else may be written
- * to stdout — a stray console.log is a protocol error — so everything
- * diagnostic goes to stderr.
+ * Run as a program it is an MCP server over stdio: JSON-RPC 2.0, one
+ * message per line, requests in on stdin and responses out on stdout.
+ * Nothing else may be written to stdout — a stray console.log is a
+ * protocol error — so everything diagnostic goes to stderr.
+ *
+ * Imported, it is the same twelve tools and the same dispatch with the
+ * transport left out, which is what /api/mcp serves over HTTP. The
+ * tools take the function that reaches the API as an argument rather
+ * than closing over one, so there is one catalogue and one `handle`,
+ * and a tool cannot behave differently depending on how it was reached.
  *
  * It is a client of /api/v1 and nothing more, exactly as the CLI is.
  * There is no second code path into the graph here: the same endpoints,
- * the same token from ~/.maxwell/credentials.json, the same RLS. A model
- * driving this can reach precisely the rows the person who ran
- * `maxwell login` could reach, which is the property that makes handing
- * it to an agent reasonable in the first place.
+ * the same bearer token, the same RLS. A model driving this can reach
+ * precisely the rows the person whose token it is could reach, which is
+ * the property that makes handing it to an agent reasonable at all.
  *
  * Sign-in is deliberately not a tool. Passwords should not arrive as
  * tool arguments — they would land in a transcript, and a model has no
- * business holding one. `maxwell login` happens once, in a terminal,
- * and this reads what it left behind.
+ * business holding one. Over stdio, `maxwell login` happens once in a
+ * terminal and this reads what it left behind; over HTTP the token
+ * arrives on the request and this never sees a password at all.
  *
  * The SDK is deliberately not a dependency either. The stdio transport
  * is newline-delimited JSON-RPC and the three methods that matter are
@@ -28,12 +34,7 @@
 
 import process from "node:process";
 import { createInterface } from "node:readline";
-import {
-  MaxwellError,
-  apiRequest,
-  baseUrlFor,
-  readCredentials,
-} from "../cli/client.mjs";
+import { MaxwellError, apiRequest, readCredentials } from "../cli/client.mjs";
 
 const SERVER = { name: "maxwell", version: "0.1.0" };
 
@@ -96,16 +97,22 @@ const TOOLS = [
       "Which Maxwell account these tools are acting as, and whether its stored token still works. Start here if a call comes back unauthorised.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: true },
-    async run() {
-      const credentials = readCredentials();
-      // Round-trips on purpose: the question is whether the stored token
-      // still works, not what the file says about it.
-      const workspaces = await apiRequest("/api/v1/workspaces");
+    async run(_args, call) {
+      // Round-trips on purpose, and asks the server rather than reading
+      // a file: the question is whether this token still works and for
+      // whom, and only the auth server knows.
+      //
+      // One after the other rather than at once. If the stored token
+      // has expired, two calls in parallel both get 401 and both go
+      // and refresh — with the same refresh token, which rotates on
+      // use, so the second one is spending a token the first already
+      // spent. Sequentially the first refresh happens, is written
+      // down, and the second call uses it.
+      const me = await call("/api/v1/me");
+      const workspaces = await call("/api/v1/workspaces");
       return {
-        email: credentials?.user?.email ?? null,
-        // Where the calls actually went, which MAXWELL_URL can make a
-        // different place from the one login remembered.
-        url: baseUrlFor(credentials),
+        userId: me.id,
+        email: me.email,
         workspaces: workspaces.length,
       };
     },
@@ -118,7 +125,7 @@ const TOOLS = [
       "The workspaces this account belongs to, with its role in each. Every story lives in one, so this is where a workspaceId comes from.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true, openWorldHint: true },
-    run: () => apiRequest("/api/v1/workspaces"),
+    run: (_args, call) => call("/api/v1/workspaces"),
   },
 
   {
@@ -133,8 +140,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
-    run: ({ workspaceId }) =>
-      apiRequest(`/api/v1/stories?workspaceId=${encodeURIComponent(workspaceId)}`),
+    run: ({ workspaceId }, call) =>
+      call(`/api/v1/stories?workspaceId=${encodeURIComponent(workspaceId)}`),
   },
 
   {
@@ -149,7 +156,7 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
-    run: ({ storyId }) => apiRequest(`/api/v1/stories/${storyId}/graph`),
+    run: ({ storyId }, call) => call(`/api/v1/stories/${storyId}/graph`),
   },
 
   {
@@ -164,8 +171,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
-    async run({ storyId }) {
-      const graph = await apiRequest(`/api/v1/stories/${storyId}/graph`);
+    async run({ storyId }, call) {
+      const graph = await call(`/api/v1/stories/${storyId}/graph`);
       return graph.frontier;
     },
   },
@@ -188,8 +195,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    run: (input) =>
-      apiRequest("/api/v1/stories", { method: "POST", body: input }),
+    run: (input, call) =>
+      call("/api/v1/stories", { method: "POST", body: input }),
   },
 
   {
@@ -226,8 +233,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    async run({ storyId, title, description, position, dependsOn, blocks }) {
-      const task = await apiRequest(`/api/v1/stories/${storyId}/tasks`, {
+    async run({ storyId, title, description, position, dependsOn, blocks }, call) {
+      const task = await call(`/api/v1/stories/${storyId}/tasks`, {
         method: "POST",
         body: {
           title,
@@ -254,7 +261,7 @@ const TOOLS = [
       const refused = [];
       for (const edge of wanted) {
         try {
-          const created = await apiRequest(`/api/v1/stories/${storyId}/edges`, {
+          const created = await call(`/api/v1/stories/${storyId}/edges`, {
             method: "POST",
             body: edge,
           });
@@ -301,8 +308,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    run: ({ taskId, ...patch }) =>
-      apiRequest(`/api/v1/tasks/${taskId}`, { method: "PATCH", body: patch }),
+    run: ({ taskId, ...patch }, call) =>
+      call(`/api/v1/tasks/${taskId}`, { method: "PATCH", body: patch }),
   },
 
   {
@@ -319,8 +326,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    run: ({ taskId, status }) =>
-      apiRequest(`/api/v1/tasks/${taskId}/status`, {
+    run: ({ taskId, status }, call) =>
+      call(`/api/v1/tasks/${taskId}/status`, {
         method: "PATCH",
         body: { status },
       }),
@@ -338,8 +345,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-    run: ({ taskId }) =>
-      apiRequest(`/api/v1/tasks/${taskId}`, { method: "DELETE" }),
+    run: ({ taskId }, call) =>
+      call(`/api/v1/tasks/${taskId}`, { method: "DELETE" }),
   },
 
   {
@@ -358,8 +365,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    run: ({ storyId, sourceNodeId, targetNodeId }) =>
-      apiRequest(`/api/v1/stories/${storyId}/edges`, {
+    run: ({ storyId, sourceNodeId, targetNodeId }, call) =>
+      call(`/api/v1/stories/${storyId}/edges`, {
         method: "POST",
         body: { sourceNodeId, targetNodeId },
       }),
@@ -377,8 +384,8 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-    run: ({ edgeId }) =>
-      apiRequest(`/api/v1/edges/${edgeId}`, { method: "DELETE" }),
+    run: ({ edgeId }, call) =>
+      call(`/api/v1/edges/${edgeId}`, { method: "DELETE" }),
   },
 ];
 
@@ -422,6 +429,13 @@ function missingFrom(schema, args) {
 /**
  * Answers one message.
  *
+ * `call` is how a tool reaches the API — the only thing that differs
+ * between the two transports. Over stdio it is the CLI's own client,
+ * carrying the token from ~/.maxwell/credentials.json; inside the app
+ * (see /api/mcp) it is a request carrying whatever bearer token the
+ * caller arrived with. The twelve tools are written once and know about
+ * neither.
+ *
  * Returns null for a notification — those have no id and take no reply,
  * and answering one anyway is a protocol violation rather than a
  * harmless extra line.
@@ -434,7 +448,7 @@ function missingFrom(schema, args) {
  * connection that would have made a cycle — rather than a transport
  * fault the host might swallow before the model ever hears about it.
  */
-export async function handle(message) {
+export async function handle(message, call = apiRequest) {
   const { id, method, params = {} } = message ?? {};
   const isRequest = id !== undefined && id !== null;
   const ok = (result) => (isRequest ? { jsonrpc: "2.0", id, result } : null);
@@ -474,7 +488,7 @@ export async function handle(message) {
       }
 
       try {
-        const data = await tool.run(args);
+        const data = await tool.run(args, call);
         return ok({
           content: [{ type: "text", text: JSON.stringify(data ?? null, null, 2) }],
           structuredContent: { data: data ?? null },

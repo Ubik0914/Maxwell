@@ -1,15 +1,56 @@
 # maxwell-mcp — MCPサーバー
 
 Maxwellのグラフを、AIエージェントが呼べる12個のツールとして公開する
-MCP (Model Context Protocol) サーバー。Claude Code / Claude Desktop /
-Cursor など、MCPを話すホストならどれでも繋がる。
+MCP (Model Context Protocol) サーバー。**繋ぎ方は2つある。**
+
+| | 何が要るか | 誰向けか |
+| --- | --- | --- |
+| **リモート (HTTP)** | URLとトークンだけ | クローンできない/したくない人、チーム |
+| **ローカル (stdio)** | リポジトリのクローン + `maxwell login` | 手元で開発している人 |
+
+どちらも同じ12ツール・同じディスパッチで、違いは「APIへの到達手段」
+だけ。ツール定義は1箇所にしかなく、経路によって挙動が変わることは
+仕組み上ありえない。
 
 CLIと同じく `/api/v1` のクライアントにすぎない。グラフへの second code
 path は存在せず、同じエンドポイント・同じトークン・同じRLSを通る。
-つまりモデルが触れるのは `maxwell login` した本人が触れる行だけで、
+つまりモデルが触れるのはそのトークンの持ち主が触れる行だけで、
 それがエージェントに渡してよい理由そのもの。
 
-## セットアップ
+## リモート (HTTP) — クローン不要
+
+デプロイ済みのMaxwellが `/api/mcp` でMCPを話す。必要なのはURLと
+アクセストークンだけ。
+
+```bash
+TOKEN=$(curl -s -X POST https://maxwell-bay.vercel.app/api/v1/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"…"}' | jq -r .data.accessToken)
+
+claude mcp add --transport http maxwell \
+  https://maxwell-bay.vercel.app/api/mcp \
+  --header "Authorization: Bearer $TOKEN"
+```
+
+ステートレス。セッションIDは発行せず、リクエストごとにトークンを見る。
+サーバー側は資格情報を一切持たず、呼び出し元のものを転送するだけ。
+Authorization が無いリクエストは、誰かとして動く代わりに401を返す。
+
+アクセストークンは短命なので、期限が切れたら取り直す。長期運用には
+リフレッシュの自動化が要る（`POST /api/v1/auth/token` に
+`{"refreshToken":"…"}`）。
+
+### claude.ai / Claude Desktop のコネクタには**まだ**できない
+
+あちらは OAuth 2.1 が必須で、逃げ道が無い（接続時に必ず Dynamic Client
+Registration を試み、無ければ失敗する）。`/.well-known/oauth-protected-resource`、
+`/.well-known/oauth-authorization-server`、`/register`、PKCE付きの
+`/authorize` と `/token`、RFC 8707 の `resource`、リフレッシュトークン
+のローテーション —— つまり Maxwell 自身が認可サーバーになる必要がある。
+Supabase Auth はサードパーティ向けの認可サーバーではないので、
+その層を自作することになる。別の話。
+
+## ローカル (stdio) — セットアップ
 
 まずCLIでログインする。**サインインはツールにしていない** —
 パスワードがツール引数として会話ログに残るべきではないし、モデルが
@@ -90,23 +131,37 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 
 ## プロトコル
 
-stdio上のJSON-RPC 2.0、1メッセージ1行。**stdoutにはプロトコル以外を
-書いてはいけない** — `console.log` 1つがプロトコルエラーになるので、
-診断出力はすべてstderrへ。
+JSON-RPC 2.0。stdioでは1メッセージ1行、HTTPでは Streamable HTTP
+（POSTにJSON-RPCを1本、通知は202、`GET`/`DELETE` は405 — こちらから
+送るメッセージもセッションも無いので）。
+
+stdioでは **stdoutにプロトコル以外を書いてはいけない** — `console.log`
+1つがプロトコルエラーになるので、診断出力はすべてstderrへ。
 
 対応バージョンは `2025-06-18` / `2025-03-26` / `2024-11-05`。クライアント
 が知らないバージョンを要求してきたら、こちらの最新を返して判断を委ねる。
 
-SDKは意図的に依存に入れていない。stdioトランスポートは改行区切りの
-JSON-RPCで、実装が要るのは `initialize` / `tools/list` / `tools/call`
-の3つだけ。直接書けば `mcp/` と `cli/` が同じ種類のもの — 素のNode、
-インストール不要、lockfileと同期を取る必要なし — のままでいられる。
+SDKは意図的に依存に入れていない。実装が要るのは `initialize` /
+`tools/list` / `tools/call` の3つだけ。直接書けば `mcp/` と `cli/` が
+同じ種類のもの — 素のNode、インストール不要、lockfileと同期を取る必要
+なし — のままでいられて、`src/app/api/mcp/route.ts` はその `handle()`
+をそのまま呼ぶだけで済む。
+
+ツールは「APIへの到達手段」を引数で受け取る（クロージャで掴まない）。
+stdioではトークンをファイルから読むCLIのクライアントが、HTTPでは
+呼び出し元のBearerを転送するfetchが渡る。カタログは1つ。
 
 手で叩いて確かめるなら:
 
 ```bash
+# stdio
 printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   | npm run --silent mcp
+
+# HTTP
+curl -s -X POST https://maxwell-bay.vercel.app/api/mcp \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq '.result.tools[].name'
 ```
