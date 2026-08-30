@@ -43,6 +43,50 @@ export const updateTaskSchema = z.object({
   dueDate: z.string().date().nullable().optional(),
 });
 
+/**
+ * A parsed CSV import, as it reaches the server.
+ *
+ * The file was read and checked in the browser, where it is and where a
+ * problem can be shown against the line that caused it. This is the
+ * second check, of the things a caller's word cannot be taken for —
+ * shape, count, lengths — because a server action is a public entrance
+ * however it was reached last.
+ *
+ * `key` is only meaningful within one import: it is how a row says what
+ * it waits on before anything has an id. The server turns keys into ids
+ * and forgets them.
+ */
+export const importTasksSchema = z.object({
+  storyId: z.string().uuid(),
+  rows: z
+    .array(
+      z.object({
+        key: z.string().min(1).max(200),
+        title: z
+          .string()
+          .trim()
+          .min(1, "Title is required")
+          .max(200, "Title must be 200 characters or fewer"),
+        description: z
+          .string()
+          .max(5000, "Description must be 5000 characters or fewer")
+          .nullable(),
+        dueDate: z.string().date().nullable(),
+        priority: z.number().int().min(1).max(4).nullable(),
+        x: z.number().finite(),
+        y: z.number().finite(),
+        after: z.array(z.string().min(1).max(200)).max(50),
+        afterIds: z.array(z.string().uuid()).max(50),
+      }),
+    )
+    // Capped in the same place the RPC caps it. One paste that asks for
+    // more than this is a paste of the wrong file.
+    .min(1, "There is nothing to import")
+    .max(500, "That is more rows than one import can take"),
+});
+
+export type ImportTasksInput = z.infer<typeof importTasksSchema>;
+
 export const updateNodePositionSchema = z.object({
   nodeId: z.string().uuid(),
   x: z.number().finite(),

@@ -272,6 +272,13 @@ export type Database = {
         };
         Returns: string;
       };
+      import_tasks: {
+        Args: {
+          p_story_id: string;
+          p_rows: unknown;
+        };
+        Returns: { nodeIds: string[] };
+      };
       reorder_nodes: {
         Args: {
           p_story_id: string;

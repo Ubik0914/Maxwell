@@ -284,8 +284,29 @@ async function settle(
   edges: GraphEdge[],
   changed: string[],
 ): Promise<void> {
+  const settled = await applyAvailability(supabase, nodes, edges, changed);
+  // Nothing moved, so nothing the story is derived from moved either —
+  // true of every caller here, all of which change what a task waits
+  // on rather than what the story contains. An import does contain new
+  // work, which is why it settles the story itself.
+  if (!settled) return;
+
+  await settleStory(supabase, storyId, settled, edges);
+}
+
+/**
+ * Re-derives availability from `changed`, writes back whatever moved,
+ * and hands back the graph as it now stands — or null if nothing moved
+ * at all.
+ */
+async function applyAvailability(
+  supabase: Client,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  changed: string[],
+): Promise<Map<string, GraphNode> | null> {
   const affected = recalculateFrom(changed, nodes, edges);
-  if (affected.length === 0) return;
+  if (affected.length === 0) return null;
 
   const nodesById = new Map(nodes.map((node) => [node.id, node]));
   for (const node of affected) {
@@ -298,6 +319,16 @@ async function settle(
     nodesById.set(saved.id, saved);
   }
 
+  return nodesById;
+}
+
+/** Asks the story whether it is still what it says it is. */
+async function settleStory(
+  supabase: Client,
+  storyId: string,
+  nodesById: Map<string, GraphNode>,
+  edges: GraphEdge[],
+): Promise<void> {
   const storyStatus = await storyRepository.getStatus(supabase, storyId);
   if (!storyStatus || storyStatus === "ARCHIVED") return;
 
@@ -305,6 +336,52 @@ async function settle(
   if (nextStoryStatus !== storyStatus) {
     await storyRepository.updateStatus(supabase, storyId, nextStoryStatus);
   }
+}
+
+export interface ImportTasksResult {
+  nodeIds: string[];
+}
+
+/**
+ * Adds a whole CSV's worth of tasks to a story.
+ *
+ * Two steps, and the order is the whole design. The RPC writes every
+ * task and every dependency in one transaction and starts every task
+ * READY; then the Status Engine is asked what the graph now means, and
+ * the ones that turned out to be waiting on something become BLOCKED.
+ *
+ * The alternative — having the RPC work out each task's status as it
+ * inserted — would put a second implementation of the availability
+ * rules in PL/pgSQL, where it could disagree with the one in the domain
+ * layer and where nothing would notice. There is one answer to "is this
+ * task blocked", and it is not in SQL.
+ *
+ * Positions come from the caller, which has the layout and the ids it
+ * is about to create; see planLayout in the import dialog.
+ */
+export async function importTasks(
+  supabase: Client,
+  storyId: string,
+  rows: nodeRepository.ImportTaskInput[],
+): Promise<ImportTasksResult> {
+  const nodeIds = await nodeRepository.importTasks(supabase, storyId, rows);
+
+  const [nodes, edges] = await Promise.all([
+    nodeRepository.findByStoryId(supabase, storyId),
+    edgeRepository.findByStoryId(supabase, storyId),
+  ]);
+
+  // Not settle(), which stops when no status moved. An import of tasks
+  // that all turn out to be READY moves nothing and still changes what
+  // the story is: there is work in front of the GOAL now where there
+  // may have been none, and a story left saying COMPLETED would be
+  // exactly the stale claim the rest of this file exists to prevent.
+  const settled =
+    (await applyAvailability(supabase, nodes, edges, nodeIds)) ??
+    new Map(nodes.map((node) => [node.id, node]));
+
+  await settleStory(supabase, storyId, settled, edges);
+  return { nodeIds };
 }
 
 export interface InsertTaskOnEdgeInput {

@@ -72,6 +72,20 @@ export function ImageIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * Import — an arrow coming down into an open tray. Down rather than up
+ * because this is the receiving end: something arrives here from a
+ * file. An up arrow on the same toolbar would read as export.
+ */
+export function ImportIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M10 3v8m0 0l-3-3m3 3l3-3" />
+      <path d="M3.5 13v2a2 2 0 002 2h9a2 2 0 002-2v-2" />
+    </Icon>
+  );
+}
+
 export function TrashIcon({ className }: { className?: string }) {
   return (
     <Icon className={className}>

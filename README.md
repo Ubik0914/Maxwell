@@ -64,6 +64,24 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)、
 MCPのツール一覧は [`mcp/README.md`](mcp/README.md)。
 
+## CSV インポート
+
+グラフのツールバー（左下、「+」の隣）から、CSVでタスクをまとめて取り込める。
+
+```csv
+title,depends_on
+Design the schema,
+Build the API,Design the schema
+Build the UI,Design the schema
+Ship it,Build the API;Build the UI
+```
+
+`title` だけが必須。`depends_on` は**同じファイル内の行**か、**そのストーリーに既にあるタスク**をタイトルで指す（1セルに複数書くときは `;` 区切り）。他に `key`（タイトルが重複するとき）、`description`、`due_date`（YYYY-MM-DD）、`priority`（1–4）を読む。最大500行。
+
+タイトルの一覧だけではグラフにならないので、依存を書ける形にしてある。何も待たない行は START から、誰にも待たれない行は GOAL へ自動で繋がる（ストーリー作成時の START→GOAL 直結は、その両方が引かれたときに外れる）。
+
+書き込む前に全部検証し、**問題は行番号付きでまとめて出す**。書き込みは1トランザクション（`dag.import_tasks`）なので、途中で失敗しても半分だけ入ることはない。ステータスは全部 READY で入れたあと Status Engine が導出し直す — 何がブロックされているかの答えはSQL側には置かない。
+
 ## Deployment (Vercel)
 
 GitHub リポジトリ `Ubik0914/Maxwell` は Vercel プロジェクト `maxwell`

@@ -2,6 +2,7 @@
 
 import { useReactFlow } from "@xyflow/react";
 import { CreateTaskDialog } from "@/components/graph/CreateTaskDialog";
+import { ImportTasksButton } from "@/components/story/ImportTasksButton";
 import { ToolbarButton } from "@/components/graph/ToolbarButton";
 import {
   AutoLayoutIcon,
@@ -23,6 +24,7 @@ export function GraphToolbar({
   return (
     <div className="absolute bottom-3 left-3 flex items-center gap-0.5 rounded-full border border-border bg-surface/85 p-1 shadow-lg backdrop-blur-sm sm:bottom-4 sm:left-4">
       <CreateTaskDialog storyId={storyId} />
+      <ImportTasksButton storyId={storyId} />
       <ToolbarButton
         label="Arrange by dependency"
         onClick={() => {
