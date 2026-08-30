@@ -64,16 +64,20 @@ function Tally({ value, label, tone }: {
  * moved, the settings, and the details underneath.
  *
  * Three lines at rest, which is the most a menu can spend per row and
- * still be scannable. Everything beyond that — what the story is for,
- * what it says, what could be picked up, and the settings — is behind
- * one "⋮".
+ * still be scannable. Two controls in the corner, and they are not the
+ * same kind of thing.
  *
- * One control rather than the two icons that were here first. A row 320
- * pixels wide with a gear and a chevron stacked in its corner spends
- * more of itself on its own controls than on the story, and neither
- * icon says what it does until you have already learned it. "⋮" is the
- * shape everything else in this app keeps a row's actions behind, and
- * inside it the two are words.
+ * The chevron opens the details. It changes nothing, pressing it again
+ * undoes it, and it is the one you use repeatedly while reading down
+ * the list — so it is on the row, where it costs one press and shows
+ * which way it is pointing. Both of these were behind the "⋮" for a
+ * while: two presses and a wait for a menu to draw, every time, and the
+ * menu had to spell out the state ("Details" / "Hide details") because
+ * nothing on the row said. A chevron is that same fact, in a glyph.
+ *
+ * The "⋮" keeps what is left — settings, and through it archiving and
+ * deleting. Those are reached rarely and deliberately, and they are
+ * words in a menu because a gear tells nobody what it will do.
  *
  * The row is a frame with a link inside it, not a link with a button
  * inside: a button in an anchor is two controls fighting over one
@@ -102,16 +106,6 @@ export function StoryRow({
   const detailsId = useId();
 
   const items: MenuItemSpec[] = [
-    {
-      key: "details",
-      label: isExpanded ? "Hide details" : "Details",
-      icon: (
-        <ChevronDownIcon
-          className={`h-3.5 w-3.5 ${isExpanded ? "rotate-180" : ""}`}
-        />
-      ),
-      onSelect: () => setIsExpanded((open) => !open),
-    },
     {
       key: "settings",
       label: "Story settings…",
@@ -186,6 +180,34 @@ export function StoryRow({
             </span>
           </span>
         </Link>
+
+        {/* Out of the menu and back on the row.
+            Opening the details is not the same kind of thing as the
+            actions beside it: it changes nothing, it is undone by
+            pressing again, and it is the one you reach for repeatedly
+            while reading down the list. Behind a "⋮" that costs two
+            presses and a wait for a menu to draw, every time — and the
+            menu it opens has to name the state it is in ("Details" /
+            "Hide details") because the row gives no sign of it. A
+            chevron that points down or up is that same fact, always
+            visible, one press away. */}
+        <button
+          type="button"
+          onClick={() => setIsExpanded((open) => !open)}
+          aria-expanded={isExpanded}
+          aria-controls={detailsId}
+          aria-label={`Details of ${story.title}`}
+          title="Details"
+          className="mt-2 shrink-0 rounded-md p-1 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
+        >
+          {/* No size here: the icon is already 16px, the same as the
+              "⋮" beside it. Tailwind v4 renders `rotate-180` as the
+              `rotate` property rather than inside `transform`, and
+              `transition-transform` covers it. */}
+          <ChevronDownIcon
+            className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          />
+        </button>
 
         <button
           ref={moreRef}
