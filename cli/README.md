@@ -91,6 +91,7 @@ POST /api/v1/auth/token
 
 | メソッド | パス | 内容 |
 | --- | --- | --- |
+| GET | `/api/v1/me` | トークンの持ち主（id とメールアドレス）|
 | GET | `/api/v1/workspaces` | 所属ワークスペースと自分のロール |
 | GET | `/api/v1/stories?workspaceId=` | ストーリー一覧 |
 | POST | `/api/v1/stories` | ストーリー作成 |
