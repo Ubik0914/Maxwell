@@ -12,10 +12,16 @@ export const createTaskSchema = z.object({
     .trim()
     .max(5000, "Description must be 5000 characters or fewer")
     .optional(),
-  position: z.object({
-    x: z.number().finite(),
-    y: z.number().finite(),
-  }),
+  // Optional, because only a canvas knows where a task was dropped. A
+  // caller without one — the CLI, the MCP server — leaves it out and
+  // the route finds it a spot (see nextFreeSpot). It was required, and
+  // that made `maxwell task add` impossible to satisfy.
+  position: z
+    .object({
+      x: z.number().finite(),
+      y: z.number().finite(),
+    })
+    .optional(),
 });
 
 export const updateTaskSchema = z.object({

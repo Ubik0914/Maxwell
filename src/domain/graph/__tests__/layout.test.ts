@@ -1,4 +1,4 @@
-import { layoutGraph, DEFAULT_LAYOUT } from "@/domain/graph/layout";
+import { layoutGraph, nextFreeSpot, DEFAULT_LAYOUT } from "@/domain/graph/layout";
 import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 
 function node(overrides: Partial<GraphNode> & { id: string }): GraphNode {
@@ -255,5 +255,46 @@ describe("long edges", () => {
         positions.get(targetNodeId)!.x,
       );
     }
+  });
+});
+
+describe("nextFreeSpot", () => {
+  const { nodeWidth, nodeHeight, gapX, gapY } = DEFAULT_LAYOUT;
+
+  it("puts the first task at the origin", () => {
+    expect(nextFreeSpot([])).toEqual({ x: 0, y: 0 });
+  });
+
+  it("places a task one column in from START and below everything", () => {
+    const nodes = [
+      node({ id: "start", type: "START", positionX: -400, positionY: 0 }),
+      node({ id: "a", positionX: -100, positionY: 120 }),
+      node({ id: "goal", type: "GOAL", positionX: 300, positionY: 40 }),
+    ];
+
+    expect(nextFreeSpot(nodes)).toEqual({
+      x: -400 + nodeWidth + gapX,
+      y: 120 + nodeHeight + gapY,
+    });
+  });
+
+  it("stacks, so two tasks added in a row do not land on each other", () => {
+    const nodes = [node({ id: "start", type: "START" })];
+    const first = nextFreeSpot(nodes);
+    const second = nextFreeSpot([
+      ...nodes,
+      node({ id: "a", positionX: first.x, positionY: first.y }),
+    ]);
+
+    expect(second.x).toBe(first.x);
+    expect(second.y).toBeGreaterThanOrEqual(first.y + nodeHeight);
+  });
+
+  it("falls back to the leftmost node when a story has no START", () => {
+    const nodes = [
+      node({ id: "a", positionX: 250, positionY: 0 }),
+      node({ id: "b", positionX: 80, positionY: 0 }),
+    ];
+    expect(nextFreeSpot(nodes).x).toBe(80 + nodeWidth + gapX);
   });
 });

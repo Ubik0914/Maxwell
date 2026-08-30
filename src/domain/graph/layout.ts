@@ -34,6 +34,33 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
 const SWEEPS = 4;
 
 /**
+ * Somewhere to put a task nobody said where to put.
+ *
+ * The canvas asks the pointer where a new task goes, so this is for the
+ * callers that have no pointer — the CLI, the MCP server, a script. They
+ * used to have to invent coordinates, which meant inventing (0, 0) and
+ * dropping every task they made on top of START.
+ *
+ * One column in from the start and below everything else: unattached
+ * tasks pile up in a readable stack instead of a heap, and the moment
+ * one is connected to something, auto-layout puts it where the
+ * dependencies say it belongs. This is a place to land, not an opinion
+ * about the graph.
+ */
+export function nextFreeSpot(
+  nodes: GraphNode[],
+  { nodeWidth, nodeHeight, gapX, gapY }: LayoutOptions = DEFAULT_LAYOUT,
+): Point {
+  if (nodes.length === 0) return { x: 0, y: 0 };
+
+  const start = nodes.find((node) => node.type === "START");
+  const left = start?.positionX ?? Math.min(...nodes.map((n) => n.positionX));
+  const bottom = Math.max(...nodes.map((node) => node.positionY));
+
+  return { x: left + nodeWidth + gapX, y: bottom + nodeHeight + gapY };
+}
+
+/**
  * Arranges a story left to right, in the order the work actually has to
  * happen.
  *

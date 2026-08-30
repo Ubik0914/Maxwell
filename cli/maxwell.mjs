@@ -10,18 +10,23 @@
  * rest through /api/v1. Credentials live in ~/.maxwell/credentials.json
  * at mode 0600, and an expired access token is refreshed and the request
  * retried once, so a long-lived shell session doesn't keep asking for a
- * password.
+ * password. All of that is in client.mjs, which the MCP server shares.
  */
 
 import { createInterface } from "node:readline";
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, dirname } from "node:path";
+import { rmSync } from "node:fs";
 import process from "node:process";
-
-const CONFIG_DIR = join(homedir(), ".maxwell");
-const CONFIG_PATH = join(CONFIG_DIR, "credentials.json");
-const DEFAULT_URL = "http://localhost:3000";
+import {
+  CONFIG_PATH,
+  DEFAULT_URL,
+  MaxwellError,
+  apiRequest,
+  baseUrlFor,
+  callApi,
+  readCredentials,
+  requireCredentials,
+  writeCredentials,
+} from "./client.mjs";
 
 const STATUS_GLYPH = {
   DONE: "✔",
@@ -52,102 +57,6 @@ const STATUS_PAINT = {
   BLOCKED: red,
   CANCELLED: dim,
 };
-
-class CliError extends Error {}
-
-/* ------------------------------------------------------------------ */
-/* Credential store                                                    */
-/* ------------------------------------------------------------------ */
-
-function readCredentials() {
-  try {
-    return JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
-  } catch {
-    return null;
-  }
-}
-
-function writeCredentials(credentials) {
-  mkdirSync(dirname(CONFIG_PATH), { recursive: true, mode: 0o700 });
-  // Tokens are as good as the password here, so the file is never
-  // readable by anyone else on the machine.
-  writeFileSync(CONFIG_PATH, JSON.stringify(credentials, null, 2), {
-    mode: 0o600,
-  });
-}
-
-function requireCredentials() {
-  const credentials = readCredentials();
-  if (!credentials?.accessToken) {
-    throw new CliError("Not signed in. Run `maxwell login` first.");
-  }
-  return credentials;
-}
-
-/* ------------------------------------------------------------------ */
-/* HTTP                                                                */
-/* ------------------------------------------------------------------ */
-
-async function callApi(path, { method = "GET", body, token, baseUrl } = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  }).catch((cause) => {
-    throw new CliError(`Could not reach ${baseUrl} — ${cause.message}`);
-  });
-
-  const payload = await response.json().catch(() => null);
-  return { response, payload };
-}
-
-/**
- * An API call as the signed-in user, refreshing once if the token has
- * aged out. The retry is deliberately single: a second 401 means the
- * refresh token is finished too, and looping would just be a slower way
- * of saying so.
- */
-async function apiRequest(path, options = {}) {
-  const credentials = requireCredentials();
-  const baseUrl = credentials.url;
-
-  let attempt = await callApi(path, {
-    ...options,
-    token: credentials.accessToken,
-    baseUrl,
-  });
-
-  if (attempt.response.status === 401 && credentials.refreshToken) {
-    const refreshed = await callApi("/api/v1/auth/token", {
-      method: "POST",
-      body: { refreshToken: credentials.refreshToken },
-      baseUrl,
-    });
-
-    if (refreshed.response.ok && refreshed.payload?.data) {
-      const next = { ...credentials, ...refreshed.payload.data };
-      writeCredentials(next);
-      attempt = await callApi(path, {
-        ...options,
-        token: next.accessToken,
-        baseUrl,
-      });
-    }
-  }
-
-  if (!attempt.response.ok) {
-    const error = attempt.payload?.error;
-    throw new CliError(
-      error?.message ??
-        `Request failed (${attempt.response.status} ${attempt.response.statusText})`,
-    );
-  }
-
-  return attempt.payload?.data;
-}
 
 /* ------------------------------------------------------------------ */
 /* Prompting                                                           */
@@ -321,7 +230,7 @@ const commands = {
     });
 
     if (!response.ok) {
-      throw new CliError(payload?.error?.message ?? "Sign-in failed.");
+      throw new MaxwellError(payload?.error?.message ?? "Sign-in failed.");
     }
 
     writeCredentials({ url, ...payload.data });
@@ -340,7 +249,9 @@ const commands = {
     const workspaces = await apiRequest("/api/v1/workspaces");
     return {
       email: credentials.user?.email ?? null,
-      url: credentials.url,
+      // Where the calls actually went. MAXWELL_URL can make that a
+      // different place from the one login remembered.
+      url: baseUrlFor(credentials),
       workspaces: workspaces.length,
     };
   },
@@ -352,7 +263,7 @@ const commands = {
   async stories(_positional, flags) {
     const workspaceId = flags.workspace ?? flags.workspaceId;
     if (!workspaceId) {
-      throw new CliError(
+      throw new MaxwellError(
         "Which workspace? Pass --workspace <id> (see `maxwell workspaces`).",
       );
     }
@@ -362,20 +273,20 @@ const commands = {
   },
 
   async story([storyId]) {
-    if (!storyId) throw new CliError("Usage: maxwell story <story-id>");
+    if (!storyId) throw new MaxwellError("Usage: maxwell story <story-id>");
     return apiRequest(`/api/v1/stories/${storyId}/graph`);
   },
 
   async frontier([storyId]) {
-    if (!storyId) throw new CliError("Usage: maxwell frontier <story-id>");
+    if (!storyId) throw new MaxwellError("Usage: maxwell frontier <story-id>");
     const graph = await apiRequest(`/api/v1/stories/${storyId}/graph`);
     return graph.frontier;
   },
 
   async task([action, id, value], flags) {
     if (action === "add") {
-      if (!id) throw new CliError("Usage: maxwell task add <story-id> --title <title>");
-      if (!flags.title) throw new CliError("--title is required.");
+      if (!id) throw new MaxwellError("Usage: maxwell task add <story-id> --title <title>");
+      if (!flags.title) throw new MaxwellError("--title is required.");
       return apiRequest(`/api/v1/stories/${id}/tasks`, {
         method: "POST",
         body: {
@@ -387,13 +298,13 @@ const commands = {
 
     if (action === "status") {
       if (!id || !value) {
-        throw new CliError(
+        throw new MaxwellError(
           `Usage: maxwell task status <task-id> <${TASK_STATUSES.join("|")}>`,
         );
       }
       const status = value.toUpperCase();
       if (!TASK_STATUSES.includes(status)) {
-        throw new CliError(
+        throw new MaxwellError(
           `Unknown status "${value}". One of: ${TASK_STATUSES.join(", ")}`,
         );
       }
@@ -403,7 +314,7 @@ const commands = {
       });
     }
 
-    throw new CliError("Usage: maxwell task <add|status> …");
+    throw new MaxwellError("Usage: maxwell task <add|status> …");
   },
 };
 
@@ -477,7 +388,7 @@ if (process.argv[1] && process.argv[1].endsWith("maxwell.mjs")) {
     .then((code) => process.exit(code))
     .catch((error) => {
       process.stderr.write(
-        `${red("error")} ${error instanceof CliError ? error.message : error}\n`,
+        `${red("error")} ${error instanceof MaxwellError ? error.message : error}\n`,
       );
       process.exit(1);
     });

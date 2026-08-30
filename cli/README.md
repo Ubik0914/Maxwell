@@ -1,13 +1,15 @@
 # maxwell CLI / REST API
 
-グラフをブラウザの外から触るための2つの入口。CLI は REST API の
+グラフをブラウザの外から触るための入口。CLI は REST API の
 クライアントであり、特別扱いは一切していない — CLI にできることは
-すべて `curl` でもできる。
+すべて `curl` でもできる。AIエージェント向けの入口は
+[`mcp/README.md`](../mcp/README.md)（同じ資格情報・同じAPIを使う）。
 
 ## CLI
 
-依存パッケージなしの単一ファイル (`cli/maxwell.mjs`)。Node が動く場所に
-コピーすればそのまま動く。
+依存パッケージなし (`cli/maxwell.mjs` と `cli/client.mjs` の2ファイル)。
+Node が動く場所に `cli/` をコピーすればそのまま動く。資格情報の保管と
+トークン更新は `client.mjs` にあり、MCPサーバーと共有している。
 
 ```bash
 npm run cli -- help          # リポジトリ内から
@@ -94,7 +96,7 @@ POST /api/v1/auth/token
 | POST | `/api/v1/stories` | ストーリー作成 |
 | GET | `/api/v1/stories/{id}` | ストーリー1件 |
 | GET | `/api/v1/stories/{id}/graph` | ノード・エッジ・統計・フロンティア |
-| POST | `/api/v1/stories/{id}/tasks` | タスク追加 |
+| POST | `/api/v1/stories/{id}/tasks` | タスク追加（`position` 省略可） |
 | POST | `/api/v1/stories/{id}/edges` | 依存関係の追加 |
 | PATCH | `/api/v1/tasks/{id}` | タスク更新 |
 | PATCH | `/api/v1/tasks/{id}/status` | ステータス変更（Status Engine 経由） |

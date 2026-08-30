@@ -28,12 +28,13 @@ npm run lint      # ESLint実行
 npm test          # Domain層ユニットテスト (Jest)
 npm run test:e2e  # E2Eテスト (Playwright, 要 npx playwright install)
 npm run cli       # CLI (`npm run cli -- help`)
+npm run mcp       # MCPサーバー (stdio; ホストから起動されるのが普通)
 ```
 
-## CLI / REST API
+## CLI / REST API / MCP
 
-ブラウザ以外からグラフを操作できる。CLI は REST API のクライアントに
-すぎず、CLI にできることはすべて `curl` でもできる。
+ブラウザ以外からグラフを操作できる。CLI も MCP サーバーも REST API の
+クライアントにすぎず、CLI にできることはすべて `curl` でもできる。
 
 ```bash
 maxwell login --url https://maxwell-bay.vercel.app
@@ -46,7 +47,16 @@ maxwell task status <task-id> DONE
 /api/v1/auth/token` で発行・更新）。どちらも user-scoped クライアントに
 なるため RLS の効き方は同じで、Service Role Key は使わない。
 
-エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)。
+MCPサーバー (`mcp/maxwell-mcp.mjs`) は同じAPIを12個のツールとして公開
+する。認証は CLI の `maxwell login` が残したトークンを読むだけで、
+サインインはツールにしていない — パスワードはツール引数ではない。
+
+```bash
+claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
+```
+
+エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)、
+MCPのツール一覧は [`mcp/README.md`](mcp/README.md)。
 
 ## Deployment (Vercel)
 
