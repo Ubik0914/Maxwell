@@ -234,9 +234,103 @@ export type Database = {
           },
         ];
       };
+      oauth_clients: {
+        Row: {
+          client_id: string;
+          client_name: string | null;
+          redirect_uris: string[];
+          created_at: string;
+        };
+        Insert: {
+          client_id: string;
+          client_name?: string | null;
+          redirect_uris: string[];
+          created_at?: string;
+        };
+        Update: {
+          client_id?: string;
+          client_name?: string | null;
+          redirect_uris?: string[];
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      oauth_authorization_codes: {
+        Row: {
+          code_hash: string;
+          client_id: string;
+          redirect_uri: string;
+          code_challenge: string;
+          code_challenge_method: string;
+          resource: string | null;
+          scope: string | null;
+          user_id: string;
+          access_token: string;
+          refresh_token: string | null;
+          expires_in: number;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          code_hash: string;
+          client_id: string;
+          redirect_uri: string;
+          code_challenge: string;
+          code_challenge_method?: string;
+          resource?: string | null;
+          scope?: string | null;
+          user_id: string;
+          access_token: string;
+          refresh_token?: string | null;
+          expires_in: number;
+          created_at?: string;
+          expires_at: string;
+        };
+        Update: {
+          code_hash?: string;
+          client_id?: string;
+          redirect_uri?: string;
+          code_challenge?: string;
+          code_challenge_method?: string;
+          resource?: string | null;
+          scope?: string | null;
+          user_id?: string;
+          access_token?: string;
+          refresh_token?: string | null;
+          expires_in?: number;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "oauth_authorization_codes_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "oauth_clients";
+            referencedColumns: ["client_id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
+      oauth_redeem_code: {
+        Args: {
+          p_code_hash: string;
+        };
+        Returns: {
+          client_id: string;
+          redirect_uri: string;
+          code_challenge: string;
+          code_challenge_method: string;
+          resource: string | null;
+          scope: string | null;
+          user_id: string;
+          access_token: string;
+          refresh_token: string | null;
+          expires_in: number;
+        }[];
+      };
       create_story: {
         Args: {
           p_workspace_id: string;

@@ -40,15 +40,38 @@ Authorization が無いリクエストは、誰かとして動く代わりに401
 リフレッシュの自動化が要る（`POST /api/v1/auth/token` に
 `{"refreshToken":"…"}`）。
 
-### claude.ai / Claude Desktop のコネクタには**まだ**できない
+### claude.ai / Claude Desktop のカスタムコネクタから
 
-あちらは OAuth 2.1 が必須で、逃げ道が無い（接続時に必ず Dynamic Client
-Registration を試み、無ければ失敗する）。`/.well-known/oauth-protected-resource`、
-`/.well-known/oauth-authorization-server`、`/register`、PKCE付きの
-`/authorize` と `/token`、RFC 8707 の `resource`、リフレッシュトークン
-のローテーション —— つまり Maxwell 自身が認可サーバーになる必要がある。
-Supabase Auth はサードパーティ向けの認可サーバーではないので、
-その層を自作することになる。別の話。
+あちらは OAuth 2.1 必須（接続時に必ず Dynamic Client Registration を
+試み、無ければ失敗する）なので、Maxwell自身が小さな認可サーバーに
+なっている。「カスタムコネクタを追加」に名前とこのURLを入れるだけでよい：
+
+```
+https://maxwell-bay.vercel.app/api/mcp
+```
+
+流れは `続ける` → Claude が `/.well-known/oauth-protected-resource` →
+`/.well-known/oauth-authorization-server` の順に辿り着き、
+`/oauth/register` で自分をクライアント登録し、ブラウザで
+`/oauth/authorize` を開く。そこでMaxwellのメールアドレスとパスワードで
+ログイン（すでにブラウザにセッションがあれば、ログインの代わりに
+「Allow / Deny」の確認画面）すると、`/oauth/token` を経て
+Claude 側にアクセストークンが渡る。
+
+新しく増えたのは認可コードを仲介する部分だけで、その先にある
+「アクセストークン」は実体としては普通の Supabase セッションの
+access_token/refresh_token そのもの。`/api/mcp` にとっては
+`claude mcp add --header "Authorization: Bearer …"` で渡すトークンと
+区別がつかない — 発行経路が増えただけで、検証は1つのままになる
+（`requireApiUser` / RLS）。
+
+Dynamic Client Registration は誰でも呼べる（サインアップと同じ）ので、
+登録されるクライアントは client_secret を持たない public client
+（`token_endpoint_auth_method: "none"`）のみ。認可はPKCE (S256必須) と
+`/oauth/authorize` の確認画面（どの名前のクライアントがどの
+redirect_uri に戻ろうとしているか）が担う。詳細は
+`supabase/migrations/20260830100000_create_dag_oauth_tables.sql` と
+`src/app/oauth/`。
 
 ## ローカル (stdio) — セットアップ
 

@@ -47,7 +47,7 @@ maxwell task status <task-id> DONE
 /api/v1/auth/token` で発行・更新）。どちらも user-scoped クライアントに
 なるため RLS の効き方は同じで、Service Role Key は使わない。
 
-MCPサーバーは同じAPIを12個のツールとして公開する。繋ぎ方は2つ:
+MCPサーバーは同じAPIを12個のツールとして公開する。繋ぎ方は3つ:
 
 ```bash
 # リモート — クローン不要。URLとトークンだけ
@@ -57,6 +57,12 @@ claude mcp add --transport http maxwell https://maxwell-bay.vercel.app/api/mcp \
 # ローカル — クローン + maxwell login
 claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 ```
+
+claude.ai / Claude Desktop の「カスタムコネクタ」からは、上のトークン
+すら要らない。URL `https://maxwell-bay.vercel.app/api/mcp` を入れるだけで、
+OAuth 2.1 (Dynamic Client Registration → ブラウザでログイン/確認 →
+トークン取得) を Maxwell 自身が認可サーバーとして受け持つ。詳しくは
+[`mcp/README.md`](mcp/README.md)。
 
 同じ12ツール・同じディスパッチで、違うのは「APIへの到達手段」だけ。
 サインインはツールにしていない — パスワードはツール引数ではない。
