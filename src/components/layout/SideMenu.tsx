@@ -5,24 +5,18 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { DrawerStories } from "@/features/story/actions";
-import { logoutAction } from "@/features/auth/actions";
 import {
   STORY_FILTER_ORDER,
   type StoryFilter,
 } from "@/features/story/filter";
 import { Skeleton } from "@/components/Skeleton";
-import { MotionToggle } from "@/components/MotionToggle";
-import { BetaToggle } from "@/components/BetaToggle";
 import type { StoryListItem } from "@/repositories/story.repository";
 import { CreateStoryDialog } from "@/components/story/CreateStoryDialog";
 import { StoryRow } from "@/components/story/StoryRow";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDrawerDrag } from "@/components/layout/useDrawerDrag";
-import { CloseIcon, MembersIcon, PlusIcon } from "@/components/icons";
-
-const NAV_ITEMS = [
-  { href: "/settings/members", label: "Members", Icon: MembersIcon },
-];
+import { CloseIcon, PlusIcon, SettingsIcon } from "@/components/icons";
 
 const FILTER_LABEL: Record<StoryFilter, string> = {
   ALL: "All",
@@ -165,6 +159,7 @@ export function SideMenu({
   );
   const [filter, setFilter] = useState<StoryFilter>("ALL");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // No flag for what is layered over it any more: a dialog opened from
   // here takes the key exclusively (see useEscapeKey), which also
@@ -328,53 +323,25 @@ export function SideMenu({
             </div>
           )}
 
-          <nav className="flex flex-col gap-0.5 px-1.5">
-            {NAV_ITEMS.map(({ href, label, Icon }) => {
-              const isActive = pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => onOpenChange(false)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-                    isActive
-                      ? "bg-accent-soft text-accent"
-                      : "text-text-muted hover:bg-surface-hover hover:text-text"
-                  }`}
-                >
-                  <Icon />
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="flex flex-col gap-1.5 px-3">
-            <SectionLabel>Motion</SectionLabel>
-            <MotionToggle />
-          </div>
-
-          <div className="flex flex-col gap-1.5 px-3">
-            <SectionLabel>Beta</SectionLabel>
-            <BetaToggle />
-          </div>
-
-          <div className="flex flex-col gap-1.5 px-3">
-            <SectionLabel>Account</SectionLabel>
-            {userEmail ? (
-              <p className="truncate text-sm text-text-muted">{userEmail}</p>
-            ) : (
-              <Skeleton className="h-4 w-40" />
-            )}
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="-mx-1.5 w-full rounded-lg px-1.5 py-1.5 text-left text-sm text-text-faint transition-colors hover:bg-surface-hover hover:text-danger"
-              >
-                Log out
-              </button>
-            </form>
+          {/* One row where four sections used to be. The stories are
+              what the drawer is for, and they now get everything left
+              over — see SettingsDialog for where the rest went. */}
+          <div className="shrink-0 border-t border-border/60 px-1.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
+            >
+              <SettingsIcon />
+              Settings
+              {userEmail ? (
+                <span className="ml-auto min-w-0 truncate text-[11px] text-text-faint">
+                  {userEmail}
+                </span>
+              ) : (
+                <Skeleton className="ml-auto h-3 w-28" />
+              )}
+            </button>
           </div>
         </aside>
       </div>
@@ -383,6 +350,17 @@ export function SideMenu({
         <CreateStoryDialog
           workspaceId={workspaceId}
           onClose={() => setIsCreateOpen(false)}
+        />
+      )}
+
+      {isSettingsOpen && (
+        <SettingsDialog
+          userEmail={userEmail}
+          onClose={() => setIsSettingsOpen(false)}
+          onNavigate={() => {
+            setIsSettingsOpen(false);
+            onOpenChange(false);
+          }}
         />
       )}
     </>,

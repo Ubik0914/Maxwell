@@ -46,7 +46,7 @@ export function MotionToggle() {
     <div
       role="radiogroup"
       aria-label="Motion"
-      className="mx-1.5 grid grid-cols-3 gap-1 rounded-lg border border-border bg-bg p-1"
+      className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-bg p-1"
     >
       {OPTIONS.map((option) => {
         const isActive = preference === option.value;
