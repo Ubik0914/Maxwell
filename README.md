@@ -64,9 +64,11 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)、
 MCPのツール一覧は [`mcp/README.md`](mcp/README.md)。
 
-## CSV インポート
+## CSV インポート（ベータ）
 
-グラフのツールバー（左下、「+」の隣）から、CSVでタスクをまとめて取り込める。
+**サイドバーの「Beta → Unfinished features」をオンにすると**、グラフのツールバー（左下、「+」の隣）にインポートが出る。オフの間はボタン自体が存在しない。
+
+トグルは localStorage に持つ（Motion の設定と同じ）。1人・1ブラウザの答えで、サーバーへの往復を待たずに効き、気が変わっても代償がない。別のマシンには付いてこないが、「未完成のものを見せろ」という設定はそちら側に倒すのが正しい — ベータは、驚かされてもいい人が、驚かされてもいい場所で入れるもの。
 
 ```csv
 title,depends_on

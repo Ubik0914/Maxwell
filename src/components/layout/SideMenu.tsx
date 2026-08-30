@@ -12,6 +12,7 @@ import {
 } from "@/features/story/filter";
 import { Skeleton } from "@/components/Skeleton";
 import { MotionToggle } from "@/components/MotionToggle";
+import { BetaToggle } from "@/components/BetaToggle";
 import type { StoryListItem } from "@/repositories/story.repository";
 import { CreateStoryDialog } from "@/components/story/CreateStoryDialog";
 import { StoryRow } from "@/components/story/StoryRow";
@@ -352,6 +353,11 @@ export function SideMenu({
           <div className="flex flex-col gap-1.5 px-3">
             <SectionLabel>Motion</SectionLabel>
             <MotionToggle />
+          </div>
+
+          <div className="flex flex-col gap-1.5 px-3">
+            <SectionLabel>Beta</SectionLabel>
+            <BetaToggle />
           </div>
 
           <div className="flex flex-col gap-1.5 px-3">
