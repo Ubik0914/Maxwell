@@ -107,6 +107,40 @@ export async function createTask(
   return toGraphNode(data);
 }
 
+export interface ImportTaskInput {
+  key: string;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  priority: number | null;
+  x: number;
+  y: number;
+  after: string[];
+  afterIds: string[];
+}
+
+/**
+ * Writes a whole import at once — every task and every dependency, in
+ * one transaction (see the import_tasks RPC).
+ *
+ * Not a loop of createTask and createEdge: half an import is worse than
+ * none, because nobody can tell by looking which half arrived. The keys
+ * only mean anything inside the call; what comes back are ids.
+ */
+export async function importTasks(
+  supabase: Client,
+  storyId: string,
+  rows: ImportTaskInput[],
+): Promise<string[]> {
+  const { data, error } = await supabase.rpc("import_tasks", {
+    p_story_id: storyId,
+    p_rows: rows,
+  });
+
+  if (error) throw error;
+  return data?.nodeIds ?? [];
+}
+
 export interface UpdateTaskInput {
   title?: string;
   description?: string | null;

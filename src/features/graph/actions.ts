@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import {
   createTaskSchema,
+  importTasksSchema,
   updateTaskSchema,
   updateNodePositionSchema,
   updateTaskStatusSchema,
@@ -85,6 +86,58 @@ export async function createTaskAction(
       error: {
         code: ErrorCode.INTERNAL_ERROR,
         message: "Failed to create task. Please try again.",
+      },
+    };
+  }
+}
+
+/**
+ * Adds a CSV's worth of tasks to a story.
+ *
+ * The rows arrive already parsed and checked (planImport, in the
+ * browser, which is where the file is and where a problem can be shown
+ * beside the line that caused it). What is re-checked here is what a
+ * client's word cannot be taken for: the shape, the count, and the
+ * lengths the database would refuse anyway — an action is a public
+ * entrance, whatever called it last.
+ */
+export async function importTasksAction(input: {
+  storyId: string;
+  rows: nodeRepository.ImportTaskInput[];
+}): Promise<ActionResult<{ nodeIds: string[] }>> {
+  const parsed = importTasksSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.VALIDATION_ERROR,
+        message: parsed.error.issues[0]?.message ?? "Invalid input",
+      },
+    };
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) {
+    return {
+      success: false,
+      error: { code: ErrorCode.AUTH_REQUIRED, message: "Please log in." },
+    };
+  }
+
+  try {
+    const result = await graphService.importTasks(
+      supabase,
+      parsed.data.storyId,
+      parsed.data.rows,
+    );
+    return { success: true, data: { nodeIds: result.nodeIds } };
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Failed to import. Nothing was added.",
       },
     };
   }
