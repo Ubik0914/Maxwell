@@ -22,7 +22,7 @@ export function BetaToggle() {
   const labelId = useId();
 
   return (
-    <div className="mx-1.5 flex flex-col gap-2 rounded-lg border border-border bg-bg p-2">
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-bg p-2">
       <div className="flex items-center justify-between gap-3">
         <span id={labelId} className="text-xs text-text">
           Unfinished features
