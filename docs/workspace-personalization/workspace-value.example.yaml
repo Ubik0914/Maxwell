@@ -1,0 +1,54 @@
+# Workspace Personalization / Workspace Value (Workspaceごとの保存値)
+#
+# MCP実行時に、この内容をそのままWorkspace固有の参考コンテキストとして取得する。
+# - radio    : 選択された value を単一の文字列で持つ
+# - checkbox : 選択された option_key の配列で持つ（空配列 = すべて未選択）
+# - textarea : 文字列で持つ（空文字 = 未記入）
+# キーが存在しない場合は Template Definition の default を適用する。
+
+version: 1
+workspace_id: 9f2c7d84-1f3a-4d8f-8a10-2c5b6e0f4b11
+template_version: 1
+updated_at: 2026-08-31T09:12:00Z
+
+values:
+  # 回答方針
+  response_depth: concise
+  explanation_style: conclusion_first
+  thinking_depth: deep
+  decision_criteria: quality
+  ambiguity_policy: assume_and_proceed
+  improvement_suggestion: when_significant
+  requirement_stance: verify_then_follow
+
+  # タスク方針
+  task_granularity: fine
+  task_naming: verb_object
+  priority_policy: critical_path
+  task_breakdown:
+    - dependencies
+    - blockers
+    - goal_alignment
+    - definition_of_done
+    - parallelizable
+
+  # 出力内容
+  output_format:
+    - bullet_points
+    - comparison_table
+    - code_example
+  answer_supplements:
+    - assumptions
+    - risks
+    - next_actions
+
+  # Workspace固有
+  workspace_context: |
+    BtoB SaaSの請求機能を開発しているWorkspace。
+    技術スタックは Next.js (App Router) + Supabase + TypeScript。
+    「請求書」は確定後に発行するPDFのみを指し、確定前のものは「請求ドラフト」と呼ぶ。
+    チームは2名（開発1・PM1）で、1スプリントは1週間。
+  custom_instructions: |
+    タスク名は日本語、Storyタイトルは英語で統一する。
+    見積り時間は記載しない（PriorityとGoalとの関係のみで判断する）。
+    外部SaaS名は正式表記を使う（例: Stripe, Supabase）。

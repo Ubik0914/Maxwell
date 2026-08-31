@@ -1,0 +1,288 @@
+# Workspace Personalization / Template Definition (マスターデータ)
+#
+# ここでは「どんな設定項目が存在し、どんな選択肢とデフォルトを持つか」だけを定義する。
+# 実際に各Workspaceが保存する値は workspace-value.example.yaml の形式で別に持つ。
+# 権限・ツール実行可否・認証・接続設定は本ファイルの対象外（AIの振る舞いのみ）。
+
+version: 1
+
+groups:
+  answer_policy:
+    label: 回答方針
+    description: AIの回答傾向・思考傾向・対話姿勢に関する設定
+  task_policy:
+    label: タスク方針
+    description: タスク分解・命名・優先度など、タスク管理に関する設定
+  output_content:
+    label: 出力内容
+    description: 出力形式と、回答に添える補足情報の指定
+  workspace_specific:
+    label: Workspace固有
+    description: テンプレート項目で表現できない自由記述
+
+items:
+  # ------------------------------------------------------------------
+  # Radio: 単一選択（AIの回答傾向・思考傾向・対話姿勢・タスク管理方針）
+  # ------------------------------------------------------------------
+
+  response_depth:
+    type: radio
+    group: answer_policy
+    description: 回答の詳しさ。1回の応答にどれだけの情報量を含めるか。
+    options:
+      - value: concise
+        label: 簡潔
+        description: 結論と要点のみを返す。前置き・背景説明・冗長な補足は省き、目安として3〜5項目以内に収める。
+      - value: balanced
+        label: 標準
+        description: 結論に加えて、判断に必要な理由と補足を過不足なく添える。詳細は求められたら深掘りする。
+      - value: detailed
+        label: 詳細
+        description: 背景・根拠・代替案・注意点まで網羅して説明する。長さより理解の完全性を優先する。
+    default: balanced
+
+  explanation_style:
+    type: radio
+    group: answer_policy
+    description: 説明スタイル。情報を提示する順序と構成。
+    options:
+      - value: conclusion_first
+        label: 結論先出し
+        description: 最初に結論・推奨を1〜2文で述べ、その後に理由と詳細を続ける。
+      - value: step_by_step
+        label: 手順型
+        description: 手順・工程の順に沿って段階的に説明し、最後に結論をまとめる。
+      - value: context_first
+        label: 背景重視
+        description: 前提・背景・制約を整理してから結論に至る。合意形成や設計判断の共有を重視する。
+    default: conclusion_first
+
+  thinking_depth:
+    type: radio
+    group: answer_policy
+    description: 思考の深さ。回答前にどこまで検討・検証を行うか。
+    options:
+      - value: quick
+        label: 即答
+        description: 追加の調査や検証は行わず、既知の情報から素早く回答する。速度を最優先する。
+      - value: standard
+        label: 標準
+        description: 主要な論点と明らかな見落としを確認したうえで回答する。必要な範囲でのみ調査する。
+      - value: deep
+        label: 熟考
+        description: 複数の選択肢・反証・境界条件まで検討してから回答する。時間がかかっても妥当性を優先する。
+    default: standard
+
+  decision_criteria:
+    type: radio
+    group: answer_policy
+    description: 判断時の優先基準。トレードオフが発生したときに何を優先するか。
+    options:
+      - value: speed
+        label: 速度優先
+        description: 早く動くこと・早く前に進むことを優先する。暫定解や後戻り前提の案を許容して提案する。
+      - value: balanced
+        label: バランス
+        description: 速度と品質の折り合いを取り、コストに見合う範囲で妥当な選択肢を推す。
+      - value: quality
+        label: 品質優先
+        description: 保守性・堅牢性・一貫性を優先する。時間がかかっても手戻りの少ない案を推す。
+    default: balanced
+
+  ambiguity_policy:
+    type: radio
+    group: answer_policy
+    description: 曖昧な要求への対応。指示が不明確なときの進め方。
+    options:
+      - value: ask_first
+        label: 確認する
+        description: 解釈が割れる点があれば、作業を始める前に質問して確定させる。
+      - value: assume_and_proceed
+        label: 前提を置いて進める
+        description: 最も妥当な解釈を前提として明示し、そのまま作業を進める。前提が誤っていた場合の影響も添える。
+      - value: present_options
+        label: 複数案を出す
+        description: 考えられる解釈を2〜3案に整理して提示し、推奨案を示したうえで選択を求める。
+    default: assume_and_proceed
+
+  improvement_suggestion:
+    type: radio
+    group: answer_policy
+    description: 改善提案の積極性。依頼範囲外の指摘をどこまで行うか。
+    options:
+      - value: on_request
+        label: 求められたときのみ
+        description: 依頼された内容だけに答える。頼まれていない改善提案は行わない。
+      - value: when_significant
+        label: 重要なときだけ
+        description: 影響が大きい問題・明確な不具合・大きな効率改善に限って、簡潔に指摘する。
+      - value: proactive
+        label: 積極的に
+        description: 気づいた改善余地は小さなものも含めて提案する。ただし本題の回答と分けて記載する。
+    default: when_significant
+
+  requirement_stance:
+    type: radio
+    group: answer_policy
+    description: 与えられた要件への姿勢。指定された要件をどう扱うか。
+    options:
+      - value: follow_as_is
+        label: そのまま実行
+        description: 要件を所与として、指定どおりに満たす。範囲を広げず、要件自体の是非は問わない。
+      - value: verify_then_follow
+        label: 検証してから実行
+        description: 矛盾・抜け漏れ・実現性の懸念があれば先に指摘し、そのうえで要件どおりに進める。
+      - value: challenge
+        label: 目的から問い直す
+        description: 要件の背後にある目的に照らして妥当性を検討し、より良い代替案があれば対案として提示する。
+    default: verify_then_follow
+
+  task_granularity:
+    type: radio
+    group: task_policy
+    description: タスク粒度。タスクを分解するときの1タスクの大きさ。
+    options:
+      - value: coarse
+        label: 粗い
+        description: 1タスク=数日規模のまとまり。工程・フェーズ単位で表現し、細分化しない。
+      - value: medium
+        label: 標準
+        description: 1タスク=半日〜2日程度。担当者が着手判断できる単位に分ける。
+      - value: fine
+        label: 細かい
+        description: 1タスク=数時間以内。着手から完了までを1回の作業で終えられる単位に分ける。
+    default: medium
+
+  task_naming:
+    type: radio
+    group: task_policy
+    description: タスク名の付け方。タイトルの命名規則。
+    options:
+      - value: verb_object
+        label: 動詞+目的語
+        description: 「〜を〜する」の行動形で命名する（例：ログイン画面を実装する）。
+      - value: deliverable
+        label: 成果物名
+        description: 作られる物を名詞句で命名する（例：ログイン画面 / 認証API仕様書）。
+      - value: outcome
+        label: 完了状態
+        description: 達成された状態で命名する（例：ログインが成功する / 認証仕様が合意済み）。
+    default: verb_object
+
+  priority_policy:
+    type: radio
+    group: task_policy
+    description: Priorityの付け方。タスクに優先度を割り当てる基準（値は nodes.priority に対応し、小さいほど高優先とする）。
+    options:
+      - value: critical_path
+        label: クリティカルパス基準
+        description: Goal到達までの経路上で、後続を最も多くブロックするタスクから高優先にする。
+      - value: quick_win
+        label: 早く終わる順
+        description: 短時間で完了し、すぐ次を解放できるタスクから高優先にする。
+      - value: manual_only
+        label: 指定時のみ
+        description: 自動でPriorityを付けない。明示的な指示があるタスクにだけ設定する。
+    default: critical_path
+
+  # ------------------------------------------------------------------
+  # Checkbox: 複数選択可（併用できる指示）
+  # ------------------------------------------------------------------
+
+  output_format:
+    type: checkbox
+    group: output_content
+    description: 出力形式。回答で用いる表現手段（併用可）。
+    options:
+      bullet_points:
+        label: 箇条書き
+        description: 列挙できる内容は文章ではなく箇条書きで示す。1項目1論点に絞る。
+        default: true
+      comparison_table:
+        label: 比較表
+        description: 選択肢・案が2つ以上あるときは、評価軸を列にした表で比較する。
+        default: false
+      diagram:
+        label: 図解
+        description: 構造・フロー・依存関係は Mermaid 記法の図で示す。図は本文の補足ではなく主要な説明として扱う。
+        default: false
+      code_example:
+        label: コード例
+        description: 技術的な説明にはそのまま動かせる最小のコード例を添える。
+        default: true
+
+  answer_supplements:
+    type: checkbox
+    group: output_content
+    description: 回答に添える補足情報。結論と併せて必ず提示する内容（併用可）。
+    options:
+      assumptions:
+        label: 前提条件
+        description: 回答が成り立つ前提と、確認できていない条件を明示する。
+        default: true
+      concrete_examples:
+        label: 具体例
+        description: 抽象的な説明には必ず具体例を1つ以上添える。
+        default: true
+      tradeoffs:
+        label: トレードオフ
+        description: 推奨案が何を犠牲にしているかを、代替案との対比で明示する。
+        default: false
+      risks:
+        label: リスク
+        description: 想定される失敗・副作用・注意点を挙げ、可能なら回避策も添える。
+        default: true
+      next_actions:
+        label: Next Action
+        description: 回答の最後に、次に取るべき具体的な行動を1〜3個示す。
+        default: true
+
+  task_breakdown:
+    type: checkbox
+    group: task_policy
+    description: タスク整理時に必ず明示する項目。タスクを作成・分解・提示する際に添える情報（併用可）。
+    options:
+      dependencies:
+        label: 依存関係
+        description: どのタスクが先行必須かを明示し、先行→後続の関係として表す。
+        default: true
+      blockers:
+        label: ブロッカー
+        description: 着手を妨げている要因（未決事項・外部待ち・不足情報）を、担当と解消条件つきで明示する。
+        default: true
+      goal_alignment:
+        label: Goalとの関係
+        description: 各タスクがGoalのどの達成条件に効くかを1行で紐づける。寄与しないタスクは省く。
+        default: true
+      subtasks:
+        label: Subtask
+        description: 大きいタスクは着手可能な単位まで分解し、親子関係がわかる形で示す。
+        default: false
+      parallelizable:
+        label: 並行可能なタスク
+        description: 依存関係のない、同時に着手できるタスクの組を明示する。
+        default: false
+      definition_of_done:
+        label: 完了条件
+        description: 各タスクに、第三者が判定できる完了条件（Definition of Done）を1〜3項目つける。
+        default: true
+
+  # ------------------------------------------------------------------
+  # Free Text: テンプレートで表現できないWorkspace固有の指示
+  # ------------------------------------------------------------------
+
+  workspace_context:
+    type: textarea
+    group: workspace_specific
+    description: Workspaceの前提知識。ドメイン、用語、技術スタック、体制、期間、制約など、AIが毎回踏まえるべき背景。
+    max_length: 2000
+    placeholder: 例）BtoB SaaSの請求機能を開発。Next.js + Supabase。「請求書」は確定後のPDFのみを指す。
+    default: ""
+
+  custom_instructions:
+    type: textarea
+    group: workspace_specific
+    description: テンプレート項目で表現できない追加指示。禁止事項、言い回し、命名規則、参照すべき資料の扱いなど。
+    max_length: 2000
+    placeholder: 例）タスク名は日本語。外部SaaS名は正式表記。見積り時間の記載は不要。
+    default: ""
