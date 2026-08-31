@@ -46,9 +46,11 @@ async function signUpAndReachWorkspaces(page: Page) {
 test("sign up, build a graph, and complete the story", async ({ page }) => {
   await signUpAndReachWorkspaces(page);
 
-  // Create Workspace
+  // Create Workspace. A fresh account has none, so this lands on the
+  // empty screen, and the form is a dialog behind its one button.
+  await page.click('button:has-text("New Workspace")');
   await page.fill("#name", "E2E Workspace");
-  await page.click('button:has-text("Create Workspace")');
+  await page.click('[role="dialog"] button[type="submit"]');
   await page.waitForURL("**/stories");
 
   // Create Story

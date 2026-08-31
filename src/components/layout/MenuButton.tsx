@@ -75,7 +75,8 @@ export function MenuButton({
   className = "",
 }: {
   workspaceId?: string;
-  workspaceName?: string;
+  /** `null` when there is no workspace to be in yet — see AppShell. */
+  workspaceName?: string | null;
   userEmail?: string;
   /** Marks the story you are already in, where there is one. */
   currentStoryId?: string;
