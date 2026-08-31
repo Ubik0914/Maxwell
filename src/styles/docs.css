@@ -1,0 +1,76 @@
+/* ==========================================================================
+ * The guide
+ *
+ * markdown.css sizes prose for a task's description: a panel where the
+ * heading levels are deliberately flattened, because a description sits
+ * under a title and a row of chips and must not shout over them.
+ *
+ * A page of documentation is the opposite situation — the prose IS the
+ * page, it is long enough to be scanned rather than read, and the
+ * headings are how anyone finds their way back to a place they saw
+ * once. So this restores the hierarchy the panel gives up, and nothing
+ * else: same colours, same rules, same code blocks.
+ * ==========================================================================
+ */
+
+.md-body.md-docs {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--text-muted);
+}
+
+.md-body.md-docs h1 {
+  margin: 0 0 0.6em;
+  font-size: 1.5em;
+  letter-spacing: -0.01em;
+}
+
+.md-body.md-docs h2 {
+  margin: 2em 0 0.7em;
+  padding-top: 1.4em;
+  border-top: 1px solid var(--border);
+  font-size: 1.2em;
+}
+
+/* The first section starts right under the page's opening paragraph;
+   a rule there would fence off the one sentence saying what the page
+   is about. */
+.md-body.md-docs h2:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.md-body.md-docs h3 {
+  margin: 1.6em 0 0.5em;
+  font-size: 1em;
+  color: var(--text);
+}
+
+.md-body.md-docs p,
+.md-body.md-docs ul,
+.md-body.md-docs ol {
+  margin: 0.9em 0;
+}
+
+.md-body.md-docs li {
+  margin: 0.4em 0;
+}
+
+/* A table in the guide is a reference — column headers, and a rule
+   under each row so the eye can cross a wide one. */
+.md-body.md-docs th {
+  color: var(--text-faint);
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.md-body.md-docs td,
+.md-body.md-docs th {
+  padding: 0.5em 0.9em 0.5em 0;
+}
+
+.md-body.md-docs strong {
+  color: var(--text);
+}
