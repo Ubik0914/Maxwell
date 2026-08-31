@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -119,12 +120,18 @@ export function Markdown({
         </div>
       ),
 
-      // Anything linked from a description is somewhere else.
-      a: ({ href, children: content }) => (
-        <a href={href} target="_blank" rel="noreferrer noopener">
-          {content}
-        </a>
-      ),
+      // A link out of this app opens beside it rather than replacing
+      // the story somebody was in. A link *into* it is navigation —
+      // the guide cross-references its own pages, and a new tab per
+      // cross-reference is a pile of tabs, not a trail.
+      a: ({ href, children: content }) =>
+        href?.startsWith("/") ? (
+          <Link href={href}>{content}</Link>
+        ) : (
+          <a href={href} target="_blank" rel="noreferrer noopener">
+            {content}
+          </a>
+        ),
     }),
     [children, markers, onToggleTask],
   );

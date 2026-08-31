@@ -2,6 +2,8 @@
 
 DAGベースのタスク管理システム。StoryのStartとGoalを先に定義し、その間をTask NodeとDependency Edgeによって分解する。
 
+使い方のガイドはアプリ自身の `/docs` にある（本文は [`src/content/docs/`](src/content/docs) の Markdown）。このREADMEは動かし方と繋ぎ方、`/docs` は使い方。
+
 ## 技術スタック
 
 - Next.js (App Router) / TypeScript

@@ -160,6 +160,17 @@ export function MembersIcon({ className }: { className?: string }) {
   );
 }
 
+/** An open book: the guide. */
+export function BookIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M10 5.5v10" />
+      <path d="M10 5.5C8.5 4.2 6.8 3.7 4 3.7v9.6c2.8 0 4.5.5 6 1.8" />
+      <path d="M10 5.5c1.5-1.3 3.2-1.8 6-1.8v9.6c-2.8 0-4.5.5-6 1.8" />
+    </Icon>
+  );
+}
+
 /**
  * The three ways to look at one story. They have to be distinguishable
  * at 16px in a row of three, so each is a different *shape* — scattered

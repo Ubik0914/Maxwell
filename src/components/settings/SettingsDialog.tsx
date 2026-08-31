@@ -8,7 +8,12 @@ import { MotionToggle } from "@/components/MotionToggle";
 import { BetaToggle } from "@/components/BetaToggle";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-import { ArrowLeftIcon, CloseIcon, MembersIcon } from "@/components/icons";
+import {
+  ArrowLeftIcon,
+  BookIcon,
+  CloseIcon,
+  MembersIcon,
+} from "@/components/icons";
 
 /**
  * Settings, off the drawer.
@@ -48,6 +53,7 @@ export function SettingsDialog({
   if (typeof document === "undefined") return null;
 
   const isMembersActive = pathname.startsWith("/settings/members");
+  const isDocsActive = pathname.startsWith("/docs");
 
   return createPortal(
     <div
@@ -98,6 +104,19 @@ export function SettingsDialog({
             >
               <MembersIcon />
               Members
+            </Link>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <SectionLabel>Help</SectionLabel>
+            <Link
+              href="/docs"
+              onClick={onNavigate}
+              aria-current={isDocsActive ? "page" : undefined}
+              className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-surface-hover hover:text-text"
+            >
+              <BookIcon />
+              使い方
             </Link>
           </div>
 
