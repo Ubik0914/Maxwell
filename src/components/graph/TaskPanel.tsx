@@ -35,13 +35,18 @@ import {
 const LEAVE_MS = 180;
 
 /**
- * The task detail surface.
+ * The node detail surface — a TASK, or a story's START/GOAL.
  *
- * Shaped around the two things that actually get edited — the title and
- * the description — with everything else compressed into one wrapping
- * row of chips between them (TaskProperties). The old form put six
- * labelled rows of equal weight on screen, which made a task look like
- * a record to be filled in rather than a thing to be written.
+ * Shaped around the two things every node has and actually gets edited
+ * — the title and the description — with everything else compressed
+ * into one wrapping row of chips between them (TaskProperties). The old
+ * form put six labelled rows of equal weight on screen, which made a
+ * task look like a record to be filled in rather than a thing to be
+ * written.
+ *
+ * TaskProperties and delete are TASK-only: status, priority, due date
+ * and assignee describe work to be done, which START/GOAL are not, and
+ * deleting either would leave a story without one end of its own DAG.
  *
  * Status goes through updateTaskStatusAction (the Status Engine), which
  * rejects BLOCKED->IN_PROGRESS with TASK_BLOCKED — everything else here
@@ -67,6 +72,7 @@ export function TaskPanel({
   const router = useRouter();
   const { showError } = useToast();
   const pending = usePendingGraph();
+  const isTask = node.type === "TASK";
   const [title, setTitle] = useState(node.title);
   const [description, setDescription] = useState(node.description ?? "");
   const [assigneeId, setAssigneeId] = useState(node.assigneeId ?? "");
@@ -240,17 +246,29 @@ export function TaskPanel({
             <ChevronDownIcon className="sm:hidden" />
             <CloseIcon className="hidden sm:block" />
           </button>
-          <button
-            type="button"
-            onClick={() => setIsDeleteOpen(true)}
-            aria-label="Delete task"
-            title="Delete task"
-            className="-mr-1.5 rounded-full p-1.5 text-text-faint transition-colors hover:bg-danger-soft hover:text-danger"
-          >
-            <TrashIcon />
-          </button>
+          {isTask && (
+            <button
+              type="button"
+              onClick={() => setIsDeleteOpen(true)}
+              aria-label="Delete task"
+              title="Delete task"
+              className="-mr-1.5 rounded-full p-1.5 text-text-faint transition-colors hover:bg-danger-soft hover:text-danger"
+            >
+              <TrashIcon />
+            </button>
+          )}
         </div>
       </div>
+
+      {!isTask && (
+        <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.18em] text-text-faint uppercase">
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 rounded-full bg-current"
+          />
+          {node.type}
+        </p>
+      )}
 
       <label htmlFor="panel-title" className="sr-only">
         Title
@@ -269,29 +287,33 @@ export function TaskPanel({
         className="resize-none bg-transparent text-xl leading-snug font-semibold text-text focus:outline-none"
       />
 
-      <TaskProperties
-        status={optimisticStatus}
-        onStatusChange={changeStatus}
-        priority={priority}
-        onPriorityChange={(value) => {
-          setPriority(value);
-          save({ taskId: node.id, priority: value || null });
-        }}
-        today={today}
-        dueDate={dueDate}
-        onDueDateChange={(value) => {
-          setDueDate(value);
-          save({ taskId: node.id, dueDate: value || null });
-        }}
-        assigneeId={assigneeId}
-        onAssigneeChange={setAssigneeId}
-        onAssigneeCommit={() =>
-          assigneeId !== (node.assigneeId ?? "") &&
-          save({ taskId: node.id, assigneeId: assigneeId || null })
-        }
-      />
+      {isTask && (
+        <>
+          <TaskProperties
+            status={optimisticStatus}
+            onStatusChange={changeStatus}
+            priority={priority}
+            onPriorityChange={(value) => {
+              setPriority(value);
+              save({ taskId: node.id, priority: value || null });
+            }}
+            today={today}
+            dueDate={dueDate}
+            onDueDateChange={(value) => {
+              setDueDate(value);
+              save({ taskId: node.id, dueDate: value || null });
+            }}
+            assigneeId={assigneeId}
+            onAssigneeChange={setAssigneeId}
+            onAssigneeCommit={() =>
+              assigneeId !== (node.assigneeId ?? "") &&
+              save({ taskId: node.id, assigneeId: assigneeId || null })
+            }
+          />
 
-      <hr className="border-border" />
+          <hr className="border-border" />
+        </>
+      )}
 
       {/*
        * Written as Markdown, so shown as Markdown.
