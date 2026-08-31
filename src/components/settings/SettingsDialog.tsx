@@ -6,16 +6,9 @@ import { usePathname } from "next/navigation";
 import { logoutAction } from "@/features/auth/actions";
 import { MotionToggle } from "@/components/MotionToggle";
 import { BetaToggle } from "@/components/BetaToggle";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { ArrowLeftIcon, CloseIcon, MembersIcon } from "@/components/icons";
-
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="text-[10px] font-semibold tracking-[0.16em] text-text-faint uppercase">
-      {children}
-    </p>
-  );
-}
 
 /**
  * Settings, off the drawer.

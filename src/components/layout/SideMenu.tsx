@@ -10,6 +10,7 @@ import {
   type StoryFilter,
 } from "@/features/story/filter";
 import { Skeleton } from "@/components/Skeleton";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import type { StoryListItem } from "@/repositories/story.repository";
 import { CreateStoryDialog } from "@/components/story/CreateStoryDialog";
 import { StoryRow } from "@/components/story/StoryRow";
@@ -24,14 +25,6 @@ const FILTER_LABEL: Record<StoryFilter, string> = {
   COMPLETED: "Completed",
   ARCHIVED: "Archived",
 };
-
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="text-[10px] font-semibold tracking-[0.16em] text-text-faint uppercase">
-      {children}
-    </p>
-  );
-}
 
 /**
  * The workspace's stories.
@@ -130,7 +123,8 @@ export function SideMenu({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workspaceId?: string;
-  workspaceName?: string;
+  /** `null` when there is no workspace to be in yet — see AppShell. */
+  workspaceName?: string | null;
   userEmail?: string;
   /** null until the first load has answered. */
   stories?: DrawerStories | null;
@@ -252,10 +246,18 @@ export function SideMenu({
 
           <div className="flex flex-col gap-1.5 px-3">
             <SectionLabel>Workspace</SectionLabel>
-            {workspaceName ? (
+            {/* `null` is an account that is not in a workspace yet, and
+                there is nowhere for the row to lead: the screen it would
+                open is the one asking for the first one. */}
+            {workspaceName === undefined ? (
+              <Skeleton className="h-5 w-32" />
+            ) : workspaceName === null ? (
+              <p className="px-1.5 py-2 text-sm text-text-faint">None yet.</p>
+            ) : (
               <Link
                 href="/workspaces"
                 onClick={() => onOpenChange(false)}
+                aria-current={pathname === "/workspaces" ? "page" : undefined}
                 className="-mx-1.5 flex items-center justify-between gap-2 rounded-lg px-1.5 py-2 transition-colors hover:bg-surface-hover"
               >
                 <span className="truncate text-sm text-text">
@@ -265,8 +267,6 @@ export function SideMenu({
                   Switch
                 </span>
               </Link>
-            ) : (
-              <Skeleton className="h-5 w-32" />
             )}
           </div>
 

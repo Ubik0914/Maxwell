@@ -20,7 +20,8 @@ export function AppNav({
   userEmail,
 }: {
   workspaceId?: string;
-  workspaceName?: string;
+  /** `null` when there is no workspace to be in yet — see AppShell. */
+  workspaceName?: string | null;
   userEmail?: string;
 }) {
   return (
@@ -31,12 +32,18 @@ export function AppNav({
         userEmail={userEmail}
         className="-ml-1"
       />
-      {workspaceName ? (
-        <span className="min-w-0 truncate text-sm text-text-muted">
-          {workspaceName}
-        </span>
-      ) : (
+      {/* Three states, not two. A name is where you are; `null` is a
+          new account that is not anywhere yet and gets the truth rather
+          than a placeholder that never resolves; `undefined` is a
+          loading.tsx that does not know yet. */}
+      {workspaceName === undefined ? (
         <Skeleton className="h-4 w-24" />
+      ) : (
+        workspaceName !== null && (
+          <span className="min-w-0 truncate text-sm text-text-muted">
+            {workspaceName}
+          </span>
+        )
       )}
     </header>
   );

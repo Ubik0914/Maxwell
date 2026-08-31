@@ -14,6 +14,11 @@ import { AppNav } from "@/components/layout/AppNav";
  * render the very same shell with placeholders in their place, which is
  * what keeps a navigation from looking like a frozen screen followed by
  * a full repaint.
+ *
+ * A `workspaceName` of `null` is a different thing from a missing one:
+ * it means there is no workspace to be in — a brand new account on the
+ * workspaces screen — and the chrome says so instead of holding a
+ * placeholder open for something that is never going to arrive.
  */
 export function AppShell({
   workspaceId,
@@ -23,7 +28,7 @@ export function AppShell({
 }: {
   /** Which workspace's stories the drawer offers to switch to. */
   workspaceId?: string;
-  workspaceName?: string;
+  workspaceName?: string | null;
   userEmail?: string;
   children: ReactNode;
 }) {

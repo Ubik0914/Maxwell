@@ -1,26 +1,37 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/features/workspace/current-workspace";
 import { listWorkspacesForUser } from "@/repositories/workspace.repository";
-import { WorkspaceList } from "@/components/workspace/WorkspaceList";
-import { CreateWorkspaceForm } from "@/components/workspace/CreateWorkspaceForm";
+import { AppShell } from "@/components/layout/AppShell";
+import { WorkspaceScreen } from "@/components/workspace/WorkspaceScreen";
 
+/**
+ * Where you switch workspace, and where a new account starts.
+ *
+ * Inside the app's shell like every other signed-in screen. It stood
+ * outside it for a long time — no top bar, no drawer, no way back to
+ * the story you came from — which made a switch that is really one
+ * press feel like leaving the product.
+ *
+ * getCurrentWorkspace rather than requireCurrentWorkspace, because this
+ * is the page that one redirects to: asking it for a workspace here
+ * would send anyone without one round in a circle. Not being in one is
+ * exactly the state this screen is for, and it is handed to the chrome
+ * as `null` so the header and the drawer say so instead of holding a
+ * placeholder open forever.
+ */
 export default async function WorkspacesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
+  const { user, workspace, supabase } = await getCurrentWorkspace();
   const memberships = await listWorkspacesForUser(supabase, user.id);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 bg-bg px-4 py-12">
-      <h1 className="text-2xl font-semibold text-text">Your Workspaces</h1>
-      <WorkspaceList memberships={memberships} />
-      <CreateWorkspaceForm />
-    </main>
+    <AppShell
+      workspaceId={workspace?.id}
+      workspaceName={workspace?.name ?? null}
+      userEmail={user.email ?? ""}
+    >
+      <WorkspaceScreen
+        memberships={memberships}
+        currentWorkspaceId={workspace?.id}
+      />
+    </AppShell>
   );
 }
