@@ -277,8 +277,11 @@ export function StoryGraph({
           }}
           onNodeClick={(_event, node) => {
             // Same reason it can't be dragged: there is nothing to edit
-            // yet. It becomes a real node within a refresh.
-            if (node.type === "TASK" && !isPendingId(node.id)) {
+            // yet. It becomes a real node within a refresh. Every node
+            // type opens the panel now — START and GOAL are text a
+            // story can revise same as any task's, they just don't
+            // carry the task-only fields (status, priority, …).
+            if (!isPendingId(node.id)) {
               setSelectedNodeId(node.id);
             }
           }}
