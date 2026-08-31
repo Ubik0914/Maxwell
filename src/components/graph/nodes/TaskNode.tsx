@@ -86,7 +86,7 @@ export function TaskNode({ id, data }: NodeProps<FlowNode>) {
         )}
       </div>
       <Handle type="source" position={Position.Right} />
-      <NodeBranchButton nodeId={id} />
+      {!data.readOnly && <NodeBranchButton nodeId={id} />}
     </NodeShell>
   );
 }

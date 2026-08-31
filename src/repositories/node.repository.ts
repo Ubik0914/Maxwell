@@ -72,6 +72,29 @@ export async function findByStoryId(
   return data.map(toGraphNode);
 }
 
+/**
+ * The same rows for several stories at once, for the view that shows
+ * the workspace rather than one story. One query rather than one per
+ * story: a workspace with thirty stories should not cost thirty round
+ * trips to draw, and RLS answers for all of them in the same breath it
+ * answers for one.
+ */
+export async function findByStoryIds(
+  supabase: Client,
+  storyIds: string[],
+): Promise<GraphNode[]> {
+  if (storyIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("nodes")
+    .select("*")
+    .in("story_id", storyIds)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return data.map(toGraphNode);
+}
+
 export interface CreateTaskInput {
   storyId: string;
   title: string;

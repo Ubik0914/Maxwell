@@ -22,6 +22,15 @@ describe("storySwitchHref", () => {
     expect(storySwitchHref("b", "/stories/a/list/extra")).toBe("/stories/b");
   });
 
+  it("takes the workspace-wide view the same way, keeping the view", () => {
+    expect(storySwitchHref("all", "/stories/a/board")).toBe(
+      "/stories/all/board",
+    );
+    expect(storySwitchHref("all", "/stories/a")).toBe("/stories/all");
+    // And back out of it into a story, still in the same view.
+    expect(storySwitchHref("b", "/stories/all/list")).toBe("/stories/b/list");
+  });
+
   it("is stable on the story you are already looking at", () => {
     expect(storySwitchHref("a", "/stories/a/board")).toBe("/stories/a/board");
   });

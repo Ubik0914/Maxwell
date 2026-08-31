@@ -41,6 +41,23 @@ export async function findByStoryId(
   return data.map(toGraphEdge);
 }
 
+/** Every edge of several stories at once — see the node repository's
+ *  findByStoryIds for why this exists as its own query. */
+export async function findByStoryIds(
+  supabase: Client,
+  storyIds: string[],
+): Promise<GraphEdge[]> {
+  if (storyIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("edges")
+    .select("*")
+    .in("story_id", storyIds);
+
+  if (error) throw error;
+  return data.map(toGraphEdge);
+}
+
 export interface CreateEdgeInput {
   storyId: string;
   sourceNodeId: string;

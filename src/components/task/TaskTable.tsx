@@ -10,6 +10,7 @@ import {
   stepFilter,
 } from "@/features/tasks/filter";
 import { useTaskActions } from "@/features/tasks/hooks/useTaskActions";
+import { storyTitleOf, type TaskScope } from "@/features/tasks/scope";
 import { useCardDrag, type DropTarget } from "@/features/tasks/hooks/useCardDrag";
 import { statusOf } from "@/components/task/status";
 import { TaskRow } from "@/components/task/TaskRow";
@@ -54,6 +55,22 @@ const COLUMNS: Column[] = [
 ];
 
 /**
+ * A Story column, but only where more than one story is on screen: in a
+ * single story it would be the same word on every row, taking width
+ * from the column that has something to say. It sits right after the
+ * title, which is where the eye already is when a row turns out to
+ * belong somewhere unexpected.
+ */
+function columnsFor(scope: TaskScope): Column[] {
+  if (scope.kind === "story") return COLUMNS;
+  return [
+    ...COLUMNS.slice(0, 2),
+    { key: null, label: "Story", show: "hidden w-40 md:table-cell" },
+    ...COLUMNS.slice(2),
+  ];
+}
+
+/**
  * The story as a list you can work through.
  *
  * The graph answers "how does this fit together"; this answers "what do
@@ -67,10 +84,11 @@ const COLUMNS: Column[] = [
  * second half-form here.
  */
 export function TaskTable({
-  storyId,
+  scope,
   today,
 }: {
-  storyId: string;
+  /** One story, or every story in the workspace — see TaskScope. */
+  scope: TaskScope;
   today: string;
 }) {
   // The story as it should be drawn right now — the server's answer
@@ -85,8 +103,9 @@ export function TaskTable({
   // `actions.nodes` already carries any status change still in flight,
   // so everything below — the order, the counts, the blockers —
   // reflects the press rather than the round-trip.
-  const actions = useTaskActions(serverNodes, storyId);
+  const actions = useTaskActions(serverNodes, scope);
   const { nodes } = actions;
+  const columns = useMemo(() => columnsFor(scope), [scope]);
 
   const tasks = useMemo(() => onlyTasks(nodes), [nodes]);
   const blockers = useMemo(() => buildBlockerMap(nodes, edges), [nodes, edges]);
@@ -104,8 +123,9 @@ export function TaskTable({
 
   // Only a hand-made order can be rearranged by hand. Dragging a row
   // while the list is sorted by due date would either lie (the row
-  // springs back) or silently switch the sort out from under you.
-  const isManual = sortKey === "manual";
+  // springs back) or silently switch the sort out from under you — and
+  // across stories there is no such order to be in at all (TaskScope).
+  const isManual = sortKey === "manual" && scope.kind === "story";
 
   const { drag, start } = useCardDrag({
     onDrop: (taskId: string, target: DropTarget) =>
@@ -149,6 +169,10 @@ export function TaskTable({
         counts={counts}
         total={tasks.length}
       >
+        {/* Absent rather than disabled across stories: a control that
+            cannot do anything here is better not offered than offered
+            and refused. */}
+        {scope.kind === "story" && (
         <button
           type="button"
           onClick={() => sortBy(isManual ? "urgency" : "manual")}
@@ -167,6 +191,7 @@ export function TaskTable({
           <GripIcon className="h-3.5 w-3.5" />
           Manual
         </button>
+        )}
       </TaskFilterBar>
 
       <div
@@ -183,7 +208,7 @@ export function TaskTable({
         }`}
       >
         {visible.length === 0 ? (
-          <EmptyState hasTasks={tasks.length > 0} />
+          <EmptyState hasTasks={tasks.length > 0} scope={scope} />
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-bg">
@@ -192,7 +217,7 @@ export function TaskTable({
                     header has to grow one too or every cell below it
                     lands under the wrong heading. */}
                 {isManual && <th scope="col" className="w-px" />}
-                {COLUMNS.map((column) => {
+                {columns.map((column) => {
                   const isSorted = column.key !== null && sortKey === column.key;
                   const heading = (
                     <span
@@ -245,6 +270,7 @@ export function TaskTable({
                 <TaskRow
                   key={task.id}
                   task={task}
+                  storyTitle={storyTitleOf(scope, task)}
                   blockers={blockers.get(task.id) ?? []}
                   today={today}
                   isSelected={actions.selectedId === task.id}
@@ -271,12 +297,20 @@ export function TaskTable({
   );
 }
 
-function EmptyState({ hasTasks }: { hasTasks: boolean }) {
+function EmptyState({
+  hasTasks,
+  scope,
+}: {
+  hasTasks: boolean;
+  scope: TaskScope;
+}) {
   return (
     <p className="px-5 py-16 text-center text-sm text-text-faint">
       {hasTasks
         ? "No tasks match this filter."
-        : "This story has no tasks yet. Add one on the graph."}
+        : scope.kind === "story"
+          ? "This story has no tasks yet. Add one on the graph."
+          : "No story in this workspace has a task yet."}
     </p>
   );
 }

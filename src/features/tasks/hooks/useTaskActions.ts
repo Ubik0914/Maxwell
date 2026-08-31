@@ -11,6 +11,7 @@ import { usePendingGraph } from "@/features/graph/pending-graph";
 import { reorderWithin } from "@/domain/graph/reorder";
 import { sortTasks } from "@/domain/graph/task-order";
 import { onlyTasks } from "@/features/tasks/filter";
+import { storyIdOf, type TaskScope } from "@/features/tasks/scope";
 import { useToast } from "@/components/Toast";
 import { useTaskStatusMutation } from "@/features/tasks/hooks/useTaskStatusMutation";
 import type { PressPoint } from "@/hooks/useLongPress";
@@ -34,8 +35,12 @@ export interface MenuTarget {
  * `nodes` is the optimistic graph (see useTaskStatusMutation), so a
  * change made from the menu re-sorts the list the same instant as one
  * made from the status chip.
+ *
+ * Everything here works on a task wherever it came from, except the
+ * manual order, which is a sequence within one story — so `scope` is
+ * what decides whether there is an order to rearrange at all.
  */
-export function useTaskActions(serverNodes: GraphNode[], storyId: string) {
+export function useTaskActions(serverNodes: GraphNode[], scope: TaskScope) {
   const router = useRouter();
   const { showError } = useToast();
   const pending = usePendingGraph();
@@ -94,6 +99,12 @@ export function useTaskActions(serverNodes: GraphNode[], storyId: string) {
    */
   const reorder = useCallback(
     (movedId: string, visible: GraphNode[], index: number) => {
+      // Nothing to write across stories — see TaskScope. The board
+      // still calls this on every drop, because a drop between columns
+      // is a status change whether or not a rank goes with it.
+      const storyId = storyIdOf(scope);
+      if (!storyId) return;
+
       const ordered = sortTasks(onlyTasks(shownNodes), "manual");
       const before = ordered.map((task) => task.id);
       const after = reorderWithin(ordered, visible, movedId, index);
@@ -112,7 +123,7 @@ export function useTaskActions(serverNodes: GraphNode[], storyId: string) {
         router.refresh();
       });
     },
-    [shownNodes, storyId, router, showError],
+    [shownNodes, scope, router, showError],
   );
 
   const openMenu = useCallback((task: GraphNode, at: PressPoint) => {

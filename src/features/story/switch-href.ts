@@ -13,6 +13,10 @@ const VIEWS = ["list", "board"] as const;
  * Only the views that exist are carried. Anything else in that position
  * is not a view this app has, and following it would produce a 404 out
  * of a menu press.
+ *
+ * "all" — every story on one graph, list or board — sits in the same
+ * place in the path as a story id and is switched to the same way, so
+ * the drawer's All stories row goes through here too.
  */
 export function storySwitchHref(storyId: string, pathname: string): string {
   const segments = pathname.split("/");

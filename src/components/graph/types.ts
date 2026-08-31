@@ -21,6 +21,14 @@ export type FlowNodeData = GraphNode & {
    * unreached goal can be drawn dark instead of pretending to be lit.
    */
   reached?: boolean;
+  /**
+   * Set on the canvas that shows every story at once, where a node is
+   * something to read rather than somewhere to work: the controls that
+   * write to one story (branching, in particular) are left off, because
+   * that canvas draws each story in a lane of its own and cannot answer
+   * for where a new node would land.
+   */
+  readOnly?: boolean;
 } & Record<string, unknown>;
 export type FlowNode = Node<FlowNodeData>;
 

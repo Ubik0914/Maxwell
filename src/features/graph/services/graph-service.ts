@@ -115,6 +115,48 @@ export async function getGraph(
   };
 }
 
+/**
+ * Every story in a workspace at once, in the same shape one story
+ * arrives in.
+ *
+ * The three views can draw the workspace because a story was never the
+ * unit they actually needed — nodes and edges were, and a GraphNode
+ * already says which story it belongs to. So this is getGraph with the
+ * `story` singular swapped for the list of stories the nodes came from,
+ * and the stats and frontier counted across all of them.
+ */
+export interface WorkspaceGraphResult {
+  workspace: { id: string; name: string };
+  /** Most recently touched first, the order the drawer lists them in. */
+  stories: storyRepository.StoryLink[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  stats: StoryStats;
+  frontier: GraphNode[];
+}
+
+export async function getWorkspaceGraph(
+  supabase: Client,
+  workspace: { id: string; name: string },
+): Promise<WorkspaceGraphResult> {
+  const stories = await storyRepository.listStoryLinks(supabase, workspace.id);
+  const storyIds = stories.map((story) => story.id);
+
+  const [nodes, edges] = await Promise.all([
+    nodeRepository.findByStoryIds(supabase, storyIds),
+    edgeRepository.findByStoryIds(supabase, storyIds),
+  ]);
+
+  return {
+    workspace,
+    stories,
+    nodes,
+    edges,
+    stats: computeStats(nodes),
+    frontier: getCurrentFrontier(nodes),
+  };
+}
+
 export interface ConnectNodesInput {
   storyId: string;
   sourceNodeId: string;

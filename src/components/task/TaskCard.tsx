@@ -28,6 +28,7 @@ function noop() {}
  */
 export function TaskCard({
   task,
+  storyTitle,
   blockers,
   today,
   isLifted,
@@ -40,6 +41,9 @@ export function TaskCard({
   onLongPress,
 }: {
   task: GraphNode;
+  /** Which story this came from — only where the board holds more than
+   *  one of them (see TaskScope). */
+  storyTitle?: string;
   blockers: GraphNode[];
   today: string;
   isLifted?: boolean;
@@ -81,6 +85,15 @@ export function TaskCard({
       } ${flashClass ?? ""}`}
     >
       <div className="min-w-0 flex-1">
+        {/* Above the title, not below it: on a board of several stories
+            the first question a card has to answer is which one it is
+            from, and the answer stops the columns reading as one flat
+            pile of work. */}
+        {storyTitle && (
+          <span className="block truncate text-[10px] tracking-[0.12em] text-text-faint uppercase">
+            {storyTitle}
+          </span>
+        )}
         <span className="block text-sm leading-snug text-text">
           {task.title}
         </span>
