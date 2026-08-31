@@ -26,6 +26,7 @@ import { useLongPress, type PressPoint } from "@/hooks/useLongPress";
  */
 export function TaskRow({
   task,
+  storyTitle,
   blockers,
   today,
   isSelected,
@@ -38,6 +39,9 @@ export function TaskRow({
   isLifted,
 }: {
   task: GraphNode;
+  /** Which story this came from — only where the list holds more than
+   *  one of them (see TaskScope). */
+  storyTitle?: string;
   blockers: GraphNode[];
   today: string;
   isSelected: boolean;
@@ -113,6 +117,11 @@ export function TaskRow({
             the width its own column returns at, so nothing shows
             twice. */}
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs lg:hidden">
+          {storyTitle && (
+            <span className="min-w-0 truncate text-text-faint md:hidden">
+              {storyTitle}
+            </span>
+          )}
           {task.priority && (
             <span className="sm:hidden">
               <PriorityTag priority={task.priority} />
@@ -132,6 +141,12 @@ export function TaskRow({
           )}
         </span>
       </td>
+
+      {storyTitle && (
+        <td className="hidden max-w-40 px-3 py-2 text-xs text-text-muted md:table-cell">
+          <span className="block truncate">{storyTitle}</span>
+        </td>
+      )}
 
       <td className="hidden max-w-40 px-3 py-2 text-xs lg:table-cell">
         <WaitingOn blockers={blockers} className="max-w-full" />

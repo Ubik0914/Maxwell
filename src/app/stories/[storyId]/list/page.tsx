@@ -14,7 +14,7 @@ export default async function StoryListPage({
     <StoryShell graph={graph} userEmail={userEmail}>
       <div className="min-h-0 flex-1">
         <TaskTable
-          storyId={graph.story.id}
+          scope={{ kind: "story", storyId: graph.story.id }}
           today={todayIso()}
         />
       </div>

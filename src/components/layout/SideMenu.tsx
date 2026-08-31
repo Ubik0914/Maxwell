@@ -17,7 +17,13 @@ import { StoryRow } from "@/components/story/StoryRow";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDrawerDrag } from "@/components/layout/useDrawerDrag";
-import { CloseIcon, PlusIcon, SettingsIcon } from "@/components/icons";
+import { storySwitchHref } from "@/features/story/switch-href";
+import {
+  CloseIcon,
+  PlusIcon,
+  SettingsIcon,
+  StoriesIcon,
+} from "@/components/icons";
 
 const FILTER_LABEL: Record<StoryFilter, string> = {
   ALL: "All",
@@ -173,6 +179,11 @@ export function SideMenu({
 
   if (!isBrowser) return null;
 
+  // The aggregate is where you are, or it isn't: no story row is
+  // current while every story is on screen at once.
+  const isAllStories =
+    pathname === "/stories/all" || pathname.startsWith("/stories/all/");
+
   const shown =
     stories && filter !== "ALL"
       ? stories.stories.filter((story) => story.status === filter)
@@ -288,6 +299,28 @@ export function SideMenu({
                 </button>
               </div>
 
+              {/* Above the filters, because it is not one: the filters
+                  narrow which stories this menu lists, and this opens
+                  all of them at once as a single graph, list or board.
+                  It keeps whichever of the three you are already in,
+                  the same way switching stories does. */}
+              <Link
+                href={storySwitchHref("all", pathname)}
+                onClick={() => onOpenChange(false)}
+                aria-current={isAllStories ? "page" : undefined}
+                className={`mx-1.5 flex items-center gap-2.5 rounded-lg px-1.5 py-2 text-sm transition-colors hover:bg-surface-hover ${
+                  isAllStories ? "bg-surface-hover text-accent" : "text-text"
+                }`}
+              >
+                <StoriesIcon />
+                All stories
+                {stories && (
+                  <span className="ml-auto text-[11px] tabular-nums text-text-faint">
+                    {stories.stories.length}
+                  </span>
+                )}
+              </Link>
+
               {/* Four filters do not fit across 288px, and wrapping them
                   costs a line of the list. They scroll instead, the way
                   the task filters do. */}
@@ -314,7 +347,7 @@ export function SideMenu({
                   stories={shown}
                   now={stories?.now ?? ""}
                   isLoading={isLoadingStories}
-                  currentStoryId={currentStoryId}
+                  currentStoryId={isAllStories ? undefined : currentStoryId}
                   pathname={pathname}
                   onNavigate={() => onOpenChange(false)}
                   onChanged={() => onReload?.()}

@@ -9,6 +9,7 @@ import { countByStatus, matchesQuery, onlyTasks } from "@/features/tasks/filter"
 import { useCardDrag, type DropTarget } from "@/features/tasks/hooks/useCardDrag";
 import { usePendingGraph } from "@/features/graph/pending-graph";
 import { useTaskActions } from "@/features/tasks/hooks/useTaskActions";
+import { storyTitleOf, type TaskScope } from "@/features/tasks/scope";
 import {
   BOARD_STATUSES,
   STATUS_INK,
@@ -49,10 +50,11 @@ const DROPPABLE = BOARD_STATUSES.filter(
  * want, and what a per-column rank could not give you.
  */
 export function TaskBoard({
-  storyId,
+  scope,
   today,
 }: {
-  storyId: string;
+  /** One story, or every story in the workspace — see TaskScope. */
+  scope: TaskScope;
   today: string;
 }) {
   // The story as it should be drawn right now — the server's answer
@@ -63,7 +65,7 @@ export function TaskBoard({
   const { showError } = useToast();
   // `actions.nodes` already carries any status change still in flight,
   // so a dropped card is in its new column before the server answers.
-  const actions = useTaskActions(serverNodes, storyId);
+  const actions = useTaskActions(serverNodes, scope);
   const { nodes, changeStatus, flashClass } = actions;
 
   const tasks = useMemo(() => onlyTasks(nodes), [nodes]);
@@ -197,6 +199,7 @@ export function TaskBoard({
                       <TaskCard
                         key={task.id}
                         task={task}
+                        storyTitle={storyTitleOf(scope, task)}
                         blockers={blockers.get(task.id) ?? []}
                         today={today}
                         isLifted={drag?.taskId === task.id}
@@ -235,6 +238,7 @@ export function TaskBoard({
         >
           <TaskCard
             task={flying}
+            storyTitle={storyTitleOf(scope, flying)}
             blockers={blockers.get(flying.id) ?? []}
             today={today}
             isFlying

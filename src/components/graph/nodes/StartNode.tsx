@@ -25,7 +25,7 @@ export function StartNode({ id, data }: NodeProps<FlowNode>) {
         {data.title}
       </p>
       <Handle type="source" position={Position.Right} />
-      <NodeBranchButton nodeId={id} />
+      {!data.readOnly && <NodeBranchButton nodeId={id} />}
     </NodeShell>
   );
 }

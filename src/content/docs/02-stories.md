@@ -49,5 +49,6 @@ Start と Goal を先に書かせるのは意図的なもの。終わりの条�
 - `/stories/<id>` — グラフ
 - `/stories/<id>/list` — リスト
 - `/stories/<id>/board` — ボード
+- `/stories/all` — 全ストーリーをまとめて（`/list`・`/board` も同じ）
 
 どのビューもそのまま人に送れる URL になっている。
