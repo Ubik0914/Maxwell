@@ -92,6 +92,42 @@ Ship it,Build the API;Build the UI
 
 書き込む前に全部検証し、**問題は行番号付きでまとめて出す**。書き込みは1トランザクション（`dag.import_tasks`）なので、途中で失敗しても半分だけ入ることはない。ステータスは全部 READY で入れたあと Status Engine が導出し直す — 何がブロックされているかの答えはSQL側には置かない。
 
+## PWA と通知
+
+ホーム画面に入れられる。入れると、閉じていても手が空いたタスクを知らせに来る。
+使い方はアプリの [`/docs`](src/content/docs/10-notifications.md) にあり、ここには
+動かすために要るものだけ書く。
+
+- `src/app/manifest.ts` — マニフェスト（`/manifest.webmanifest`）
+- `public/sw.js` — Service Worker。push / notificationclick と、オフライン時の
+  フォールバック1枚だけ。ページのキャッシュはしない（他人が動かしたグラフの
+  古い絵より、「オフライン」と言う方がまし）
+- `public/icons/` — `node scripts/icons.mjs` が生成する。手で置いたバイナリでは
+  ないので、色や形を変えたければスクリプトを直す
+- `dag.push_subscriptions` — 端末1台=1行。RLS で本人しか読めない
+
+通知は「自分の操作の結果を自分の端末に」送る。CLI や MCP のエージェントが
+DONE にしたときも、動いているのはそのユーザーのトークンなので同じ経路で届く。
+他人の端末に送るには本人以外がその行を読む必要があり、それは Service Role Key
+でも RLS の緩和でもなく「誰に何を送ってよいか」を決める関数を足す話になるので、
+やっていない。
+
+### 環境変数（任意）
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+```
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=https://github.com/Ubik0914/Maxwell   # 省略可
+```
+
+設定しなければ通知だけが無効になり、他は今までどおり動く（設定画面の
+スイッチが「Unavailable」と出る）。**鍵は永久に同じもの**を使うこと —
+購読は公開鍵に対して作られるので、差し替えると既存の端末が黙る。
+
 ## Deployment (Vercel)
 
 GitHub リポジトリ `Ubik0914/Maxwell` は Vercel プロジェクト `maxwell`
@@ -109,6 +145,8 @@ Vercel の Project Settings → Environment Variables で以下を設定する
 NEXT_PUBLIC_SUPABASE_URL=https://zdzbcfkhqkvbgrqzzshc.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_d58qpmAWFzKePtYi-5Ga8Q_qq1jasLs
 ```
+
+通知を使うなら、上の VAPID 3つも同じ画面で設定する。
 
 Service Role Key はクライアントに公開してはならないため使用しない
 （仕様 Section 105 準拠）。

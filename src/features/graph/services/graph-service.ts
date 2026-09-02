@@ -13,6 +13,7 @@ import {
 } from "@/domain/graph/availability";
 import { calculateStoryStatus } from "@/domain/graph/story-status";
 import { validateStatusChange } from "@/domain/graph/status-change";
+import { notifyStatusChange } from "@/features/notifications/notify";
 import type {
   GraphNode,
   GraphEdge,
@@ -603,6 +604,12 @@ export type ChangeTaskStatusResult =
 export async function changeTaskStatus(
   supabase: Client,
   input: ChangeTaskStatusInput,
+  /**
+   * Who is making the change. Only notifications use it, so it is
+   * optional: a caller with no user in hand still gets its status
+   * change, it just has nobody to tell about it.
+   */
+  actor?: { id: string },
 ): Promise<ChangeTaskStatusResult> {
   const current = await nodeRepository.findById(supabase, input.taskId);
 
@@ -670,6 +677,7 @@ export async function changeTaskStatus(
   // Never touches an ARCHIVED story — Archive is a separate, user-driven
   // state outside the DAG-completion rule's business.
   let storyStatus = await storyRepository.getStatus(supabase, updated.storyId);
+  let completed = false;
   if (storyStatus && storyStatus !== "ARCHIVED") {
     const nextStoryStatus = calculateStoryStatus(currentNodes, allEdges);
     if (nextStoryStatus !== storyStatus) {
@@ -678,8 +686,21 @@ export async function changeTaskStatus(
         updated.storyId,
         nextStoryStatus,
       );
+      completed = nextStoryStatus === "COMPLETED";
       storyStatus = nextStoryStatus;
     }
+  }
+
+  // What the cascade freed, to whoever is not looking at it. Scheduled
+  // rather than awaited, and unable to fail this call — see
+  // notifyStatusChange.
+  if (actor) {
+    notifyStatusChange(supabase, {
+      userId: actor.id,
+      storyId: updated.storyId,
+      affected: affectedTasks,
+      completed,
+    });
   }
 
   return {

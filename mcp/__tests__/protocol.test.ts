@@ -2,6 +2,7 @@ import {
   handle as dispatch,
   TOOLS,
   PROTOCOL_VERSIONS,
+  type CallApi,
   type Tool,
   type ToolSchema,
 } from "../maxwell-mcp.mjs";
@@ -199,6 +200,78 @@ describe("tools/call", () => {
     expect(response?.error).toBeUndefined();
     expect(response?.result?.isError).toBe(true);
     expect(response?.result?.content?.[0]?.text).toBe("Task not found.");
+  });
+});
+
+/**
+ * A task is a step on a path from START to GOAL. The tool says so, and
+ * this is the half of that promise the model cannot get wrong: a call
+ * that names no dependency is wired to START rather than left floating.
+ */
+describe("create_task builds from START", () => {
+  function recorder(nodes: { id: string; type: string }[]) {
+    const seen: { path: string; body?: unknown }[] = [];
+    const call = async (
+      path: string,
+      options: { method?: string; body?: unknown } = {},
+    ) => {
+      seen.push({ path, body: options.body });
+      if (path.endsWith("/graph")) return { nodes, edges: [] };
+      if (path.endsWith("/tasks")) return { id: "task-1", title: "First" };
+      if (path.endsWith("/edges")) return { id: "edge-1" };
+      return null;
+    };
+    return { seen, call };
+  }
+
+  const create = (args: Record<string, unknown>, call: CallApi) =>
+    dispatch(
+      {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "create_task", arguments: { storyId: "s1", title: "First", ...args } },
+      },
+      call,
+    );
+
+  it("connects a task that named no dependency to the story's START", async () => {
+    const { seen, call } = recorder([
+      { id: "start-1", type: "START" },
+      { id: "goal-1", type: "GOAL" },
+    ]);
+
+    await create({}, call);
+
+    const edges = seen.filter((request) => request.path.endsWith("/edges"));
+    expect(edges).toHaveLength(1);
+    expect(edges[0].body).toEqual({
+      sourceNodeId: "start-1",
+      targetNodeId: "task-1",
+    });
+  });
+
+  it("leaves the dependencies alone when the caller gave some", async () => {
+    const { seen, call } = recorder([{ id: "start-1", type: "START" }]);
+
+    await create({ dependsOn: ["task-0"] }, call);
+
+    // No graph read either: nothing to look up, and a story's graph is
+    // the most expensive call here.
+    expect(seen.some((request) => request.path.endsWith("/graph"))).toBe(false);
+    const edges = seen.filter((request) => request.path.endsWith("/edges"));
+    expect(edges.map((edge) => edge.body)).toEqual([
+      { sourceNodeId: "task-0", targetNodeId: "task-1" },
+    ]);
+  });
+
+  it("still creates the task when the story has no START to hang it on", async () => {
+    const { seen, call } = recorder([{ id: "goal-1", type: "GOAL" }]);
+
+    const response = await create({}, call);
+
+    expect((response as Answer).result?.isError).toBeUndefined();
+    expect(seen.some((request) => request.path.endsWith("/edges"))).toBe(false);
   });
 });
 

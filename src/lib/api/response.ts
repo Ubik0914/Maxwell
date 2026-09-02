@@ -17,6 +17,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   [ErrorCode.GRAPH_CYCLE_DETECTED]: 409,
   [ErrorCode.TASK_BLOCKED]: 409,
   [ErrorCode.INVALID_TASK_STATUS]: 409,
+  [ErrorCode.PUSH_ENDPOINT_TAKEN]: 409,
   [ErrorCode.INTERNAL_ERROR]: 500,
 };
 
