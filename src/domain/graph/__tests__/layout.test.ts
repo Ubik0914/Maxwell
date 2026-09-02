@@ -243,9 +243,28 @@ describe("long edges", () => {
   it.each([
     ["android", "homo-2"],
     ["shoujo", "GOAL"],
-  ])("takes %s -> %s around the outside instead of through", (from, to) => {
+  ])("gets %s -> %s past the columns in between", (from, to) => {
     expect(rankSpan(from, to)).toBeGreaterThanOrEqual(2);
-    expect(routes.get(`${from}-${to}`)!.kind).toBe("outer");
+    const route = routes.get(`${from}-${to}`)!;
+
+    if (route.kind === "outer") {
+      for (const point of positions.values()) {
+        expect(route.laneY > point.y && route.laneY < point.y + nodeHeight).toBe(
+          false,
+        );
+      }
+      return;
+    }
+
+    // Kept in the picture, which is where a line belongs when there is
+    // room for it — but told where to turn, so it turns in the empty
+    // band between two columns rather than inside one.
+    expect(route.centerX).toBeDefined();
+    for (const point of positions.values()) {
+      const insideAColumn =
+        route.centerX! > point.x && route.centerX! < point.x + nodeWidth;
+      expect(insideAColumn).toBe(false);
+    }
   });
 
   it("draws every one-column hop between its own two ends", () => {

@@ -8,11 +8,12 @@ import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 
 const { nodeWidth, nodeHeight } = DEFAULT_LAYOUT;
 const STRIDE_X = nodeWidth + DEFAULT_LAYOUT.gapX;
+const STRIDE_Y = nodeHeight + DEFAULT_LAYOUT.gapY;
 
 function node(
   id: string,
   column: number,
-  y: number,
+  row: number,
   type: GraphNode["type"] = "TASK",
 ): GraphNode {
   return {
@@ -26,7 +27,7 @@ function node(
     priority: null,
     dueDate: null,
     positionX: column * STRIDE_X,
-    positionY: y,
+    positionY: row * STRIDE_Y,
     sortOrder: null,
   };
 }
@@ -41,52 +42,133 @@ function edge(sourceNodeId: string, targetNodeId: string): GraphEdge {
 }
 
 /**
- * A spine four columns long, with one task above it and one below,
- * each reaching all the way to the goal.
+ * The shape a story of twenty books takes: everything starts at once,
+ * everything ends at the goal, and one of them comes in two volumes so
+ * the goal is two columns further along than most of the books are.
  *
- *   above  ------------------------\
- *   START --- m1 --- m2 --- m3 --- GOAL
- *   below  ------------------------/
+ *   START ─┬─ book 1 ────────────────┐
+ *          ├─ book 2 ────────────────┤
+ *          ├─ …                      ├─ GOAL
+ *          └─ vol 1 ─── vol 2 ───────┘
+ *
+ * Every book-to-goal edge spans two ranks. There is nothing in the way
+ * of any of them: the middle column holds one task, and it is not on
+ * their row.
  */
-const STORY = {
-  nodes: [
-    node("START", 0, 0, "START"),
-    node("above", 1, -400),
-    node("below", 1, 400),
-    node("m1", 1, 0),
-    node("m2", 2, 0),
-    node("m3", 3, 0),
-    node("GOAL", 4, 0, "GOAL"),
-  ],
-  edges: [
-    edge("START", "above"),
-    edge("START", "below"),
-    edge("START", "m1"),
-    edge("m1", "m2"),
-    edge("m2", "m3"),
-    edge("m3", "GOAL"),
-    edge("above", "GOAL"),
-    edge("below", "GOAL"),
-  ],
-};
+const READING_PILE = (() => {
+  const books = Array.from({ length: 8 }, (_, at) => `book${at}`);
+  return {
+    nodes: [
+      node("START", 0, 0, "START"),
+      ...books.map((id, at) => node(id, 1, at - 4)),
+      node("vol1", 1, 4),
+      node("vol2", 2, 4),
+      node("GOAL", 3, 0, "GOAL"),
+    ],
+    edges: [
+      ...books.flatMap((id) => [edge("START", id), edge(id, "GOAL")]),
+      edge("START", "vol1"),
+      edge("vol1", "vol2"),
+      edge("vol2", "GOAL"),
+    ],
+  };
+})();
 
-describe("routeEdges", () => {
-  const routes = routeEdges(STORY.nodes, STORY.edges);
+describe("a way through", () => {
+  const routes = routeEdges(READING_PILE.nodes, READING_PILE.edges);
 
-  it("draws a hop to the next column between its own two ends", () => {
-    for (const id of ["START-m1", "m1-m2", "m2-m3", "m3-GOAL"]) {
-      expect(routes.get(id)!.kind).toBe("direct");
+  it("keeps a long edge in the picture when nothing is in its way", () => {
+    for (let at = 0; at < 8; at += 1) {
+      expect(routes.get(`book${at}-GOAL`)!.kind).toBe("direct");
     }
   });
 
-  it("takes anything spanning two columns or more around the outside", () => {
-    expect(routes.get("above-GOAL")!.kind).toBe("outer");
-    expect(routes.get("below-GOAL")!.kind).toBe("outer");
+  it("turns everything arriving at one task in the same place", () => {
+    // Which is what makes eight lines into GOAL one trunk rather than
+    // eight separate detours — the thing that used to blow the picture
+    // out sideways.
+    const corners = new Set(
+      Array.from({ length: 8 }, (_, at) => {
+        const route = routes.get(`book${at}-GOAL`)!;
+        return route.kind === "direct" ? route.centerX : undefined;
+      }),
+    );
+
+    expect(corners.size).toBe(1);
+    expect([...corners][0]).toBeDefined();
   });
 
-  it("routes each one on the side its own ends are already on", () => {
-    const over = routes.get("above-GOAL")!;
-    const under = routes.get("below-GOAL")!;
+  it("turns in the gap between two columns, never inside one", () => {
+    const route = routes.get("book0-GOAL")!;
+    expect(route.kind).toBe("direct");
+    if (route.kind !== "direct") return;
+
+    for (const one of READING_PILE.nodes) {
+      const inside =
+        route.centerX! > one.positionX &&
+        route.centerX! < one.positionX + nodeWidth;
+      expect(inside).toBe(false);
+    }
+  });
+
+  it("sends nothing around the outside when it does not have to", () => {
+    for (const route of routes.values()) expect(route.kind).toBe("direct");
+  });
+});
+
+/**
+ * The same story with the middle column filled in: every row a long
+ * edge could have used is taken.
+ *
+ *   START ─┬─ up ──── wallA ──┐
+ *          ├─ mid ─── wallB ──┼─ GOAL
+ *          └─ down ── wallC ──┘
+ *
+ * `up -> GOAL` and `down -> GOAL` have nowhere to slip through: their
+ * own row is blocked in the middle column, and so is the goal's.
+ */
+const WALLED = {
+  nodes: [
+    node("START", 0, 0, "START"),
+    node("up", 1, -2),
+    node("mid", 1, 0),
+    node("down", 1, 2),
+    node("wallA", 2, -2),
+    node("wallB", 2, 0),
+    node("wallC", 2, 2),
+    // A second thing off the middle, so the busiest row is also the
+    // central one and the spine runs where it looks like it runs.
+    node("note", 2, 1),
+    node("GOAL", 3, 0, "GOAL"),
+  ],
+  edges: [
+    edge("START", "up"),
+    edge("START", "mid"),
+    edge("START", "down"),
+    edge("up", "wallA"),
+    edge("mid", "wallB"),
+    edge("mid", "note"),
+    edge("down", "wallC"),
+    edge("wallA", "GOAL"),
+    edge("wallB", "GOAL"),
+    edge("wallC", "GOAL"),
+    edge("note", "GOAL"),
+    edge("up", "GOAL"),
+    edge("down", "GOAL"),
+  ],
+};
+
+describe("no way through", () => {
+  const routes = routeEdges(WALLED.nodes, WALLED.edges);
+
+  it("takes the line around the outside", () => {
+    expect(routes.get("up-GOAL")!.kind).toBe("outer");
+    expect(routes.get("down-GOAL")!.kind).toBe("outer");
+  });
+
+  it("routes each on the side its own ends are already on", () => {
+    const over = routes.get("up-GOAL")!;
+    const under = routes.get("down-GOAL")!;
 
     expect(over.kind === "outer" && over.side).toBe("above");
     expect(under.kind === "outer" && under.side).toBe("below");
@@ -95,34 +177,41 @@ describe("routeEdges", () => {
   it("clears every node, so no lane is drawn through a box", () => {
     for (const route of routes.values()) {
       if (route.kind !== "outer") continue;
-      for (const graphNode of STORY.nodes) {
+      for (const one of WALLED.nodes) {
         const inside =
-          route.laneY > graphNode.positionY &&
-          route.laneY < graphNode.positionY + nodeHeight;
+          route.laneY > one.positionY &&
+          route.laneY < one.positionY + nodeHeight;
         expect(inside).toBe(false);
       }
     }
   });
 
+  it("still draws every hop to the next column between its own ends", () => {
+    for (const id of ["START-up", "up-wallA", "wallA-GOAL", "mid-wallB"]) {
+      expect(routes.get(id)!.kind).toBe("direct");
+    }
+  });
+
   it("gives two long edges that overlap a lane each", () => {
-    // Both reach the goal from column 1, so their spans overlap the
-    // whole way. On the same side they would be drawn on top of each
-    // other; stacked, the longer one goes outside the shorter.
+    // A second blocked row above the first: both reach the goal from
+    // column 1, so their spans overlap the whole way and they cannot
+    // share a lane without being drawn on top of each other.
     const nodes = [
-      ...STORY.nodes,
-      node("also-above", 1, -560),
-      node("nearly", 2, -400),
+      ...WALLED.nodes,
+      node("up2", 1, -4),
+      node("wallD", 2, -4),
     ];
     const edges = [
-      ...STORY.edges,
-      edge("START", "also-above"),
-      edge("also-above", "GOAL"),
-      edge("above", "nearly"),
+      ...WALLED.edges,
+      edge("START", "up2"),
+      edge("up2", "wallD"),
+      edge("wallD", "GOAL"),
+      edge("up2", "GOAL"),
     ];
 
     const stacked = routeEdges(nodes, edges);
-    const first = stacked.get("above-GOAL")!;
-    const second = stacked.get("also-above-GOAL")!;
+    const first = stacked.get("up-GOAL")!;
+    const second = stacked.get("up2-GOAL")!;
 
     expect(first.kind).toBe("outer");
     expect(second.kind).toBe("outer");
@@ -133,31 +222,32 @@ describe("routeEdges", () => {
 
   it("lets two long edges that never overlap share one lane", () => {
     // Two spans, one early and one late, with nothing in common. A lane
-    // apiece would push the second one further from the graph than it
-    // has any reason to be.
+    // apiece would push the second further from the graph than it has
+    // any reason to be.
+    const wall = ["w1", "w2", "w3", "w4", "w5"];
     const nodes = [
       node("START", 0, 0, "START"),
-      node("a", 1, -300),
-      node("b", 2, -300),
-      node("c", 3, -300),
-      node("d", 4, -300),
-      node("e", 5, -300),
+      ...["m1", "m2", "m3", "m4", "m5"].map((id, at) => node(id, at + 1, 0)),
+      ...wall.map((id, at) => node(id, at + 1, -2)),
       node("GOAL", 6, 0, "GOAL"),
     ];
     const edges = [
-      edge("START", "a"),
-      edge("a", "b"),
-      edge("b", "c"),
-      edge("c", "d"),
-      edge("d", "e"),
-      edge("e", "GOAL"),
-      edge("a", "c"),
-      edge("c", "e"),
+      edge("START", "m1"),
+      edge("m1", "m2"),
+      edge("m2", "m3"),
+      edge("m3", "m4"),
+      edge("m4", "m5"),
+      edge("m5", "GOAL"),
+      edge("START", "w1"),
+      ...wall.slice(1).map((id, at) => edge(wall[at], id)),
+      edge("w5", "GOAL"),
+      edge("w1", "w3"),
+      edge("w3", "w5"),
     ];
 
     const shared = routeEdges(nodes, edges);
-    const early = shared.get("a-c")!;
-    const late = shared.get("c-e")!;
+    const early = shared.get("w1-w3")!;
+    const late = shared.get("w3-w5")!;
 
     expect(early.kind).toBe("outer");
     expect(late.kind).toBe("outer");
