@@ -104,6 +104,11 @@ POST /api/v1/auth/token
 | DELETE | `/api/v1/tasks/{id}` | タスク削除 |
 | PATCH | `/api/v1/nodes/{id}/position` | ノード座標の更新 |
 | DELETE | `/api/v1/edges/{id}` | 依存関係の削除 |
+| GET | `/api/v1/routines?workspaceId=&date=` | ルーチン一覧（`date` はその人の「今日」。省略時は UTC）|
+| POST | `/api/v1/routines` | ルーチン作成 |
+| PATCH | `/api/v1/routines/{id}` | ルーチン更新（タイトル・曜日・一時停止）|
+| DELETE | `/api/v1/routines/{id}` | ルーチン削除（記録ごと消える）|
+| PUT | `/api/v1/routines/{id}/completion` | ある日の完了/取り消し（`{ "date", "done" }`）|
 
 成功は `{ "data": … }`、失敗は `{ "error": { "code": …, "message": … } }`。
 `code` は `src/lib/errors/codes.ts` の ErrorCode で、HTTP ステータスへの
