@@ -34,6 +34,30 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
 const SWEEPS = 4;
 
 /**
+ * How many rows a column may hold before it wraps into a second column
+ * of its own, and how far that wrapping is allowed to go.
+ *
+ * A column is a set of tasks nothing separates, so a story that opens
+ * with twenty independent pieces of work has one column twenty rows
+ * tall — some 2,400px, a picture you can only read by scrolling past
+ * the ends of every edge that leads into it. Width is the cheaper
+ * direction: the canvas pans both ways, but a column that overflows the
+ * viewport vertically breaks the one thing the layout is for, which is
+ * seeing what runs beside what.
+ *
+ * So a wide column wraps, the way a paragraph does. Six rows is about a
+ * laptop's worth of height; past that the tasks continue in a second
+ * column of the same layer, then a third, up to four — beyond which the
+ * graph is wider than any screen and growing it further stops buying
+ * anything. The wrapped columns are whole columns, a full stride apart,
+ * because half a stride would put one column's boxes through the next
+ * one's, and not overlapping is the part of this that is not a matter
+ * of taste.
+ */
+const MAX_ROWS = 6;
+const MAX_WRAP = 4;
+
+/**
  * Somewhere to put a task nobody said where to put.
  *
  * The canvas asks the pointer where a new task goes, so this is for the
@@ -86,6 +110,11 @@ export function nextFreeSpot(
  * drawn. They take a row of their own in each column they cross, which
  * is what leaves an empty lane for the line to run along, and they give
  * both ends something adjacent to be pulled level with.
+ *
+ * A layer with more tasks in it than MAX_ROWS is wrapped over several
+ * columns rather than drawn as one very tall one — see wrapWideLayers.
+ * Everything below this line then works in columns on the canvas, and
+ * only `layerOf` remembers which of them were once the same layer.
  */
 export function layoutGraph(
   nodes: GraphNode[],
@@ -125,8 +154,14 @@ export function layoutGraph(
     if (node.type === "START") column.set(node.id, 0);
   }
 
-  const columns = groupByColumn(nodes, column);
-  const spanned = addPlaceholders(columns, column, live);
+  // From here on a "column" is a column on the canvas rather than a
+  // layer of the graph: a layer too tall to read has been wrapped into
+  // several, and `layerOf` is what still remembers which of them belong
+  // together.
+  const { placement, layerOf } = wrapWideLayers(nodes, column);
+
+  const columns = groupByColumn(nodes, placement);
+  const spanned = addPlaceholders(columns, placement, live, layerOf);
   orderWithinColumns(columns, spanned.predecessors, spanned.successors);
 
   return toPositions(columns, spanned.predecessors, options);
@@ -152,6 +187,7 @@ function addPlaceholders(
   columns: Slot[][],
   column: Map<string, number>,
   edges: GraphEdge[],
+  layerOf: number[],
 ): {
   predecessors: Map<string, string[]>;
   successors: Map<string, string[]>;
@@ -178,6 +214,17 @@ function addPlaceholders(
 
     let previous = edge.sourceNodeId;
     for (let at = from + 1; at < to; at += 1) {
+      // The columns a wrapped layer was split into are crossed without
+      // reserving anything. A row held open in each of them is a row
+      // the wrap was supposed to save — every task in the second column
+      // of a layer is reached over the first, so reserving there would
+      // give the layer back exactly the height it just shed, and it
+      // would do it in the columns whose height is the whole point.
+      // The line is drawn over its own layer instead; a lane is for
+      // crossing somebody else's work, not the work beside you.
+      if (layerOf[at] === layerOf[from] || layerOf[at] === layerOf[to]) {
+        continue;
+      }
       const placeholder = `lane:${index}:${at}`;
       columns[at].push({ id: placeholder, real: false });
       link(previous, placeholder);
@@ -220,6 +267,62 @@ function assignColumns(
   }
 
   return column;
+}
+
+/**
+ * Wraps a layer that would be drawn too tall over several columns.
+ *
+ * Nothing inside a layer depends on anything else inside it — that is
+ * what being in the same layer means — so its tasks may be dealt out
+ * over as many columns as they like without any edge changing
+ * direction. Each wrapped column is offset by a whole column width, and
+ * every layer that follows is pushed along by however many its
+ * predecessors took, so a node still sits strictly to the right of
+ * everything it waits on and strictly to the left of everything waiting
+ * on it. That is the property the rest of the file rests on, and
+ * wrapping is only allowed because it keeps it.
+ *
+ * The tasks are dealt out in blocks rather than round-robin: the first
+ * six in one column, the next six in the next. A layer's order carries
+ * meaning — it is what the barycentre sweeps and the manual sort order
+ * put there — and dealing alternately would shuffle neighbours into
+ * different columns for no reason a reader could see.
+ *
+ * `layerOf` is the column-to-layer index that comes back with it. Only
+ * addPlaceholders needs it, and only to tell "crossing another layer's
+ * column" (which must be routed around) from "crossing the rest of my
+ * own layer" (which must not).
+ */
+function wrapWideLayers(
+  nodes: GraphNode[],
+  layer: Map<string, number>,
+): { placement: Map<string, number>; layerOf: number[] } {
+  const depth = Math.max(...layer.values()) + 1;
+  const members: string[][] = Array.from({ length: depth }, () => []);
+  for (const node of nodes) members[layer.get(node.id) ?? 0].push(node.id);
+
+  const placement = new Map<string, number>();
+  const layerOf: number[] = [];
+
+  for (let index = 0; index < depth; index += 1) {
+    const ids = members[index];
+    const wrap = Math.min(MAX_WRAP, Math.max(1, Math.ceil(ids.length / MAX_ROWS)));
+    // Spread evenly rather than filling the first column to the brim:
+    // seven tasks read better as four and three than as six and one.
+    const rows = Math.ceil(ids.length / wrap);
+    const left = layerOf.length;
+
+    ids.forEach((id, at) => {
+      placement.set(id, left + Math.min(wrap - 1, Math.floor(at / rows)));
+    });
+    // An empty layer still owns one column, so nothing downstream has
+    // to cope with a gap in the column array.
+    for (let taken = 0; taken < Math.max(1, wrap); taken += 1) {
+      layerOf.push(index);
+    }
+  }
+
+  return { placement, layerOf };
 }
 
 function groupByColumn(

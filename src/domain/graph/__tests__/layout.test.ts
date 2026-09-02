@@ -1,4 +1,9 @@
-import { layoutGraph, nextFreeSpot, DEFAULT_LAYOUT } from "@/domain/graph/layout";
+import {
+  layoutGraph,
+  nextFreeSpot,
+  DEFAULT_LAYOUT,
+  type Point,
+} from "@/domain/graph/layout";
 import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 
 function node(overrides: Partial<GraphNode> & { id: string }): GraphNode {
@@ -254,6 +259,130 @@ describe("long edges", () => {
       expect(positions.get(sourceNodeId)!.x).toBeLessThan(
         positions.get(targetNodeId)!.x,
       );
+    }
+  });
+});
+
+/**
+ * The shape this is all about: a story that opens with a pile of work
+ * nothing separates, so every one of those tasks lands in one column.
+ */
+function fan(count: number): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const tasks = Array.from({ length: count }, (_, index) => `t${index}`);
+  return {
+    nodes: [
+      node({ id: "START", type: "START" }),
+      ...tasks.map((id) => node({ id })),
+      node({ id: "GOAL", type: "GOAL" }),
+    ],
+    edges: [
+      ...tasks.map((id) => edge("START", id)),
+      ...tasks.map((id) => edge(id, "GOAL")),
+    ],
+  };
+}
+
+describe("wide columns", () => {
+  const { nodeWidth, nodeHeight } = DEFAULT_LAYOUT;
+  const STRIDE_Y = nodeHeight + DEFAULT_LAYOUT.gapY;
+
+  /** How many nodes sit in each column of x. */
+  function perColumn(positions: Map<string, Point>): number[] {
+    const counted = new Map<number, number>();
+    for (const point of positions.values()) {
+      const at = columnOf(point.x);
+      counted.set(at, (counted.get(at) ?? 0) + 1);
+    }
+    return [...counted.values()];
+  }
+
+  function height(positions: Map<string, Point>): number {
+    const ys = [...positions.values()].map((point) => point.y);
+    return Math.max(...ys) - Math.min(...ys) + nodeHeight;
+  }
+
+  it("leaves a column that fits where it is", () => {
+    const { nodes, edges } = fan(5);
+    const positions = layoutGraph(nodes, edges);
+
+    // START, one column of five, GOAL.
+    expect(new Set([...positions.values()].map((p) => columnOf(p.x))).size).toBe(3);
+  });
+
+  it("wraps a column too tall to read into several beside each other", () => {
+    const { nodes, edges } = fan(14);
+    const positions = layoutGraph(nodes, edges);
+
+    expect(Math.max(...perColumn(positions))).toBeLessThanOrEqual(6);
+    // START, three columns of tasks, GOAL.
+    expect(new Set([...positions.values()].map((p) => columnOf(p.x))).size).toBe(5);
+  });
+
+  it("spends the width it took on height it no longer needs", () => {
+    const fourteen = layoutGraph(...Object.values(fan(14)) as [GraphNode[], GraphEdge[]]);
+    // Fourteen tasks in one column would stand fourteen rows tall. The
+    // whole point of wrapping is that this does not.
+    expect(height(fourteen)).toBeLessThan(7 * STRIDE_Y);
+  });
+
+  it("stops widening once the graph is wider than any screen", () => {
+    const { nodes, edges } = fan(40);
+    const positions = layoutGraph(nodes, edges);
+    const taskColumns = new Set(
+      [...positions.entries()]
+        .filter(([id]) => id.startsWith("t"))
+        .map(([, point]) => columnOf(point.x)),
+    );
+
+    expect(taskColumns.size).toBe(4);
+  });
+
+  it("still reads left to right, every task after what it waits on", () => {
+    const { nodes, edges } = fan(14);
+    const positions = layoutGraph(nodes, edges);
+
+    for (const { sourceNodeId, targetNodeId } of edges) {
+      expect(positions.get(sourceNodeId)!.x).toBeLessThan(
+        positions.get(targetNodeId)!.x,
+      );
+    }
+  });
+
+  it.each([
+    ["a wrapped column", fan(14)],
+    ["a wrapped column with a long edge over it", {
+      nodes: fan(14).nodes,
+      edges: [...fan(14).edges, edge("START", "GOAL")],
+    }],
+    ["the reading list", READING_LIST],
+  ])("never draws two nodes on top of each other: %s", (_name, graph) => {
+    const positions = [...layoutGraph(graph.nodes, graph.edges).values()];
+
+    for (let i = 0; i < positions.length; i += 1) {
+      for (let j = i + 1; j < positions.length; j += 1) {
+        const apart =
+          Math.abs(positions[i].x - positions[j].x) >= nodeWidth ||
+          Math.abs(positions[i].y - positions[j].y) >= nodeHeight;
+        expect(apart).toBe(true);
+      }
+    }
+  });
+
+  it("holds a row open through a wrapped column for an edge crossing it", () => {
+    // START -> GOAL runs the whole width of the story, over three
+    // columns that are all one wrapped layer. Wrapping suppresses the
+    // reserved rows a layer would otherwise hold for its own tasks, and
+    // this is the other half of that rule: an edge crossing somebody
+    // else's layer still gets its lane, wrapped or not, which is
+    // visible as the row it leaves on being empty in every column it
+    // passes over.
+    const { nodes, edges } = fan(14);
+    const positions = layoutGraph(nodes, [...edges, edge("START", "GOAL")]);
+    const lane = positions.get("START")!.y;
+
+    for (const [id, point] of positions) {
+      if (id === "START" || id === "GOAL") continue;
+      expect(Math.abs(point.y - lane)).toBeGreaterThanOrEqual(nodeHeight);
     }
   });
 });

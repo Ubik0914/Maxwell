@@ -117,7 +117,7 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 | `get_story` | ノード・エッジ・統計・フロンティア（**最初に呼ぶべき1本**） |
 | `get_frontier` | 今すぐ着手できるタスク |
 | `create_story` | ストーリー作成（START/GOAL付き） |
-| `create_task` | タスク追加。`dependsOn` / `blocks` で同時に結線できる |
+| `create_task` | タスク追加。`dependsOn` / `blocks` で同時に結線する（`dependsOn` 省略時はSTARTに接続） |
 | `update_task` | タイトル・説明・優先度・期日 |
 | `set_task_status` | READY / IN_PROGRESS / DONE / CANCELLED |
 | `delete_task` | タスクと、そこを通る全エッジを削除 |
@@ -144,6 +144,17 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 `dependsOn` に前提ノードのid、`blocks` に後続ノードのidを渡せば、
 作成と結線が1回で済む。ストーリーの終端になるタスクには GOAL のidを
 `blocks` に入れる。
+
+**必ず START から組む。** タスクは START から GOAL へ至る経路上の
+一歩であって、ストーリーの脇に置かれたメモではない。だから依存関係は
+「あとで結線する」ものではなく、作成時に渡すもの。`dependsOn` を省いた
+タスクは STARTに接続される（CSVインポートが、何も待たない行を START に
+繋ぐのと同じ規則）。STARTは常に満たされているので、これで変わるのは
+グラフ上の位置だけで、READY になるかどうかは変わらない。
+
+宙に浮いたノードを作らないこと。STARTから辿り着けないタスクは
+フロンティアに「着手可能」として並び続けるが、実際にはストーリーの
+どの段階の話なのか誰にも分からない。
 
 タスクは作成された時点で存在するので、結線だけが失敗した場合は
 `refused` として結果に載る（呼び出し全体をエラーにすると、モデルが
