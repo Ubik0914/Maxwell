@@ -5,10 +5,15 @@ import { useRouter } from "next/navigation";
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getBezierPath,
+  getSmoothStepPath,
   type EdgeProps,
 } from "@xyflow/react";
 import type { FlowEdge } from "@/components/graph/types";
+import { outerRoutePoints } from "@/domain/graph/edge-route";
+import {
+  longestRunMidpoint,
+  orthogonalPath,
+} from "@/components/graph/edges/orthogonal";
 import { deleteEdgeAction } from "@/features/graph/actions";
 import { usePendingGraph } from "@/features/graph/pending-graph";
 import { useToast } from "@/components/Toast";
@@ -66,14 +71,47 @@ export function CustomEdge({
   const router = useRouter();
   const { showError } = useToast();
   const pending = usePendingGraph();
-  const [edgePath, labelX, labelY] = getBezierPath({
+  /*
+   * Two ways a connection is drawn, and the layout has already decided
+   * which — see routeEdges.
+   *
+   * A short one is a stepped line between its two ends: out of the
+   * card, across, and in. Stepped rather than a bezier because a run
+   * that is always horizontal or always vertical is one the eye can
+   * follow through a crowd, and because two of them side by side stay
+   * side by side instead of bowing into each other.
+   *
+   * A long one has been taken out of the picture altogether, up over
+   * the top of the graph or down under the bottom of it, and is drawn
+   * through the corners that route turns. Without a route — the canvas
+   * that shows every story at once computes none, because it draws each
+   * story's own saved arrangement rather than a layout of its own —
+   * every edge is a short one.
+   */
+  const route = data?.route;
+  const outer =
+    route?.kind === "outer"
+      ? outerRoutePoints(
+          { x: sourceX, y: sourceY },
+          { x: targetX, y: targetY },
+          route.laneY,
+        )
+      : null;
+
+  const [steppedPath, steppedLabelX, steppedLabelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 12,
   });
+
+  const edgePath = outer ? orthogonalPath(outer) : steppedPath;
+  const label = outer ? longestRunMidpoint(outer) : { x: steppedLabelX, y: steppedLabelY };
+  const labelX = label.x;
+  const labelY = label.y;
 
   const isLive = data?.live ?? false;
   const surgeId = data?.surgeId ?? null;
