@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { GraphNode } from "@/domain/graph/types";
+import type { EdgeRoute } from "@/domain/graph/edge-route";
 import type { NodePulse } from "@/features/graph/hooks/useEnergyFlow";
 
 /**
@@ -42,11 +43,16 @@ export type FlowNode = Node<FlowNodeData>;
  *   - `surgeId` a one-shot propagation just fired along this edge; the
  *               changing number is what replays the animation
  *   - `hovered` the pointer is on this connection, so its controls show
+ *   - `route`   whether this one is drawn between its two ends or taken
+ *               around the outside of the graph, and at what height —
+ *               see routeEdges. Undefined on a canvas that does not
+ *               compute one, which draws every edge directly.
  */
 export type FlowEdgeData = {
   live: boolean;
   waiting: boolean;
   surgeId: number | null;
   hovered?: boolean;
+  route?: EdgeRoute;
 } & Record<string, unknown>;
 export type FlowEdge = Edge<FlowEdgeData>;
