@@ -21,6 +21,7 @@ import { storySwitchHref } from "@/features/story/switch-href";
 import {
   CloseIcon,
   PlusIcon,
+  RoutineIcon,
   SettingsIcon,
   StoriesIcon,
 } from "@/components/icons";
@@ -184,6 +185,8 @@ export function SideMenu({
   const isAllStories =
     pathname === "/stories/all" || pathname.startsWith("/stories/all/");
 
+  const isRoutines = pathname === "/routines";
+
   const shown =
     stories && filter !== "ALL"
       ? stories.stories.filter((story) => story.status === filter)
@@ -280,6 +283,28 @@ export function SideMenu({
               </Link>
             )}
           </div>
+
+          {/* Routines sit above the stories and outside them, because
+              they are the other half of the workspace rather than a
+              way of looking at this half: something that repeats has
+              no START, no GOAL and no dependencies, and its "done"
+              lasts until midnight. A chip among the story filters
+              would have said the opposite. */}
+          {workspaceId && (
+            <div className="flex flex-col gap-1.5 px-1.5">
+              <Link
+                href="/routines"
+                onClick={() => onOpenChange(false)}
+                aria-current={isRoutines ? "page" : undefined}
+                className={`flex items-center gap-2.5 rounded-lg px-1.5 py-2 text-sm transition-colors hover:bg-surface-hover ${
+                  isRoutines ? "bg-surface-hover text-accent" : "text-text"
+                }`}
+              >
+                <RoutineIcon />
+                Routines
+              </Link>
+            </div>
+          )}
 
           {/* The stories: the one part that can outgrow the drawer, so
               the one part that scrolls. Its heading and filters stay

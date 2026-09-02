@@ -93,3 +93,34 @@ export function monthGrid(at: YearMonth): (number | null)[] {
 export function monthLabel({ year, month }: YearMonth): string {
   return `${MONTHS[month - 1]} ${year}`;
 }
+
+/**
+ * The weekday an ISO date falls on, 0 (Sunday) to 6 (Saturday), or
+ * null if it isn't a date.
+ *
+ * Built out of the parsed numbers rather than by parsing the string
+ * with Date, so it answers about the day that was written down rather
+ * than about whichever day that string happens to be in the reader's
+ * timezone.
+ */
+export function weekdayOf(iso: string): number | null {
+  const parts = parseIsoDate(iso);
+  if (!parts) return null;
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay();
+}
+
+/**
+ * The date `by` days away, as an ISO date. Negative goes backwards.
+ *
+ * UTC throughout, which is what makes it total: a local-timezone day
+ * can be 23 or 25 hours long across a DST boundary, and adding "one
+ * day" through one of those can land on the same date twice or skip
+ * one entirely. A UTC day is always 24 hours, and the calendar this
+ * walks is the calendar the dates were written in.
+ */
+export function shiftDate(iso: string, by: number): string | null {
+  const parts = parseIsoDate(iso);
+  if (!parts) return null;
+  const at = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + by));
+  return toIsoDate(at.getUTCFullYear(), at.getUTCMonth() + 1, at.getUTCDate());
+}

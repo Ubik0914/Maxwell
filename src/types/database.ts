@@ -234,6 +234,82 @@ export type Database = {
           },
         ];
       };
+      routines: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          title: string;
+          description: string | null;
+          weekdays: number;
+          active: boolean;
+          sort_order: number | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          title: string;
+          description?: string | null;
+          weekdays?: number;
+          active?: boolean;
+          sort_order?: number | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          title?: string;
+          description?: string | null;
+          weekdays?: number;
+          active?: boolean;
+          sort_order?: number | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "routines_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      routine_completions: {
+        Row: {
+          routine_id: string;
+          on_date: string;
+          completed_by: string;
+          completed_at: string;
+        };
+        Insert: {
+          routine_id: string;
+          on_date: string;
+          completed_by: string;
+          completed_at?: string;
+        };
+        Update: {
+          routine_id?: string;
+          on_date?: string;
+          completed_by?: string;
+          completed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "routine_completions_routine_id_fkey";
+            columns: ["routine_id"];
+            isOneToOne: false;
+            referencedRelation: "routines";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       oauth_clients: {
         Row: {
           client_id: string;

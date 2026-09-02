@@ -149,6 +149,16 @@ export function StoriesIcon({ className }: { className?: string }) {
 }
 
 /** Two figures: workspace members. */
+export function RoutineIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M15.5 8A6 6 0 0 0 5 6.5" />
+      <path d="M4.5 12A6 6 0 0 0 15 13.5" />
+      <path d="M15.5 4.5V8H12M4.5 15.5V12H8" />
+    </Icon>
+  );
+}
+
 export function MembersIcon({ className }: { className?: string }) {
   return (
     <Icon className={className}>

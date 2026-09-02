@@ -4,8 +4,10 @@ import {
   monthGrid,
   monthLabel,
   parseIsoDate,
+  shiftDate,
   shiftMonth,
   toIsoDate,
+  weekdayOf,
 } from "@/lib/date/calendar";
 
 describe("parseIsoDate", () => {
@@ -128,5 +130,38 @@ describe("monthLabel", () => {
   it("names the month a person would say", () => {
     expect(monthLabel({ year: 2026, month: 8 })).toBe("August 2026");
     expect(monthLabel({ year: 2026, month: 1 })).toBe("January 2026");
+  });
+});
+
+describe("weekdayOf", () => {
+  it("answers 0 for Sunday through 6 for Saturday", () => {
+    // 1 February 2026 is a Sunday, 2 September 2026 a Wednesday.
+    expect(weekdayOf("2026-02-01")).toBe(0);
+    expect(weekdayOf("2026-09-02")).toBe(3);
+    expect(weekdayOf("2026-09-05")).toBe(6);
+  });
+
+  it("rejects anything that isn't a date", () => {
+    expect(weekdayOf("2026-13-01")).toBeNull();
+    expect(weekdayOf("tomorrow")).toBeNull();
+  });
+});
+
+describe("shiftDate", () => {
+  it("walks forwards and backwards", () => {
+    expect(shiftDate("2026-09-02", 1)).toBe("2026-09-03");
+    expect(shiftDate("2026-09-02", -1)).toBe("2026-09-01");
+    expect(shiftDate("2026-09-02", 0)).toBe("2026-09-02");
+  });
+
+  it("crosses month, year and leap-day boundaries", () => {
+    expect(shiftDate("2026-08-31", 1)).toBe("2026-09-01");
+    expect(shiftDate("2026-01-01", -1)).toBe("2025-12-31");
+    expect(shiftDate("2028-02-28", 1)).toBe("2028-02-29");
+    expect(shiftDate("2027-02-28", 1)).toBe("2027-03-01");
+  });
+
+  it("rejects anything that isn't a date", () => {
+    expect(shiftDate("2026-02-30", 1)).toBeNull();
   });
 });
