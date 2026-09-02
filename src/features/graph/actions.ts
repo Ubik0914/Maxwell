@@ -504,7 +504,7 @@ export async function updateTaskStatusAction(input: {
   }
 
   try {
-    const result = await graphService.changeTaskStatus(supabase, parsed.data);
+    const result = await graphService.changeTaskStatus(supabase, parsed.data, user);
     if (!result.success) {
       return { success: false, error: result.error };
     }

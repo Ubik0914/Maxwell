@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/features/auth/actions";
 import { MotionToggle } from "@/components/MotionToggle";
+import { NotificationToggle } from "@/components/settings/NotificationToggle";
 import { BetaToggle } from "@/components/BetaToggle";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -118,6 +119,11 @@ export function SettingsDialog({
               <BookIcon />
               使い方
             </Link>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <SectionLabel>Notifications</SectionLabel>
+            <NotificationToggle />
           </div>
 
           <div className="flex flex-col gap-1.5">

@@ -60,6 +60,15 @@ get_story is the one call worth making first: it returns every node and
 edge with its id, the tallies, and the frontier — the tasks that could
 be started right now. Ids are what every other tool takes.
 
+Build from START, always. A task is a step on a path from START to
+GOAL, so every task gets its dependencies at the moment it is created:
+pass the ids of the tasks it follows in \`dependsOn\`, and the GOAL's id
+in \`blocks\` for anything the story ends with. A first step names no
+dependency and is attached to START for you — never leave a task
+hanging off nothing, because a node with no path from START is not part
+of the story, it is a note lying beside it, and it will sit on the
+frontier claiming to be startable forever.
+
 Everything acts as the signed-in user, so it can reach exactly what they
 can. Anything it cannot see returns "not found" rather than saying so.`;
 
@@ -203,7 +212,7 @@ const TOOLS = [
     name: "create_task",
     title: "Add a task",
     description:
-      "Adds a task, and optionally wires it in at the same time: `dependsOn` are the nodes that must finish first, `blocks` the ones that wait on it. Building a graph a task at a time is the ordinary way to use this — pass the GOAL's id in `blocks` for anything the story ends with. Without a position it is placed clear of what is already there; the app's auto-layout arranges it properly.",
+      "Adds a task and wires it into the graph in the same call: `dependsOn` are the nodes that must finish first, `blocks` the ones that wait on it. Say what the task depends on here, when you create it — a task is a step on a path from START to GOAL, not a note left beside the story. Building a graph a task at a time is the ordinary way to use this: pass the id of whatever this task follows in `dependsOn`, and the GOAL's id in `blocks` for anything the story ends with. A task created with no `dependsOn` is connected to the story's START rather than left floating. Without a position it is placed clear of what is already there; the app's auto-layout arranges it properly.",
     inputSchema: {
       type: "object",
       properties: {
@@ -214,7 +223,7 @@ const TOOLS = [
           type: "array",
           items: uuid("A node that must be DONE first."),
           description:
-            "Node ids this task waits on. Leaving it empty makes the task READY immediately.",
+            "Node ids this task waits on. Leave it empty only for a first step: the task is then connected to START, which is always satisfied, so it is READY immediately either way.",
         },
         blocks: {
           type: "array",
@@ -234,6 +243,17 @@ const TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async run({ storyId, title, description, position, dependsOn, blocks }, call) {
+      // A task nobody named a dependency for is a first step, and a
+      // first step comes after START. Attaching it here is the same
+      // rule the CSV import already applies to a row that waits on
+      // nothing (see import_tasks), and it is what keeps "every task
+      // is on a path from START" true no matter which door the task
+      // came in through. START is always satisfied, so this changes
+      // where the node sits in the story, never whether it is READY.
+      const after = dependsOn?.length
+        ? dependsOn
+        : await startNodeId(storyId, call);
+
       const task = await call(`/api/v1/stories/${storyId}/tasks`, {
         method: "POST",
         body: {
@@ -247,7 +267,7 @@ const TOOLS = [
       // reported rather than thrown: telling the model the whole call
       // failed would invite it to create the task a second time.
       const wanted = [
-        ...(dependsOn ?? []).map((id) => ({
+        ...after.map((id) => ({
           sourceNodeId: id,
           targetNodeId: task.id,
         })),
@@ -388,6 +408,21 @@ const TOOLS = [
       call(`/api/v1/edges/${edgeId}`, { method: "DELETE" }),
   },
 ];
+
+/**
+ * The story's START, for a task that named no dependency of its own.
+ *
+ * Read rather than remembered: the id belongs to the story, and this
+ * server keeps nothing between calls. A story always has one — it is
+ * created with START and GOAL and neither can be deleted — but the
+ * lookup still tolerates its absence, because failing to create a task
+ * over a missing edge would be a worse answer than an unattached task.
+ */
+async function startNodeId(storyId, call) {
+  const graph = await call(`/api/v1/stories/${storyId}/graph`);
+  const start = (graph?.nodes ?? []).find((node) => node.type === "START");
+  return start ? [start.id] : [];
+}
 
 const BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
