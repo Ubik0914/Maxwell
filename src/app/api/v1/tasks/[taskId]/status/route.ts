@@ -25,7 +25,7 @@ export async function PATCH(
   }
 
   try {
-    const result = await graphService.changeTaskStatus(supabase, parsed.data);
+    const result = await graphService.changeTaskStatus(supabase, parsed.data, user);
     if (!result.success) {
       return apiError(result.error.code, result.error.message);
     }
