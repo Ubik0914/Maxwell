@@ -106,6 +106,14 @@ export function CustomEdge({
     targetY,
     targetPosition,
     borderRadius: 12,
+    // Where the line changes rows. Halfway by default, which for a hop
+    // to the next column is the gap between the two; a line reaching
+    // further is told which gap to turn in, so that it turns in empty
+    // space and so that everything arriving at the same task turns in
+    // the same place.
+    ...(route?.kind === "direct" && route.centerX !== undefined
+      ? { centerX: route.centerX }
+      : {}),
   });
 
   const edgePath = outer ? orthogonalPath(outer) : steppedPath;

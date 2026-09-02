@@ -18,6 +18,7 @@ import {
   SUCCESSOR_PULL,
 } from "@/domain/graph/ordering";
 import { scoreLayout, type LayoutQuality } from "@/domain/graph/layout-score";
+import { routeEdges } from "@/domain/graph/edge-route";
 
 export {
   DEFAULT_LAYOUT,
@@ -157,6 +158,14 @@ export function layoutStory(
 
   for (const candidate of candidateOrderings({ ranks, index, spine: onSpine })) {
     const positions = place(candidate, index, onSpine, options);
+    // Routed before it is judged: how a connection is drawn depends on
+    // where the boxes landed, and what the drawing costs depends on how
+    // the connections are drawn.
+    const drawn = nodes.map((node) => ({
+      ...node,
+      positionX: positions.get(node.id)?.x ?? node.positionX,
+      positionY: positions.get(node.id)?.y ?? node.positionY,
+    }));
     const quality = scoreLayout({
       nodes,
       edges: index.edges,
@@ -164,6 +173,7 @@ export function layoutStory(
       rank,
       previous,
       options,
+      routes: routeEdges(drawn, index.edges, options),
     });
 
     if (best === null || quality.total < best.quality.total) {

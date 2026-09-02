@@ -1,6 +1,7 @@
 import type { GraphEdge, GraphNode } from "@/domain/graph/types";
 import type { LayoutOptions, Point } from "@/domain/graph/layout-options";
 import { LONG_EDGE_RANKS } from "@/domain/graph/layout-options";
+import { outerRoutePoints, type EdgeRoute } from "@/domain/graph/edge-route";
 
 /**
  * What a picture costs, so that two arrangements of the same graph can
@@ -56,19 +57,47 @@ interface Box {
 }
 
 /**
- * Where a connection is actually drawn from and to: out of the right
- * of one card, into the left of the next, level with the middle of
- * each. Both node types put their handles there.
+ * Where a connection leaves and arrives: out of the right of one card,
+ * into the left of the next, level with the middle of each. Both node
+ * types put their handles there.
  */
-function anchors(
+function ends(
   source: Point,
   target: Point,
   { nodeWidth, nodeHeight }: LayoutOptions,
-): Segment {
-  return {
-    a: { x: source.x + nodeWidth, y: source.y + nodeHeight / 2 },
-    b: { x: target.x, y: target.y + nodeHeight / 2 },
-  };
+): [Point, Point] {
+  return [
+    { x: source.x + nodeWidth, y: source.y + nodeHeight / 2 },
+    { x: target.x, y: target.y + nodeHeight / 2 },
+  ];
+}
+
+/**
+ * The line as it is actually drawn, corner by corner.
+ *
+ * Scoring the straight line between two ends would be scoring a picture
+ * nobody is looking at: every connection here is a stepped run — along
+ * its own row, across at a turn, into its target — or a detour around
+ * the outside. Two of those can share a whole vertical without
+ * crossing, and one of them can miss a box a straight line would have
+ * gone through.
+ */
+function polyline(
+  from: Point,
+  to: Point,
+  route: EdgeRoute | undefined,
+): Point[] {
+  if (route?.kind === "outer") return outerRoutePoints(from, to, route.laneY);
+  const turn = route?.centerX ?? (from.x + to.x) / 2;
+  return [from, { x: turn, y: from.y }, { x: turn, y: to.y }, to];
+}
+
+function segmentsOf(points: Point[]): Segment[] {
+  const segments: Segment[] = [];
+  for (let at = 1; at < points.length; at += 1) {
+    segments.push({ a: points[at - 1], b: points[at] });
+  }
+  return segments;
 }
 
 function boxOf(point: Point, { nodeWidth, nodeHeight }: LayoutOptions): Box {
@@ -132,13 +161,15 @@ function segmentHitsBox({ a, b }: Segment, box: Box): boolean {
 /**
  * Reads a drawn graph and says what is wrong with it.
  *
- * Only the edges drawn *through* the picture are counted for crossings
- * and collisions. An edge spanning two ranks or more is routed around
- * the outside of the whole graph instead (see edge-route), where it
- * meets no node and no other line's body — so counting it here would
- * be scoring a line that is not there. It is counted once, as a long
- * edge, which is the cost it actually has: a dependency you have to
- * follow around the edge of the picture.
+ * Every connection is measured as it is drawn — the routes are passed
+ * in, not guessed at — so a line taken around the outside is counted
+ * where it actually goes, and a line that turns in an empty gap is not
+ * charged for the boxes a straight line between the same two ends would
+ * have crossed.
+ *
+ * A long edge still costs something whichever way it is drawn: it is a
+ * dependency the reader has to follow a long way, and the layout should
+ * prefer an arrangement with fewer of them where the ranks allow it.
  */
 export function scoreLayout({
   nodes,
@@ -147,7 +178,7 @@ export function scoreLayout({
   rank,
   previous,
   options,
-  outerRouted,
+  routes,
 }: {
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -156,14 +187,8 @@ export function scoreLayout({
   /** Where each node was before, for the movement term. */
   previous: Map<string, Point>;
   options: LayoutOptions;
-  /**
-   * The edges drawn around the outside rather than through the picture.
-   * Defaults to the ones the router will take out — anything spanning
-   * two ranks or more — and is passed explicitly only to score a
-   * drawing that routes differently, which is what makes a before and
-   * after comparable.
-   */
-  outerRouted?: ReadonlySet<string>;
+  /** How each edge is drawn — see routeEdges. */
+  routes: Map<string, EdgeRoute>;
 }): LayoutQuality {
   const strideX = options.nodeWidth + options.gapX;
   const strideY = options.nodeHeight + options.gapY;
@@ -180,44 +205,52 @@ export function scoreLayout({
       positions.get(edge.targetNodeId)!.x <= positions.get(edge.sourceNodeId)!.x,
   ).length;
 
-  const isOuter = (edge: GraphEdge) =>
-    outerRouted ? outerRouted.has(edge.id) : spanOf(edge) >= LONG_EDGE_RANKS;
-
-  const direct = drawn
-    .filter((edge) => !isOuter(edge))
-    .map((edge) => ({
-      edge,
-      line: anchors(
-        positions.get(edge.sourceNodeId)!,
-        positions.get(edge.targetNodeId)!,
-        options,
-      ),
-    }));
-
-  let edgeCrossings = 0;
-  for (let i = 0; i < direct.length; i += 1) {
-    for (let j = i + 1; j < direct.length; j += 1) {
-      if (segmentsCross(direct[i].line, direct[j].line)) edgeCrossings += 1;
-    }
-  }
-
-  let edgeNodeIntersections = 0;
-  for (const { edge, line } of direct) {
-    for (const node of nodes) {
-      if (node.id === edge.sourceNodeId || node.id === edge.targetNodeId) continue;
-      const at = positions.get(node.id);
-      if (at && segmentHitsBox(line, boxOf(at, options))) edgeNodeIntersections += 1;
-    }
-  }
-
-  const totalEdgeLength = drawn.reduce((sum, edge) => {
-    const { a, b } = anchors(
+  const lines = drawn.map((edge) => {
+    const [from, to] = ends(
       positions.get(edge.sourceNodeId)!,
       positions.get(edge.targetNodeId)!,
       options,
     );
-    return sum + Math.abs(b.x - a.x) / strideX + Math.abs(b.y - a.y) / strideY;
-  }, 0);
+    return { edge, run: segmentsOf(polyline(from, to, routes.get(edge.id))) };
+  });
+
+  let edgeCrossings = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    for (let j = i + 1; j < lines.length; j += 1) {
+      // Once per pair of lines, however many of their segments meet:
+      // one connection laid over another is one thing to untangle.
+      const meets = lines[i].run.some((first) =>
+        lines[j].run.some((second) => segmentsCross(first, second)),
+      );
+      if (meets) edgeCrossings += 1;
+    }
+  }
+
+  let edgeNodeIntersections = 0;
+  for (const { edge, run } of lines) {
+    for (const node of nodes) {
+      if (node.id === edge.sourceNodeId || node.id === edge.targetNodeId) continue;
+      const at = positions.get(node.id);
+      if (!at) continue;
+      const box = boxOf(at, options);
+      if (run.some((segment) => segmentHitsBox(segment, box))) {
+        edgeNodeIntersections += 1;
+      }
+    }
+  }
+
+  const totalEdgeLength = lines.reduce(
+    (sum, { run }) =>
+      sum +
+      run.reduce(
+        (length, { a, b }) =>
+          length +
+          Math.abs(b.x - a.x) / strideX +
+          Math.abs(b.y - a.y) / strideY,
+        0,
+      ),
+    0,
+  );
 
   const layoutMovement = [...positions].reduce((sum, [id, point]) => {
     const was = previous.get(id);

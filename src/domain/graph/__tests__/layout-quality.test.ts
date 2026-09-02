@@ -138,11 +138,48 @@ const WIDE_OPENING: Graph = (() => {
   };
 })();
 
+/**
+ * A reading pile: sixteen books started at once and finished whenever,
+ * plus two that come in two volumes — so the goal is two columns past
+ * where most of the books sit, and every one of those sixteen edges
+ * spans two ranks.
+ *
+ * This is the shape that showed the routing was too eager. Sending
+ * every two-rank edge around the outside gave sixteen stacked lanes and
+ * a picture that spread hundreds of pixels past its own contents, to
+ * get around a middle column holding one task that was never in the
+ * way.
+ */
+const READING_PILE: Graph = (() => {
+  const books = Array.from({ length: 16 }, (_, at) => `book${at}`);
+  const series = [
+    ["sapiens-1", "sapiens-2"],
+    ["homo-1", "homo-2"],
+  ];
+  return {
+    nodes: [
+      node({ id: "START", type: "START" }),
+      ...books.map((id) => node({ id })),
+      ...series.flat().map((id) => node({ id })),
+      node({ id: "GOAL", type: "GOAL" }),
+    ],
+    edges: [
+      ...books.flatMap((id) => [edge("START", id), edge(id, "GOAL")]),
+      ...series.flatMap(([first, second]) => [
+        edge("START", first),
+        edge(first, second),
+        edge(second, "GOAL"),
+      ]),
+    ],
+  };
+})();
+
 const GRAPHS: [string, Graph][] = [
   ["reading list", READING_LIST],
   ["spine with branches", SPINE_WITH_BRANCHES],
   ["diamonds", DIAMONDS],
   ["wide opening", WIDE_OPENING],
+  ["reading pile", READING_PILE],
 ];
 
 describe.each(GRAPHS)("%s", (_name, graph) => {
@@ -188,20 +225,26 @@ describe.each(GRAPHS)("%s", (_name, graph) => {
     }
   });
 
-  it("takes every long dependency around the outside, clear of everything", () => {
-    for (const [id, route] of routes) {
-      const span =
-        positions.get(graph.edges.find((one) => one.id === id)!.targetNodeId)!.x -
-        positions.get(graph.edges.find((one) => one.id === id)!.sourceNodeId)!.x;
-      const strideX = nodeWidth + DEFAULT_LAYOUT.gapX;
+  it("gets every long dependency past what is between its ends", () => {
+    // Either through the picture, turning in the empty band between two
+    // columns, or around the outside along a clear lane. Never through
+    // a box, and never guessed at: which of the two is decided by
+    // whether there was a way through.
+    for (const route of routes.values()) {
+      if (route.kind === "outer") {
+        for (const point of positions.values()) {
+          const through =
+            route.laneY > point.y && route.laneY < point.y + nodeHeight;
+          expect(through).toBe(false);
+        }
+        continue;
+      }
 
-      if (span > strideX * 1.5) expect(route.kind).toBe("outer");
-      if (route.kind !== "outer") continue;
-
+      if (route.centerX === undefined) continue;
       for (const point of positions.values()) {
-        const through =
-          route.laneY > point.y && route.laneY < point.y + nodeHeight;
-        expect(through).toBe(false);
+        const insideAColumn =
+          route.centerX > point.x && route.centerX < point.x + nodeWidth;
+        expect(insideAColumn).toBe(false);
       }
     }
   });
@@ -212,5 +255,50 @@ describe.each(GRAPHS)("%s", (_name, graph) => {
     for (const [id, point] of positions) {
       expect(again.positions.get(id)).toEqual(point);
     }
+  });
+});
+
+describe("the reading pile in particular", () => {
+  const { nodeHeight } = DEFAULT_LAYOUT;
+  const { positions } = layoutStory(READING_PILE.nodes, READING_PILE.edges);
+  const placed = READING_PILE.nodes.map((one) => ({
+    ...one,
+    positionX: positions.get(one.id)!.x,
+    positionY: positions.get(one.id)!.y,
+  }));
+  const routes = routeEdges(placed, READING_PILE.edges);
+
+  it("sends nothing around the outside, because nothing is in the way", () => {
+    // Sixteen books reaching the goal over a middle column that holds
+    // two tasks, neither of them on any book's row. Every one of those
+    // lines has a row of its own to run along, and taking them outside
+    // instead is what put sixteen lanes around the picture.
+    const outer = [...routes.values()].filter(
+      (route) => route.kind === "outer",
+    );
+    expect(outer).toHaveLength(0);
+  });
+
+  it("brings them into the goal as one trunk", () => {
+    const corners = new Set(
+      [...routes.values()]
+        .filter((route) => route.kind === "direct" && route.centerX !== undefined)
+        .map((route) => (route.kind === "direct" ? route.centerX : undefined)),
+    );
+
+    // One turning point for the lot, so the sixteen lines converge into
+    // a single vertical instead of sixteen separate ones.
+    expect(corners.size).toBe(1);
+  });
+
+  it("is exactly as tall as the tasks in it", () => {
+    const tops = [...positions.values()].map((point) => point.y);
+    const lanes = [...routes.values()]
+      .filter((route) => route.kind === "outer")
+      .map((route) => (route.kind === "outer" ? route.laneY : 0));
+
+    const drawn =
+      Math.max(...tops, ...lanes) - Math.min(...tops, ...lanes) + nodeHeight;
+    expect(drawn).toBe(Math.max(...tops) - Math.min(...tops) + nodeHeight);
   });
 });
