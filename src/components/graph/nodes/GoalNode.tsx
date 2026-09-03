@@ -23,6 +23,7 @@ export function GoalNode({ data }: NodeProps<FlowNode>) {
           ? "shadow-[0_0_16px_var(--success-soft)] transition-[box-shadow,border-color] duration-700 ease-out"
           : "transition-[box-shadow,border-color] duration-700 ease-out"
       }
+      title={data.title}
     >
       <Handle type="target" position={Position.Left} />
       <p
@@ -41,6 +42,7 @@ export function GoalNode({ data }: NodeProps<FlowNode>) {
         GOAL
       </p>
       <p
+        data-node-title
         className={`mt-1 truncate text-[13px] leading-snug transition-colors duration-700 ${
           reached ? "text-text" : "text-text-muted"
         }`}

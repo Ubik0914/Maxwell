@@ -13,6 +13,7 @@ export function StartNode({ id, data }: NodeProps<FlowNode>) {
       pulse={data.pulse}
       border="border-accent"
       ambient="shadow-[0_0_14px_var(--accent-soft)]"
+      title={data.title}
     >
       <p className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.18em] text-accent uppercase">
         <span
@@ -21,7 +22,7 @@ export function StartNode({ id, data }: NodeProps<FlowNode>) {
         />
         START
       </p>
-      <p className="mt-1 truncate text-[13px] leading-snug text-text">
+      <p data-node-title className="mt-1 truncate text-[13px] leading-snug text-text">
         {data.title}
       </p>
       <Handle type="source" position={Position.Right} />
