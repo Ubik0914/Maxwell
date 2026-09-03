@@ -329,6 +329,13 @@
  * come in. So while the pointer is on a node, the card takes the width
  * its own title needs and gives it back on the way out.
  *
+ * It grows from the middle. The slot around it keeps the node's 170px
+ * and centres the card, so the extra width is shared between both
+ * sides and the card stays over the spot the layout put it on — a card
+ * that only grew rightwards would slide off its own position, and on a
+ * graph where x means "when", sliding sideways is the one direction
+ * that means something.
+ *
  * `max-content` rather than a wider fixed number: a truncated line still
  * contributes its whole string to the intrinsic width, so the card sizes
  * itself to the text it is hiding. The cap is what stops one long title
@@ -346,14 +353,19 @@
  */
 @media (hover: hover) {
   .node-shell {
+    /* The same curve the modals open on: quick to leave, slow to
+       settle, so the width reads as the card arriving at a size rather
+       than as a box being dragged wider. */
     transition:
-      transform 150ms ease-out,
-      width 150ms ease-out;
+      width 220ms cubic-bezier(0.16, 0.9, 0.28, 1),
+      transform 150ms ease-out;
   }
 
   .node-shell:hover {
-    width: max-content;
-    min-width: 170px;
+    /* The measured number (see NodeShell), so the width has two lengths
+       to travel between. `max-content` is the fallback for a card whose
+       measurement has not landed yet: right size, no animation. */
+    width: var(--node-open-width, max-content);
     max-width: 24rem;
   }
 
@@ -361,6 +373,17 @@
     z-index: 20 !important;
   }
 }
+
+/*
+ * A width that animates is a width that reflows text on every frame,
+ * and the one thing inside that can reflow is the title. Held on one
+ * line by `truncate`, it cannot — the ellipsis simply gives ground as
+ * the box widens, which is the reveal this is for.
+ */
+html[data-motion="reduced"] .node-shell {
+  transition: none;
+}
+
 
 .node-ready {
   animation: node-breathe 3.6s ease-in-out infinite;

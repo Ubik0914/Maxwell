@@ -69,9 +69,13 @@ export function TaskNode({ id, data }: NodeProps<FlowNode>) {
       border={style.border}
       ambient={style.ambient}
       orbit={style.orbit}
+      title={data.title}
     >
       <Handle type="target" position={Position.Left} />
-      <p className="truncate text-[13px] leading-snug font-medium text-text">
+      <p
+        data-node-title
+        className="truncate text-[13px] leading-snug font-medium text-text"
+      >
         {data.title}
       </p>
       <div
