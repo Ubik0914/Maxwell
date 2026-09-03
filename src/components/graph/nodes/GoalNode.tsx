@@ -41,7 +41,7 @@ export function GoalNode({ data }: NodeProps<FlowNode>) {
         GOAL
       </p>
       <p
-        className={`mt-1 line-clamp-2 text-[13px] leading-snug transition-colors duration-700 ${
+        className={`mt-1 truncate text-[13px] leading-snug transition-colors duration-700 ${
           reached ? "text-text" : "text-text-muted"
         }`}
       >

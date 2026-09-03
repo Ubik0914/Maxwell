@@ -21,7 +21,7 @@ export function StartNode({ id, data }: NodeProps<FlowNode>) {
         />
         START
       </p>
-      <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-text">
+      <p className="mt-1 truncate text-[13px] leading-snug text-text">
         {data.title}
       </p>
       <Handle type="source" position={Position.Right} />
