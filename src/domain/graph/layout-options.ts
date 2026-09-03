@@ -19,14 +19,24 @@ export interface LayoutOptions {
 
 /**
  * Measured from the node the graph actually draws, not estimated: 170
- * wide by 75 tall, which is a two-line title — the most it can be,
- * since the title is clamped at two lines.
+ * wide by 57 tall.
  *
- * The height was 64, between a one-line node and a two-line one, so two
- * long titles stacked left 37px of air where the gap says 48 and the
- * rows read as crowded. A layout that assumes a node is smaller than it
- * is will always draw them too close together; assuming the largest is
- * the only assumption that cannot be wrong in the direction that shows.
+ * The height used to be 75, which was a two-line title — the most a
+ * node could be while titles were clamped at two lines. They are one
+ * line now (see NodeShell), so a node is exactly 57 and this is no
+ * longer an assumption about the largest one: every card is the same
+ * height. START and GOAL come out 55; the taller of the two is what
+ * the gaps have to clear.
+ *
+ * It stopped being a guess in the useful direction. A layout that
+ * assumes a node is shorter than it is draws the rows too close
+ * together, and 75 against a real 57 spent 18px per row on air that
+ * was not there.
+ *
+ * Width is the resting width. A node takes more while the pointer is
+ * on it, which is a hover and not a fact about the graph — the layout
+ * is for where things sit, not for where one of them is briefly
+ * looked at.
  *
  * `groupGapY` is twice `gapY`, which is what makes a family read as one
  * block: the eye groups by relative distance, so siblings only look
@@ -35,7 +45,7 @@ export interface LayoutOptions {
  */
 export const DEFAULT_LAYOUT: LayoutOptions = {
   nodeWidth: 170,
-  nodeHeight: 75,
+  nodeHeight: 57,
   gapX: 110,
   gapY: 48,
   groupGapY: 96,

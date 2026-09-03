@@ -71,7 +71,7 @@ export function TaskNode({ id, data }: NodeProps<FlowNode>) {
       orbit={style.orbit}
     >
       <Handle type="target" position={Position.Left} />
-      <p className="line-clamp-2 text-[13px] leading-snug font-medium text-text">
+      <p className="truncate text-[13px] leading-snug font-medium text-text">
         {data.title}
       </p>
       <div

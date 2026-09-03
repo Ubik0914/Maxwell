@@ -321,6 +321,47 @@
 /* --- Nodes: ambient state (looping, faint) ----------------------------- */
 
 /* Ready = charged and waiting. A slow breath, nothing more. */
+/* --- A node takes the room its title needs --------------------------- */
+
+/*
+ * Node titles are one line, cut at the card's edge. 170px is a readable
+ * size for something you scan a canvas full of; it is not a size titles
+ * come in. So while the pointer is on a node, the card takes the width
+ * its own title needs and gives it back on the way out.
+ *
+ * `max-content` rather than a wider fixed number: a truncated line still
+ * contributes its whole string to the intrinsic width, so the card sizes
+ * itself to the text it is hiding. The cap is what stops one long title
+ * from drawing a card across the whole graph.
+ *
+ * A card that grows has to grow *over* its neighbour rather than under
+ * it, and React Flow puts a z-index on every node wrapper inline — so
+ * this is the one place `!important` is the honest answer rather than a
+ * shortcut. `:has` is what lets the wrapper answer for a hover on the
+ * card inside it.
+ *
+ * Only where there is a pointer. On a touch screen the line stays cut
+ * and the panel is one tap away, which is a better answer than a
+ * gesture nobody would find.
+ */
+@media (hover: hover) {
+  .node-shell {
+    transition:
+      transform 150ms ease-out,
+      width 150ms ease-out;
+  }
+
+  .node-shell:hover {
+    width: max-content;
+    min-width: 170px;
+    max-width: 24rem;
+  }
+
+  .react-flow__node:has(.node-shell:hover) {
+    z-index: 20 !important;
+  }
+}
+
 .node-ready {
   animation: node-breathe 3.6s ease-in-out infinite;
 }
