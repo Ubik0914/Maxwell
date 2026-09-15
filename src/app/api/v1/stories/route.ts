@@ -5,6 +5,9 @@ import { ErrorCode } from "@/lib/errors/codes";
 import { createStorySchema } from "@/lib/validation/story";
 import * as storyRepository from "@/repositories/story.repository";
 
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(request: NextRequest) {
   const { supabase, user } = await requireApiUser();
   if (!user) {
@@ -19,10 +22,25 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // `projectId=none` asks for the stories on no shelf. It is a word
+  // rather than an empty string because an absent parameter and an
+  // empty one are the same thing in a query string, and these two
+  // questions are not the same question.
+  const projectId = request.nextUrl.searchParams.get("projectId");
+  if (projectId !== null && projectId !== "none" && !UUID.test(projectId)) {
+    return apiError(
+      ErrorCode.VALIDATION_ERROR,
+      "projectId must be a UUID or 'none'.",
+    );
+  }
+
   try {
     const stories = await storyRepository.listStoriesForWorkspace(
       supabase,
       workspaceId,
+      projectId === null
+        ? {}
+        : { projectId: projectId === "none" ? null : projectId },
     );
     return apiSuccess(stories);
   } catch {

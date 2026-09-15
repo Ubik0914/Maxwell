@@ -70,10 +70,55 @@ export type Database = {
           },
         ];
       };
+      projects: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          name: string;
+          description: string | null;
+          archived_at: string | null;
+          sort_order: number | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          name: string;
+          description?: string | null;
+          archived_at?: string | null;
+          sort_order?: number | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          name?: string;
+          description?: string | null;
+          archived_at?: string | null;
+          sort_order?: number | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "projects_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       stories: {
         Row: {
           id: string;
           workspace_id: string;
+          project_id: string | null;
           title: string;
           description: string | null;
           status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
@@ -84,6 +129,7 @@ export type Database = {
         Insert: {
           id?: string;
           workspace_id: string;
+          project_id?: string | null;
           title: string;
           description?: string | null;
           status?: "ACTIVE" | "COMPLETED" | "ARCHIVED";
@@ -94,6 +140,7 @@ export type Database = {
         Update: {
           id?: string;
           workspace_id?: string;
+          project_id?: string | null;
           title?: string;
           description?: string | null;
           status?: "ACTIVE" | "COMPLETED" | "ARCHIVED";
@@ -108,6 +155,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "workspaces";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stories_project_same_workspace";
+            columns: ["project_id", "workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id", "workspace_id"];
           },
         ];
       };
@@ -455,6 +509,7 @@ export type Database = {
           p_description: string | null;
           p_start_state: string;
           p_goal_state: string;
+          p_project_id?: string | null;
         };
         Returns: string;
       };

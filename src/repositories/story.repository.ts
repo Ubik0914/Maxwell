@@ -22,6 +22,8 @@ export interface StoryFrontierTask {
 export interface StoryListItem {
   id: string;
   title: string;
+  /** The project it is filed under, or null for unfiled. */
+  projectId: string | null;
   /** Carried so a card can open story settings without fetching the
    *  story again for one column. */
   description: string | null;
@@ -91,15 +93,36 @@ export async function listStoryLinks(
   return data;
 }
 
+export interface ListStoriesOptions {
+  /**
+   * Narrows to one shelf: a project id for that project, null for the
+   * stories on no shelf at all. Left out, every story comes back —
+   * which is what the drawer wants, since it groups them itself.
+   */
+  projectId?: string | null;
+}
+
 export async function listStoriesForWorkspace(
   supabase: Client,
   workspaceId: string,
+  options: ListStoriesOptions = {},
 ): Promise<StoryListItem[]> {
-  const { data: stories, error: storiesError } = await supabase
+  let query = supabase
     .from("stories")
-    .select("id, title, description, status, created_at, updated_at")
-    .eq("workspace_id", workspaceId)
-    .order("updated_at", { ascending: false });
+    .select("id, title, description, status, project_id, created_at, updated_at")
+    .eq("workspace_id", workspaceId);
+
+  if (options.projectId !== undefined) {
+    query =
+      options.projectId === null
+        ? query.is("project_id", null)
+        : query.eq("project_id", options.projectId);
+  }
+
+  const { data: stories, error: storiesError } = await query.order(
+    "updated_at",
+    { ascending: false },
+  );
 
   if (storiesError) throw storiesError;
   if (stories.length === 0) return [];
@@ -165,6 +188,7 @@ export async function listStoriesForWorkspace(
   return stories.map((story) => ({
     id: story.id,
     title: story.title,
+    projectId: story.project_id,
     description: story.description,
     status: story.status,
     createdAt: story.created_at,
@@ -179,6 +203,7 @@ export async function listStoriesForWorkspace(
 
 export interface CreateStoryInput {
   workspaceId: string;
+  projectId?: string | null;
   title: string;
   description?: string;
   startState: string;
@@ -201,6 +226,7 @@ export async function createStory(
     p_description: input.description ?? null,
     p_start_state: input.startState,
     p_goal_state: input.goalState,
+    p_project_id: input.projectId ?? null,
   });
 
   if (error) throw error;
@@ -238,6 +264,7 @@ export async function updateStatus(
 export interface StoryDetail {
   id: string;
   workspaceId: string;
+  projectId: string | null;
   title: string;
   description: string | null;
   status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
@@ -261,6 +288,7 @@ export async function findById(
   return {
     id: data.id,
     workspaceId: data.workspace_id,
+    projectId: data.project_id,
     title: data.title,
     description: data.description,
     status: data.status,
@@ -272,6 +300,8 @@ export async function findById(
 export interface UpdateStoryInput {
   title?: string;
   description?: string | null;
+  /** null takes it off its shelf; undefined leaves it where it is. */
+  projectId?: string | null;
 }
 
 export async function updateStory(
@@ -282,6 +312,7 @@ export async function updateStory(
   const patch: Database["dag"]["Tables"]["stories"]["Update"] = {};
   if (input.title !== undefined) patch.title = input.title;
   if (input.description !== undefined) patch.description = input.description;
+  if (input.projectId !== undefined) patch.project_id = input.projectId;
 
   const { data, error } = await supabase
     .from("stories")
@@ -295,6 +326,7 @@ export async function updateStory(
   return {
     id: data.id,
     workspaceId: data.workspace_id,
+    projectId: data.project_id,
     title: data.title,
     description: data.description,
     status: data.status,

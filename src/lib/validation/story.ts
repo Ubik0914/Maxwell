@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const createStorySchema = z.object({
   workspaceId: z.string().uuid(),
+  /** Which shelf to stand it on. Left out, it stands on none. */
+  projectId: z.string().uuid().nullish(),
   title: z
     .string()
     .trim()
@@ -38,6 +40,8 @@ export const updateStorySchema = z.object({
     .max(5000, "Description must be 5000 characters or fewer")
     .nullable()
     .optional(),
+  /** null files it nowhere; undefined leaves it where it is. */
+  projectId: z.string().uuid().nullable().optional(),
 });
 
 export type CreateStoryInput = z.infer<typeof createStorySchema>;

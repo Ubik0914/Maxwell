@@ -24,8 +24,13 @@ export async function createStoryAction(
 ): Promise<ActionResult<null>> {
   const description = formData.get("description");
 
+  const projectId = formData.get("projectId");
+
   const parsed = createStorySchema.safeParse({
     workspaceId: formData.get("workspaceId"),
+    // An unfiled story and a form that never showed the field look the
+    // same on the way in, and should: both mean no shelf.
+    projectId: projectId ? projectId : undefined,
     title: formData.get("title"),
     description: description ? description : undefined,
     startState: formData.get("startState"),
@@ -74,6 +79,8 @@ export async function updateStoryAction(input: {
   storyId: string;
   title?: string;
   description?: string | null;
+  /** null takes it off its shelf; undefined leaves it where it is. */
+  projectId?: string | null;
 }): Promise<ActionResult<storyRepository.StoryDetail>> {
   const parsed = updateStorySchema.safeParse(input);
 

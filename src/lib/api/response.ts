@@ -6,6 +6,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   [ErrorCode.AUTH_REQUIRED]: 401,
   [ErrorCode.WORKSPACE_FORBIDDEN]: 403,
   [ErrorCode.WORKSPACE_NOT_FOUND]: 404,
+  [ErrorCode.PROJECT_NOT_FOUND]: 404,
   [ErrorCode.STORY_NOT_FOUND]: 404,
   [ErrorCode.NODE_NOT_FOUND]: 404,
   [ErrorCode.TASK_NOT_FOUND]: 404,
