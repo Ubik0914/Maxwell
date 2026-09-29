@@ -2,10 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, BarcodeIcon, PlusIcon } from "@/components/icons";
+import {
+  ArrowLeftIcon,
+  BarcodeIcon,
+  CameraIcon,
+  CameraOffIcon,
+  CheckIcon,
+  CopyIcon,
+  PencilIcon,
+  PlusIcon,
+  RefreshIcon,
+  UndoIcon,
+} from "@/components/icons";
 import { useRouter } from "next/navigation";
 import {
-  FooterButton,
+  IconButton,
   Window,
   WindowBar,
   WindowFooter,
@@ -24,6 +35,9 @@ import {
 import { formatIsbn } from "@/domain/library/isbn";
 import { isbnFromBarcode, ScanSession } from "@/domain/library/scan";
 import type { ShelvedBook } from "@/domain/library/filter";
+
+/** Icon size inside an IconButton: larger under a thumb, 16px with a mouse. */
+const ICON = "h-5 w-5 sm:h-4 sm:w-4";
 
 type RowState =
   | { kind: "pending" }
@@ -255,6 +269,7 @@ export function ScanScreen() {
         <Link
           href="/"
           aria-label="蔵書に戻る"
+          title="蔵書に戻る"
           className="-ml-1 flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text sm:h-auto sm:w-auto sm:p-1.5"
         >
           <ArrowLeftIcon />
@@ -313,13 +328,17 @@ export function ScanScreen() {
               maxLength={100}
               className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
             />
-            <button
-              type="button"
+            <IconButton
+              label={cameraOn ? "カメラを止める" : "カメラを再開"}
+              tone="outline"
               onClick={() => setCameraOn((on) => !on)}
-              className="shrink-0 rounded-md border border-border text-text transition-colors hover:bg-surface-hover min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
             >
-              {cameraOn ? "カメラ停止" : "カメラ再開"}
-            </button>
+              {cameraOn ? (
+                <CameraOffIcon className={ICON} />
+              ) : (
+                <CameraIcon className={ICON} />
+              )}
+            </IconButton>
           </div>
         </section>
 
@@ -350,12 +369,9 @@ export function ScanScreen() {
                 placeholder="ISBN を読み取るか入力して Enter"
                 className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
               />
-              <button
-                type="submit"
-                className="shrink-0 rounded-md border border-border text-text transition-colors hover:bg-surface-hover min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
-              >
-                追加
-              </button>
+              <IconButton label="追加" tone="outline" type="submit">
+                <PlusIcon className={ICON} />
+              </IconButton>
             </div>
             {manualError && (
               <p role="alert" className="text-xs text-danger">
@@ -411,9 +427,13 @@ export function ScanScreen() {
           </>
         }
       >
-        <FooterButton onClick={() => router.push("/")} primary>
-          完了
-        </FooterButton>
+        <IconButton
+          label="完了して蔵書に戻る"
+          tone="primary"
+          onClick={() => router.push("/")}
+        >
+          <CheckIcon className={ICON} />
+        </IconButton>
       </WindowFooter>
 
       {typingBook && (
@@ -522,42 +542,70 @@ function ScanRow({
         {state.kind === "pending" && <Spinner />}
         {state.kind === "added" && (
           <>
-            <span className="rounded-full border border-success/40 bg-success-soft px-2 py-0.5 text-[11px] text-success">
-              追加
-            </span>
-            <button
-              type="button"
-              onClick={() => onUndo(row as Row & { state: { kind: "added" } })}
-              className="rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text min-h-10 px-3 py-2 text-sm sm:min-h-0 sm:px-2 sm:py-1 sm:text-xs"
+            <StatusMark
+              label="追加しました"
+              className="bg-success-soft text-success"
             >
-              取消
-            </button>
+              <CheckIcon className="h-4 w-4" />
+            </StatusMark>
+            <IconButton
+              label="取り消す"
+              onClick={() => onUndo(row as Row & { state: { kind: "added" } })}
+            >
+              <UndoIcon className={ICON} />
+            </IconButton>
           </>
         )}
         {state.kind === "duplicate" && (
-          <span className="rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-[11px] text-warning">
-            登録済み
-          </span>
+          <StatusMark
+            label="すでに登録されています"
+            className="bg-warning-soft text-warning"
+          >
+            <CopyIcon className="h-4 w-4" />
+          </StatusMark>
         )}
         {state.kind === "not_found" && (
-          <button
-            type="button"
+          <IconButton
+            label="手入力で登録"
+            tone="outline"
             onClick={() => onFillIn(row)}
-            className="rounded-md border border-border text-text transition-colors hover:bg-surface-hover min-h-10 px-3 py-2 text-sm sm:min-h-0 sm:px-2 sm:py-1 sm:text-xs"
           >
-            手入力
-          </button>
+            <PencilIcon className={ICON} />
+          </IconButton>
         )}
         {state.kind === "error" && (
-          <button
-            type="button"
+          <IconButton
+            label="再試行"
+            tone="outline"
             onClick={() => onRetry(row)}
-            className="rounded-md border border-border text-text transition-colors hover:bg-surface-hover min-h-10 px-3 py-2 text-sm sm:min-h-0 sm:px-2 sm:py-1 sm:text-xs"
           >
-            再試行
-          </button>
+            <RefreshIcon className={ICON} />
+          </IconButton>
         )}
       </div>
     </li>
+  );
+}
+
+/** A small round badge that is a state, not a button: it says, it does
+ *  not do. The words are for screen readers and the hover tooltip. */
+function StatusMark({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className={`flex h-7 w-7 items-center justify-center rounded-full ${className}`}
+    >
+      {children}
+    </span>
   );
 }

@@ -312,3 +312,98 @@ export function AutoLayoutIcon({ className }: { className?: string }) {
     </Icon>
   );
 }
+
+/* --- Library ------------------------------------------------------------ */
+
+/** A pencil on a short stroke: edit this. */
+export function PencilIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M12.8 4.2l3 3L7.5 15.5 4 16l.5-3.5z" />
+      <path d="M11.2 5.8l3 3" />
+    </Icon>
+  );
+}
+
+/** Two arcs chasing each other: fetch it again. */
+export function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M15.5 8.5A5.8 5.8 0 0 0 5 6.2" />
+      <path d="M5 3.2v3h3" />
+      <path d="M4.5 11.5A5.8 5.8 0 0 0 15 13.8" />
+      <path d="M15 16.8v-3h-3" />
+    </Icon>
+  );
+}
+
+/** A tick: done, or added. */
+export function CheckIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M4.5 10.5l3.5 3.5 7.5-8" />
+    </Icon>
+  );
+}
+
+/** An arrow turning back on itself: undo. */
+export function UndoIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M7.5 5L4 8.5 7.5 12" />
+      <path d="M4 8.5h7.5a4.5 4.5 0 0 1 0 9H9" />
+    </Icon>
+  );
+}
+
+/** A camera body and lens: start the camera. */
+export function CameraIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h2l1.3-2h4.4l1.3 2h2A1.5 1.5 0 0 1 17 7.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5z" />
+      <circle cx="10" cy="10.8" r="2.8" />
+    </Icon>
+  );
+}
+
+/** The same camera, struck through: stop it. */
+export function CameraOffIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M6.5 6h.2L8 4h4.2l1.3 2h2A1.5 1.5 0 0 1 17 7.5v6.8" />
+      <path d="M15.2 16H4.5A1.5 1.5 0 0 1 3 14.5v-7A1.5 1.5 0 0 1 4.3 6" />
+      <path d="M8.2 9a2.8 2.8 0 0 0 3.9 3.9" />
+      <path d="M3 3l14 14" />
+    </Icon>
+  );
+}
+
+/** Two stacked sheets: a copy — or a book already on the shelf. */
+export function CopyIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <rect x="7" y="7" width="9" height="9" rx="1.5" />
+      <path d="M13 7V5.5A1.5 1.5 0 0 0 11.5 4h-6A1.5 1.5 0 0 0 4 5.5v6A1.5 1.5 0 0 0 5.5 13H7" />
+    </Icon>
+  );
+}
+
+/** A door with an arrow leaving it: sign out. */
+export function LogoutIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M8 4H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" />
+      <path d="M12 6.5L15.5 10 12 13.5" />
+      <path d="M15.5 10H8" />
+    </Icon>
+  );
+}
+
+/** Lines of falling length: a sort order. */
+export function SortIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M4 5.5h12M4 10h8M4 14.5h4" />
+    </Icon>
+  );
+}

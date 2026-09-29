@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
-import { SearchIcon } from "@/components/icons";
+import { SearchIcon, TrashIcon } from "@/components/icons";
+import { IconButton } from "@/components/library/Window";
 import { BookCover } from "@/components/library/BookCover";
 import { normalizeIsbn } from "@/domain/library/isbn";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -49,7 +50,7 @@ function draftOf(book?: ShelvedBook, initialIsbn?: string): Draft {
  * Adding a book and editing one: the same fields, so one form.
  *
  * The ISBN comes first because it is the one thing on the back cover
- * that can fill in the rest — "探す" asks openBD for the title, author,
+ * that can fill in the rest — the search button asks for the title, author,
  * publisher, date and price, and anything it does not know stays
  * editable by hand.
  */
@@ -167,7 +168,7 @@ export function BookDialog({
       subtitle={
         book
           ? undefined
-          : "バーコードの無い本はここから。ISBN があれば「探す」で書誌が埋まります"
+          : "バーコードの無い本はここから。ISBN があれば検索ボタンで書誌が埋まります"
       }
       onClose={onClose}
       width="max-w-lg"
@@ -215,15 +216,18 @@ export function BookDialog({
                   autoFocus={!book && !initialIsbn}
                   className={INPUT}
                 />
-                <button
-                  type="button"
+                <IconButton
+                  label="ISBN から書誌を探す"
+                  tone="outline"
                   onClick={() => void lookup()}
                   disabled={isLookingUp || draft.isbn.trim() === ""}
-                  className="flex shrink-0 items-center gap-1.5 rounded-md border border-border text-text transition-colors hover:bg-surface-hover disabled:opacity-50 min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
                 >
-                  {isLookingUp ? <Spinner /> : <SearchIcon />}
-                  探す
-                </button>
+                  {isLookingUp ? (
+                    <Spinner />
+                  ) : (
+                    <SearchIcon className="h-5 w-5 sm:h-4 sm:w-4" />
+                  )}
+                </IconButton>
               </div>
             </div>
 
@@ -366,24 +370,17 @@ export function BookDialog({
           ) : (
             <>
               {book ? (
-                <button
-                  type="button"
+                <IconButton
+                  label="削除"
+                  tone="danger"
                   onClick={() => setConfirmDelete(true)}
-                  className="min-h-11 rounded-md px-4 py-2.5 text-base whitespace-nowrap text-danger transition-colors hover:bg-danger-soft sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
                 >
-                  削除
-                </button>
+                  <TrashIcon className="h-5 w-5 sm:h-4 sm:w-4" />
+                </IconButton>
               ) : (
                 <span />
               )}
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="min-h-11 rounded-md px-4 py-2.5 text-base whitespace-nowrap text-text-muted hover:text-text sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
-                >
-                  キャンセル
-                </button>
                 <button
                   type="submit"
                   disabled={isPending}
