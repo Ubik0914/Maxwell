@@ -412,9 +412,14 @@ export function LibraryScreen({
         </WindowFooter>
       </div>
 
-      {viewing && !editing && (
+      {/* The detail stays mounted under the edit page rather than
+          stepping aside for it: they are a stack, and back (or ✕) on
+          the edit page should reveal the detail it was opened from, not
+          re-open it as a new page with a new history entry. */}
+      {viewing && (
         <DetailSheet
           book={viewing}
+          covered={Boolean(editing)}
           refreshing={refreshing === viewing.id}
           onClose={() => setViewing(null)}
           onEdit={() => setEditing(viewing)}
@@ -645,18 +650,21 @@ function BookDetail({
 /** The detail pane, as a sheet, for screens too narrow to show it. */
 function DetailSheet({
   book,
+  covered,
   refreshing,
   onClose,
   onEdit,
   onRefresh,
 }: {
   book: ShelvedBook;
+  /** Another page is on top of it; Escape belongs to that one. */
+  covered: boolean;
   refreshing: boolean;
   onClose: () => void;
   onEdit: () => void;
   onRefresh: () => void;
 }) {
-  useEscapeKey(onClose, true, { exclusive: true });
+  useEscapeKey(onClose, !covered, { exclusive: true });
   return (
     <Modal
       title="本の詳細"

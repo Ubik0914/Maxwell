@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CloseIcon } from "@/components/icons";
 import { Kbd } from "@/components/library/Window";
+import { useBackToClose } from "@/hooks/useBackToClose";
 import { foldForSearch } from "@/domain/library/filter";
 
 export interface Action {
@@ -40,6 +41,11 @@ export function ActionPanel({
   const [active, setActive] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Back closes the panel, as it would any page. Running an action goes
+  // through `dismiss` so the panel's history entry is gone before the
+  // action starts — one that navigates would otherwise be undone by the
+  // back step that follows it.
+  const dismiss = useBackToClose(true, onClose);
 
   // Type-to-filter is the point on a keyboard; on a phone, focusing the
   // field would throw the on-screen keyboard over the list you opened
@@ -74,8 +80,8 @@ export function ActionPanel({
 
   function run(action: Action | undefined) {
     if (!action) return;
+    dismiss(action.run);
     onClose();
-    action.run();
   }
 
   return (
