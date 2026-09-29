@@ -6,7 +6,7 @@ import type { BookFields } from "@/lib/validation/book";
 type Client = SupabaseClient<Database, "dag">;
 
 const COLUMNS =
-  "id, title, authors, publisher, published, price, isbn, location, cover_url, lent_to, note, created_at";
+  "id, title, authors, publisher, published, price, isbn, location, cover_url, note, created_at";
 
 /** Postgres' unique_violation — here, the same ISBN shelved twice. */
 export const DUPLICATE_ISBN = "23505";

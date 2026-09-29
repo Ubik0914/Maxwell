@@ -57,19 +57,17 @@ const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 /** What the model is told about this server once, on connection. */
 const INSTRUCTIONS = `This server reads the signed-in user's library: the books on the
-shelf, where each one is, and who it is lent to. It only reads — nothing here adds, changes or removes a book.
+shelf and where each one is. It only reads — nothing here adds,
+changes or removes a book.
 
 search_books is the call to start with. With no query it lists the
 shelf, newest first; with one, every word must appear somewhere in the
-title, author, publisher, ISBN, location, borrower or note, in any
+title, author, publisher, ISBN, location or note, in any
 order, with full/half width, case and katakana/hiragana treated alike.
 Its reply carries \`total\` (how many matched before the limit) and
 \`stats\` for the whole shelf, so an empty page and a truncated one
 can be told apart. get_book returns one book by the id search_books
 gave it.
-
-A book with lent_to set is out on loan to that person; null means it
-is on the shelf.
 
 Everything acts as the signed-in user, so it can reach exactly the
 books they own. A book it cannot see returns "not found" rather than
@@ -118,7 +116,7 @@ const TOOLS = [
     name: "search_books",
     title: "Search the library",
     description:
-      "Finds books on the user's shelf. With no query, lists them all (newest first). With one, every word must appear somewhere — title, author, publisher, ISBN, location, borrower or note. Can be narrowed to the books out on loan. The reply includes how many matched in total and counts for the whole shelf.",
+      "Finds books on the user's shelf. With no query, lists them all (newest first). With one, every word must appear somewhere — title, author, publisher, ISBN, location or note. The reply includes how many matched in total and counts for the whole shelf.",
     inputSchema: {
       type: "object",
       properties: {
@@ -126,10 +124,6 @@ const TOOLS = [
           type: "string",
           description:
             'Words to look for, space-separated, e.g. "orwell 早川" or an ISBN. Leave out to list everything.',
-        },
-        lentOnly: {
-          type: "boolean",
-          description: "Only books currently lent to someone. Defaults to false.",
         },
         sort: {
           type: "string",
@@ -147,10 +141,9 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: READ_ONLY,
-    run({ query, lentOnly, sort, limit }, call) {
+    run({ query, sort, limit }, call) {
       const params = new URLSearchParams();
       if (query) params.set("q", query);
-      if (lentOnly) params.set("lent", "true");
       if (sort) params.set("sort", sort);
       if (limit !== undefined) params.set("limit", String(limit));
       const qs = params.toString();

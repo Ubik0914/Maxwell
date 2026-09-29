@@ -86,7 +86,6 @@ export function LibraryScreen({
 
   const [books, setBooks] = useState(initialBooks);
   const [query, setQuery] = useState("");
-  const [lentOnly, setLentOnly] = useState(false);
   const [sort, setSort] = useState<BookSort>("recent");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
@@ -98,8 +97,8 @@ export function LibraryScreen({
 
   const stats = useMemo(() => libraryStats(books), [books]);
   const shown = useMemo(
-    () => sortBooks(filterBooks(books, { query, lentOnly }), sort),
-    [books, query, lentOnly, sort],
+    () => sortBooks(filterBooks(books, { query }), sort),
+    [books, query, sort],
   );
 
   // The selection follows the list: if the selected book is filtered
@@ -162,23 +161,14 @@ export function LibraryScreen({
   const actions = useMemo<Action[]>(() => {
     const list: Action[] = [];
     if (selected) {
-      list.push(
-        {
-          id: "open",
-          section: selected.title,
-          title: "開いて編集",
-          icon: <BookIcon />,
-          keys: ["↵"],
-          run: () => setEditing(selected),
-        },
-        {
-          id: "lend",
-          section: selected.title,
-          title: selected.lent_to ? "貸出先を変更…" : "貸し出す…",
-          icon: <ListIcon />,
-          run: () => setEditing(selected),
-        },
-      );
+      list.push({
+        id: "open",
+        section: selected.title,
+        title: "開いて編集",
+        icon: <BookIcon />,
+        keys: ["↵"],
+        run: () => setEditing(selected),
+      });
       if (selected.isbn && missingDetails(selected)) {
         list.push({
           id: "refresh",
@@ -227,13 +217,6 @@ export function LibraryScreen({
         icon: <PlusIcon />,
         run: () => setEditing("new"),
       },
-      {
-        id: "lent-only",
-        section: "表示",
-        title: lentOnly ? "すべての本を表示" : "貸出中の本だけ表示",
-        icon: <SearchIcon />,
-        run: () => setLentOnly((on) => !on),
-      },
       ...(Object.keys(SORT_LABEL) as BookSort[])
         .filter((option) => option !== sort)
         .map((option) => ({
@@ -254,7 +237,6 @@ export function LibraryScreen({
     return list;
   }, [
     selected,
-    lentOnly,
     sort,
     userEmail,
     scan,
@@ -335,18 +317,6 @@ export function LibraryScreen({
           autoComplete="off"
           className="min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:text-lg"
         />
-        <button
-          type="button"
-          onClick={() => setLentOnly((on) => !on)}
-          aria-pressed={lentOnly}
-          className={`shrink-0 rounded-md border px-2 py-1 text-xs transition-colors ${
-            lentOnly
-              ? "border-accent/60 bg-accent-soft text-accent"
-              : "border-border text-text-muted hover:bg-surface-hover"
-          }`}
-        >
-          貸出中
-        </button>
       </WindowBar>
 
       <div className="flex min-h-0 flex-1">
@@ -356,9 +326,7 @@ export function LibraryScreen({
           ) : (
             <>
               <p className="sticky top-0 z-10 flex items-center justify-between bg-surface/95 px-4 pt-3 pb-1.5 text-[11px] font-semibold text-text-faint backdrop-blur">
-                <span>
-                  {lentOnly ? "貸出中" : "本"} · {SORT_LABEL[sort]}
-                </span>
+                <span>本 · {SORT_LABEL[sort]}</span>
                 <span className="font-normal tabular-nums">
                   {shown.length === books.length
                     ? `${books.length}冊`
@@ -413,11 +381,7 @@ export function LibraryScreen({
               />
             </div>
           ) : (
-            <ShelfSummary
-              total={stats.total}
-              lent={stats.lent}
-              value={stats.value}
-            />
+            <ShelfSummary total={stats.total} value={stats.value} />
           )}
         </aside>
       </div>
@@ -433,10 +397,7 @@ export function LibraryScreen({
           left={
             <>
               <BookIcon className="text-accent" />
-              <span className="truncate">
-                蔵書 · {stats.total}冊
-                {stats.lent > 0 && ` · 貸出中 ${stats.lent}`}
-              </span>
+              <span className="truncate">蔵書 · {stats.total}冊</span>
             </>
           }
         >
@@ -505,7 +466,7 @@ function imprint(book: ShelvedBook): string {
  * One list item: cover as the icon, and the text on three lines —
  * title, author, then publisher · date · price — so the imprint is not
  * run together with the author the way one long line did. Raycast's
- * "accessories" sit on the right: who has it, where it is.
+ * "accessory" sits on the right: where it is.
  *
  * Clicking selects on a desktop, where the detail pane shows it; on a
  * phone, where there is no pane, it opens the detail sheet.
@@ -558,11 +519,6 @@ function BookRow({
         )}
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
-        {book.lent_to && (
-          <span className="max-w-24 truncate rounded bg-accent-soft px-1.5 py-0.5 text-[11px] text-accent">
-            {book.lent_to}
-          </span>
-        )}
         {book.location && (
           <span className="max-w-24 truncate text-[11px] text-text-faint">
             {book.location}
@@ -618,7 +574,6 @@ function BookDetail({
     ["価格", book.price == null ? null : `¥${yen.format(book.price)}`],
     ["ISBN", book.isbn ? formatIsbn(book.isbn) : null],
     ["場所", book.location],
-    ["貸出先", book.lent_to],
   ];
 
   return (
@@ -726,21 +681,11 @@ function DetailSheet({
   );
 }
 
-function ShelfSummary({
-  total,
-  lent,
-  value,
-}: {
-  total: number;
-  lent: number;
-  value: number;
-}) {
+function ShelfSummary({ total, value }: { total: number; value: number }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-text-muted">
       <p>{total}冊</p>
-      <p className="text-xs text-text-faint">
-        貸出中 {lent} · 総額 ¥{yen.format(value)}
-      </p>
+      <p className="text-xs text-text-faint">総額 ¥{yen.format(value)}</p>
     </div>
   );
 }

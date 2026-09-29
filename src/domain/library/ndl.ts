@@ -37,10 +37,7 @@ function decode(value: string): string {
 
 /** Every value of one tag inside a chunk of XML, in order. */
 function all(xml: string, tag: string): string[] {
-  const pattern = new RegExp(
-    `<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`,
-    "g",
-  );
+  const pattern = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "g");
   return [...xml.matchAll(pattern)]
     .map((match) => decode(match[1]))
     .filter((value) => value !== "");

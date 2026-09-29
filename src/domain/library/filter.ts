@@ -5,9 +5,8 @@
  * book is on the page already and the search runs in the browser as you
  * type — no round trip between a keystroke and the answer.
  *
- * There is no reading status. The shelf is shared by several people,
- * and "read" is a fact about a reader, not about a book; the one state
- * a shared book does have is whether somebody has borrowed it.
+ * A book here has no state at all — no reading status, no loans. It is
+ * a catalogue of what is on the shelf and where, nothing more.
  */
 
 export interface ShelvedBook {
@@ -20,7 +19,6 @@ export interface ShelvedBook {
   isbn: string | null;
   location: string | null;
   cover_url: string | null;
-  lent_to: string | null;
   note: string | null;
   created_at: string;
 }
@@ -51,7 +49,6 @@ function haystack(book: ShelvedBook): string {
       book.publisher,
       book.isbn,
       book.location,
-      book.lent_to,
       book.note,
     ]
       .filter(Boolean)
@@ -61,7 +58,7 @@ function haystack(book: ShelvedBook): string {
 
 export function filterBooks(
   books: ShelvedBook[],
-  { query, lentOnly = false }: { query: string; lentOnly?: boolean },
+  { query }: { query: string },
 ): ShelvedBook[] {
   // Every word has to match somewhere, in any order: "orwell 早川" finds
   // the book whether the words are in the title, author or publisher.
@@ -71,7 +68,6 @@ export function filterBooks(
     .filter((word) => word !== "");
 
   return books.filter((book) => {
-    if (lentOnly && !book.lent_to) return false;
     if (words.length === 0) return true;
     const text = haystack(book);
     return words.every((word) => text.includes(word));
@@ -109,7 +105,6 @@ export function sortBooks(books: ShelvedBook[], sort: BookSort): ShelvedBook[] {
 
 export interface LibraryStats {
   total: number;
-  lent: number;
   /** Sum of the cover prices that were written down. */
   value: number;
 }
@@ -118,9 +113,8 @@ export function libraryStats(books: ShelvedBook[]): LibraryStats {
   return books.reduce<LibraryStats>(
     (stats, book) => ({
       total: stats.total + 1,
-      lent: stats.lent + (book.lent_to ? 1 : 0),
       value: stats.value + (book.price ?? 0),
     }),
-    { total: 0, lent: 0, value: 0 },
+    { total: 0, value: 0 },
   );
 }
