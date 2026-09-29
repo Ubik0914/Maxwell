@@ -11,7 +11,7 @@
 
 ## 開く
 
-ドロワーの上の方、Workspace の下にある **Routines**。URL は `/routines`。
+ドロワーの上の方、Workspace の下にある **Routines**。URL は `/maxwell/routines`。
 
 ## 作る
 

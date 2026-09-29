@@ -36,7 +36,7 @@ export function AllStoriesShell({
       </PendingGraphProvider>
 
       <ViewSwitcher
-        base="/stories/all"
+        base="/maxwell/stories/all"
         placement="bottom"
         className="shrink-0 border-t border-border bg-bg sm:hidden"
       />

@@ -1,8 +1,11 @@
 import { StoryShell } from "@/components/story/StoryShell";
-import { TaskTable } from "@/components/task/TaskTable";
-import { loadStory, todayIso } from "@/app/stories/[storyId]/story-data";
+import { TaskBoard } from "@/components/task/TaskBoard";
+import {
+  loadStory,
+  todayIso,
+} from "@/app/maxwell/stories/[storyId]/story-data";
 
-export default async function StoryListPage({
+export default async function StoryBoardPage({
   params,
 }: {
   params: Promise<{ storyId: string }>;
@@ -13,7 +16,7 @@ export default async function StoryListPage({
   return (
     <StoryShell graph={graph} userEmail={userEmail}>
       <div className="min-h-0 flex-1">
-        <TaskTable
+        <TaskBoard
           scope={{ kind: "story", storyId: graph.story.id }}
           today={todayIso()}
         />

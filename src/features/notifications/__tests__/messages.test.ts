@@ -41,7 +41,7 @@ describe("unblockedMessage", () => {
 
     expect(message.title).toBe("Ship the reading list");
     expect(message.body).toBe("“Write the intro” is ready to start.");
-    expect(message.url).toBe("/stories/story-1");
+    expect(message.url).toBe("/maxwell/stories/story-1");
   });
 
   it("counts the rest when several did", () => {
@@ -69,7 +69,9 @@ describe("unblockedMessage", () => {
 
   it("cuts a title too long to fit on a lock screen", () => {
     const long = "A".repeat(120);
-    const body = unblockedMessage(STORY, [task({ id: "a", title: long })])!.body;
+    const body = unblockedMessage(STORY, [
+      task({ id: "a", title: long }),
+    ])!.body;
 
     expect(body.length).toBeLessThan(long.length);
     expect(body).toContain("…");
@@ -92,6 +94,6 @@ describe("completedMessage", () => {
 
     expect(message.title).toBe("Ship the reading list");
     expect(message.body).toContain("complete");
-    expect(message.url).toBe("/stories/story-1");
+    expect(message.url).toBe("/maxwell/stories/story-1");
   });
 });

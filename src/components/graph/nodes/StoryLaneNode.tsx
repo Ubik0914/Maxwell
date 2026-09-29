@@ -27,7 +27,7 @@ export type StoryLaneNode = Node<StoryLaneData, "STORY_LANE">;
 export function StoryLaneNode({ data }: NodeProps<StoryLaneNode>) {
   return (
     <Link
-      href={`/stories/${data.storyId}`}
+      href={`/maxwell/stories/${data.storyId}`}
       className="nodrag nopan flex w-max max-w-[28rem] items-center gap-2 rounded-lg border border-border bg-surface/80 px-3 py-1.5 transition-colors hover:border-accent"
     >
       <span

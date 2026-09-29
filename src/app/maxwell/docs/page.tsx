@@ -24,7 +24,8 @@ export default function DocsIndex() {
       <div className="flex flex-col gap-2">
         <h1 className="text-xl font-semibold text-text">使い方</h1>
         <p className="text-sm leading-relaxed text-text-muted">
-          Maxwell は、ストーリーの始まりと終わりを先に決めて、その間をタスクと依存関係で埋めていくタスク管理ツール。
+          Maxwell
+          は、ストーリーの始まりと終わりを先に決めて、その間をタスクと依存関係で埋めていくタスク管理ツール。
           最初に読むなら「はじめに」から。
         </p>
       </div>
@@ -33,7 +34,7 @@ export default function DocsIndex() {
         {docs.map((doc, index) => (
           <li key={doc.slug}>
             <Link
-              href={`/docs/${doc.slug}`}
+              href={`/maxwell/docs/${doc.slug}`}
               className="flex gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-hover"
             >
               <span className="mt-0.5 shrink-0 text-xs tabular-nums text-text-faint">

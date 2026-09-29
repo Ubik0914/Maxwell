@@ -36,7 +36,7 @@ export function ViewSwitcher({
   placement = "top",
   className = "",
 }: {
-  /** Where the three views hang off — `/stories/<id>`, or `/stories/all`. */
+  /** Where the three views hang off — `/maxwell/stories/<id>`, or `/maxwell/stories/all`. */
   base: string;
   placement?: "top" | "bottom";
   className?: string;

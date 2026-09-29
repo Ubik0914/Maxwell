@@ -1,15 +1,18 @@
 import { AllStoriesShell } from "@/components/story/AllStoriesShell";
-import { TaskTable } from "@/components/task/TaskTable";
-import { loadAllStories, storyTitles } from "@/app/stories/all/all-data";
-import { todayIso } from "@/app/stories/[storyId]/story-data";
+import { TaskBoard } from "@/components/task/TaskBoard";
+import {
+  loadAllStories,
+  storyTitles,
+} from "@/app/maxwell/stories/all/all-data";
+import { todayIso } from "@/app/maxwell/stories/[storyId]/story-data";
 
-export default async function AllStoriesListPage() {
+export default async function AllStoriesBoardPage() {
   const { graph, userEmail } = await loadAllStories();
 
   return (
     <AllStoriesShell graph={graph} userEmail={userEmail}>
       <div className="min-h-0 flex-1">
-        <TaskTable
+        <TaskBoard
           scope={{ kind: "workspace", storyTitles: storyTitles(graph) }}
           today={todayIso()}
         />

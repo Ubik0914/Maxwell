@@ -1,6 +1,6 @@
 import { requireCurrentWorkspace } from "@/features/workspace/current-workspace";
 import { listRoutinesForWorkspace } from "@/repositories/routine.repository";
-import { todayIso } from "@/app/stories/[storyId]/story-data";
+import { todayIso } from "@/app/maxwell/stories/[storyId]/story-data";
 import { RoutinesHeader } from "@/components/routine/RoutinesHeader";
 import { RoutineList } from "@/components/routine/RoutineList";
 

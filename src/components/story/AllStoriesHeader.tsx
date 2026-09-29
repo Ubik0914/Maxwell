@@ -43,7 +43,7 @@ export function AllStoriesHeader({
         </span>
       </div>
 
-      <ViewSwitcher base="/stories/all" className="hidden sm:flex" />
+      <ViewSwitcher base="/maxwell/stories/all" className="hidden sm:flex" />
 
       <StatMeters stats={stats} frontierCount={frontierCount} />
     </header>

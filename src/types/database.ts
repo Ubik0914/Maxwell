@@ -387,6 +387,65 @@ export type Database = {
           },
         ];
       };
+      books: {
+        Row: {
+          id: string;
+          owner_id: string;
+          title: string;
+          authors: string | null;
+          publisher: string | null;
+          published: string | null;
+          price: number | null;
+          isbn: string | null;
+          location: string | null;
+          reading_status: "UNREAD" | "READING" | "READ";
+          lent_to: string | null;
+          note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id?: string;
+          title: string;
+          authors?: string | null;
+          publisher?: string | null;
+          published?: string | null;
+          price?: number | null;
+          isbn?: string | null;
+          location?: string | null;
+          reading_status?: "UNREAD" | "READING" | "READ";
+          lent_to?: string | null;
+          note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          title?: string;
+          authors?: string | null;
+          publisher?: string | null;
+          published?: string | null;
+          price?: number | null;
+          isbn?: string | null;
+          location?: string | null;
+          reading_status?: "UNREAD" | "READING" | "READ";
+          lent_to?: string | null;
+          note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "books_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       push_subscriptions: {
         Row: {
           id: string;

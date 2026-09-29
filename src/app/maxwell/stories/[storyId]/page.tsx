@@ -1,6 +1,9 @@
 import { StoryShell } from "@/components/story/StoryShell";
 import { StoryGraph } from "@/components/graph/StoryGraph";
-import { loadStory, todayIso } from "@/app/stories/[storyId]/story-data";
+import {
+  loadStory,
+  todayIso,
+} from "@/app/maxwell/stories/[storyId]/story-data";
 
 export default async function StoryGraphPage({
   params,
@@ -16,10 +19,7 @@ export default async function StoryGraphPage({
   return (
     <StoryShell graph={graph} userEmail={userEmail}>
       <div className="graph-enter min-h-0 flex-1">
-        <StoryGraph
-          storyId={graph.story.id}
-          today={todayIso()}
-        />
+        <StoryGraph storyId={graph.story.id} today={todayIso()} />
       </div>
     </StoryShell>
   );

@@ -53,8 +53,8 @@ export function SettingsDialog({
   // so there is no first client render for it to disagree with.
   if (typeof document === "undefined") return null;
 
-  const isMembersActive = pathname.startsWith("/settings/members");
-  const isDocsActive = pathname.startsWith("/docs");
+  const isMembersActive = pathname.startsWith("/maxwell/settings/members");
+  const isDocsActive = pathname.startsWith("/maxwell/docs");
 
   return createPortal(
     <div
@@ -98,7 +98,7 @@ export function SettingsDialog({
           <div className="flex flex-col gap-1.5">
             <SectionLabel>Workspace</SectionLabel>
             <Link
-              href="/settings/members"
+              href="/maxwell/settings/members"
               onClick={onNavigate}
               aria-current={isMembersActive ? "page" : undefined}
               className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-surface-hover hover:text-text"
@@ -111,7 +111,7 @@ export function SettingsDialog({
           <div className="flex flex-col gap-1.5">
             <SectionLabel>Help</SectionLabel>
             <Link
-              href="/docs"
+              href="/maxwell/docs"
               onClick={onNavigate}
               aria-current={isDocsActive ? "page" : undefined}
               className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-surface-hover hover:text-text"

@@ -22,13 +22,13 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh w-full flex-col overflow-x-hidden bg-bg">
       <header className="flex items-center gap-2.5 border-b border-border px-3 py-2 sm:px-4">
         <Link
-          href="/docs"
+          href="/maxwell/docs"
           className="rounded-md px-1 py-0.5 text-sm font-semibold text-text transition-colors hover:text-accent"
         >
           Maxwell Docs
         </Link>
         <Link
-          href="/stories"
+          href="/maxwell/stories"
           className="ml-auto rounded-md px-1 py-0.5 text-sm text-text-muted transition-colors hover:text-accent"
         >
           アプリを開く

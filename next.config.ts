@@ -11,9 +11,32 @@ const nextConfig: NextConfig = {
    * an unrelated edit, and the failure would be a 500 in production
    * only. Naming the files here costs nothing and takes that away.
    */
+  /*
+   * Maxwell used to live at the root; "/" is the library now. Old
+   * bookmarks, links pasted into tasks and notifications already sitting
+   * on a lock screen still point at the old paths, so they are carried
+   * across rather than left to 404.
+   */
+  async redirects() {
+    return ["stories", "workspaces", "routines", "docs", "settings"].flatMap(
+      (section) => [
+        {
+          source: `/${section}`,
+          destination: `/maxwell/${section}`,
+          permanent: true,
+        },
+        {
+          source: `/${section}/:path*`,
+          destination: `/maxwell/${section}/:path*`,
+          permanent: true,
+        },
+      ],
+    );
+  },
+
   outputFileTracingIncludes: {
-    "/docs": ["./src/content/docs/**/*.md"],
-    "/docs/[slug]": ["./src/content/docs/**/*.md"],
+    "/maxwell/docs": ["./src/content/docs/**/*.md"],
+    "/maxwell/docs/[slug]": ["./src/content/docs/**/*.md"],
   },
 };
 

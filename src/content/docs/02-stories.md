@@ -42,13 +42,13 @@ Start と Goal を先に書かせるのは意図的なもの。終わりの条�
 - **Archive** / **Restore**
 - **Delete** — タスクも依存も一緒に消える。取り消せない。
 
-今開いているストーリーを消したときだけ、行き先が必要になる。`/stories` が残っているストーリーの中へ送り返す。
+今開いているストーリーを消したときだけ、行き先が必要になる。`/maxwell/stories` が残っているストーリーの中へ送り返す。
 
 ## URL
 
-- `/stories/<id>` — グラフ
-- `/stories/<id>/list` — リスト
-- `/stories/<id>/board` — ボード
-- `/stories/all` — 全ストーリーをまとめて（`/list`・`/board` も同じ）
+- `/maxwell/stories/<id>` — グラフ
+- `/maxwell/stories/<id>/list` — リスト
+- `/maxwell/stories/<id>/board` — ボード
+- `/maxwell/stories/all` — 全ストーリーをまとめて（`/list`・`/board` も同じ）
 
 どのビューもそのまま人に送れる URL になっている。

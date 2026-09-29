@@ -29,7 +29,7 @@ export default async function StoriesPage() {
 
   // Ordered by most recently touched, so the first is where you were.
   if (stories.length > 0) {
-    redirect(`/stories/${stories[0].id}`);
+    redirect(`/maxwell/stories/${stories[0].id}`);
   }
 
   return (

@@ -51,7 +51,7 @@ export default async function DocPage({
         >
           {previous && (
             <Link
-              href={`/docs/${previous.slug}`}
+              href={`/maxwell/docs/${previous.slug}`}
               className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-border px-3 py-2 transition-colors hover:border-accent"
             >
               <span className="text-[10px] tracking-[0.14em] text-text-faint uppercase">
@@ -64,7 +64,7 @@ export default async function DocPage({
           )}
           {next && (
             <Link
-              href={`/docs/${next.slug}`}
+              href={`/maxwell/docs/${next.slug}`}
               className="ml-auto flex min-w-0 flex-col items-end gap-0.5 rounded-lg border border-border px-3 py-2 transition-colors hover:border-accent"
             >
               <span className="text-[10px] tracking-[0.14em] text-text-faint uppercase">

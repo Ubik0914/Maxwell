@@ -67,7 +67,7 @@ export async function createStoryAction(
     };
   }
 
-  redirect(`/stories/${storyId}`);
+  redirect(`/maxwell/stories/${storyId}`);
 }
 
 export async function updateStoryAction(input: {

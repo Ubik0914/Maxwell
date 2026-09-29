@@ -83,7 +83,7 @@ self.addEventListener("fetch", (event) => {
 const DEFAULT_NOTIFICATION = {
   title: "Maxwell",
   body: "Something moved in your graph.",
-  url: "/stories",
+  url: "/maxwell/stories",
   tag: "maxwell",
 };
 
@@ -141,7 +141,7 @@ self.addEventListener("push", (event) => {
  */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url ?? "/stories";
+  const url = event.notification.data?.url ?? "/maxwell/stories";
 
   event.waitUntil(
     (async () => {

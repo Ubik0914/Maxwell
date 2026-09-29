@@ -49,7 +49,7 @@ export function StoryShell({
       </PendingGraphProvider>
 
       <ViewSwitcher
-        base={`/stories/${graph.story.id}`}
+        base={`/maxwell/stories/${graph.story.id}`}
         placement="bottom"
         className="shrink-0 border-t border-border bg-bg sm:hidden"
       />

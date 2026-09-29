@@ -44,7 +44,7 @@ export function DocsNav({ docs }: { docs: DocMeta[] }) {
         </div>
         <ul className="flex flex-col gap-0.5">
           {docs.map((doc) => {
-            const href = `/docs/${doc.slug}`;
+            const href = `/maxwell/docs/${doc.slug}`;
             const isCurrent = pathname === href;
             return (
               <li key={doc.slug}>
@@ -67,7 +67,7 @@ export function DocsNav({ docs }: { docs: DocMeta[] }) {
 
       <div className="scroll-x flex gap-1.5 border-b border-border px-3 py-2.5 md:hidden">
         {docs.map((doc) => {
-          const href = `/docs/${doc.slug}`;
+          const href = `/maxwell/docs/${doc.slug}`;
           const isCurrent = pathname === href;
           return (
             <Link

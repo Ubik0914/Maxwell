@@ -8,7 +8,7 @@ import type { ActionResult } from "@/types/action-result";
 
 const initialState: ActionResult<null> | null = null;
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, isPending] = useActionState(
     loginAction,
     initialState,
@@ -16,6 +16,7 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="flex w-full max-w-sm flex-col gap-4">
+      {next && <input type="hidden" name="next" value={next} />}
       <div className="flex flex-col gap-1">
         <label htmlFor="email" className="text-sm font-medium text-text-muted">
           Email

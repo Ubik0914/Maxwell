@@ -20,12 +20,15 @@ const VIEWS = ["list", "board"] as const;
  */
 export function storySwitchHref(storyId: string, pathname: string): string {
   const segments = pathname.split("/");
-  // ["", "stories", "<id>", "<view>"]
-  const view = segments.length === 4 && segments[1] === "stories"
-    ? segments[3]
-    : undefined;
+  // ["", "maxwell", "stories", "<id>", "<view>"]
+  const view =
+    segments.length === 5 &&
+    segments[1] === "maxwell" &&
+    segments[2] === "stories"
+      ? segments[4]
+      : undefined;
 
   return (VIEWS as readonly string[]).includes(view ?? "")
-    ? `/stories/${storyId}/${view}`
-    : `/stories/${storyId}`;
+    ? `/maxwell/stories/${storyId}/${view}`
+    : `/maxwell/stories/${storyId}`;
 }
