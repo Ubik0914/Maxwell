@@ -12,26 +12,13 @@ import { Select } from "@/components/ui/Select";
 import { logoutAction } from "@/features/auth/actions";
 import { BookDialog } from "@/components/library/BookDialog";
 import {
-  READING_STATUS_LABEL,
-  READING_STATUS_TONE,
-} from "@/components/library/labels";
-import {
   filterBooks,
   libraryStats,
   sortBooks,
   type BookSort,
   type ShelvedBook,
-  type StatusFilter,
 } from "@/domain/library/filter";
 import { formatIsbn } from "@/domain/library/isbn";
-
-const STATUS_TABS: { value: StatusFilter; label: string }[] = [
-  { value: "ALL", label: "すべて" },
-  { value: "UNREAD", label: "未読" },
-  { value: "READING", label: "読書中" },
-  { value: "READ", label: "読了" },
-  { value: "LENT", label: "貸出中" },
-];
 
 const SORT_OPTIONS: { value: BookSort; label: string }[] = [
   { value: "recent", label: "登録が新しい順" },
@@ -43,8 +30,11 @@ const SORT_OPTIONS: { value: BookSort; label: string }[] = [
 const yen = new Intl.NumberFormat("ja-JP");
 
 /**
- * The library's one screen: the shelf, a search over it, and the
- * dialog that adds to it.
+ * The library's one screen: the shelf and a search over it.
+ *
+ * Books come in by scanning — that is the one big button, and it leads
+ * to /scan. Typing a book in by hand is still here for the ones with
+ * no barcode, but as the quiet second option beside it.
  *
  * The books arrive rendered from the server and are kept here after
  * that. A save answers with the row as the database now holds it, so
@@ -60,14 +50,14 @@ export function LibraryScreen({
 }) {
   const [books, setBooks] = useState(initialBooks);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("ALL");
+  const [lentOnly, setLentOnly] = useState(false);
   const [sort, setSort] = useState<BookSort>("recent");
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
 
   const stats = useMemo(() => libraryStats(books), [books]);
   const shown = useMemo(
-    () => sortBooks(filterBooks(books, { query, status }), sort),
-    [books, query, status, sort],
+    () => sortBooks(filterBooks(books, { query, lentOnly }), sort),
+    [books, query, lentOnly, sort],
   );
 
   function saved(book: ShelvedBook) {
@@ -89,12 +79,6 @@ export function LibraryScreen({
         <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-text">
           蔵書
         </h1>
-        <Link
-          href="/maxwell"
-          className="shrink-0 rounded-md px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
-        >
-          Maxwell
-        </Link>
         <form action={logoutAction} className="shrink-0">
           <button
             type="submit"
@@ -107,12 +91,17 @@ export function LibraryScreen({
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-5 sm:px-6">
-        <dl className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        <Link
+          href="/scan"
+          className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3.5 text-base font-semibold text-inverse transition-colors hover:bg-accent-hover"
+        >
+          <BarcodeIcon className="h-5 w-5" />
+          スキャンして本を追加
+        </Link>
+
+        <dl className="grid grid-cols-3 gap-2">
           {[
             ["蔵書", stats.total],
-            ["読了", stats.read],
-            ["読書中", stats.reading],
-            ["未読", stats.unread],
             ["貸出中", stats.lent],
             ["総額", `¥${yen.format(stats.value)}`],
           ].map(([label, value]) => (
@@ -151,49 +140,31 @@ export function LibraryScreen({
               options={SORT_OPTIONS}
               onChange={setSort}
             />
-            <Link
-              href="/scan"
-              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-text transition-colors hover:bg-surface-hover"
-            >
-              <BarcodeIcon />
-              連続スキャン
-            </Link>
             <button
               type="button"
-              onClick={() => setEditing("new")}
-              className="flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
-            >
-              <PlusIcon />
-              本を登録
-            </button>
-          </div>
-        </div>
-
-        <div
-          role="tablist"
-          aria-label="読書状況で絞り込む"
-          className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0"
-        >
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              role="tab"
-              aria-selected={status === tab.value}
-              onClick={() => setStatus(tab.value)}
+              onClick={() => setLentOnly((on) => !on)}
+              aria-pressed={lentOnly}
               className={`shrink-0 rounded-full border px-3 py-1 text-xs transition-colors ${
-                status === tab.value
+                lentOnly
                   ? "border-accent bg-accent-soft text-accent"
                   : "border-border text-text-muted hover:bg-surface-hover"
               }`}
             >
-              {tab.label}
+              貸出中のみ
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setEditing("new")}
+              className="ml-auto flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              手入力
+            </button>
+          </div>
         </div>
 
         {books.length === 0 ? (
-          <EmptyShelf onAdd={() => setEditing("new")} />
+          <EmptyShelf />
         ) : shown.length === 0 ? (
           <p className="py-12 text-center text-sm text-text-muted">
             条件に合う本はありません。
@@ -219,19 +190,11 @@ export function LibraryScreen({
   );
 }
 
-function StatusPill({ book }: { book: ShelvedBook }) {
+function LentPill({ book }: { book: ShelvedBook }) {
+  if (!book.lent_to) return null;
   return (
-    <span className="flex flex-wrap gap-1">
-      <span
-        className={`rounded-full border px-2 py-0.5 text-[11px] whitespace-nowrap ${READING_STATUS_TONE[book.reading_status]}`}
-      >
-        {READING_STATUS_LABEL[book.reading_status]}
-      </span>
-      {book.lent_to && (
-        <span className="rounded-full border border-accent/40 bg-accent-soft px-2 py-0.5 text-[11px] whitespace-nowrap text-accent">
-          貸出: {book.lent_to}
-        </span>
-      )}
+    <span className="inline-block max-w-full truncate rounded-full border border-accent/40 bg-accent-soft px-2 py-0.5 text-[11px] whitespace-nowrap text-accent">
+      貸出: {book.lent_to}
     </span>
   );
 }
@@ -254,7 +217,7 @@ function BookTable({
             <th className="w-[13%] px-3 py-2 font-semibold">出版社</th>
             <th className="w-[9%] px-3 py-2 font-semibold">発売</th>
             <th className="w-[10%] px-3 py-2 font-semibold">場所</th>
-            <th className="w-[14%] px-3 py-2 font-semibold">状況</th>
+            <th className="w-[14%] px-3 py-2 font-semibold">貸出</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -300,7 +263,7 @@ function BookTable({
                 {book.location}
               </td>
               <td className="px-3 py-2.5">
-                <StatusPill book={book} />
+                <LentPill book={book} />
               </td>
             </tr>
           ))}
@@ -336,7 +299,7 @@ function BookCards({
               </span>
             )}
             <span className="flex items-center justify-between gap-2">
-              <StatusPill book={book} />
+              <LentPill book={book} />
               {book.location && (
                 <span className="truncate text-[11px] text-text-faint">
                   {book.location}
@@ -350,19 +313,14 @@ function BookCards({
   );
 }
 
-function EmptyShelf({ onAdd }: { onAdd: () => void }) {
+function EmptyShelf() {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-16 text-center">
       <BookIcon className="text-text-faint" />
       <p className="text-sm text-text-muted">まだ本が登録されていません。</p>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
-      >
-        <PlusIcon />
-        最初の1冊を登録
-      </button>
+      <p className="text-xs text-text-faint">
+        上のボタンからバーコードを読み取って追加できます。
+      </p>
     </div>
   );
 }

@@ -44,7 +44,7 @@ describe("initialize", () => {
 
     expect(response?.result?.protocolVersion).toBe(PROTOCOL_VERSIONS[0]);
     expect(response?.result?.capabilities?.tools).toBeDefined();
-    expect(response?.result?.serverInfo?.name).toBe("maxwell");
+    expect(response?.result?.serverInfo?.name).toBe("library");
     expect(response?.result?.instructions).toContain("search_books");
   });
 
@@ -234,11 +234,11 @@ describe("search_books", () => {
     expect(await pathFor({})).toBe("/api/v1/books");
   });
 
-  it("passes the query, status, sort and limit through", async () => {
+  it("passes the query, lent filter, sort and limit through", async () => {
     const path = new URL(
       await pathFor({
         query: "orwell 早川",
-        status: "READ",
+        lentOnly: true,
         sort: "title",
         limit: 5,
       }),
@@ -247,7 +247,7 @@ describe("search_books", () => {
     expect(path.pathname).toBe("/api/v1/books");
     expect(Object.fromEntries(path.searchParams)).toEqual({
       q: "orwell 早川",
-      status: "READ",
+      lent: "true",
       sort: "title",
       limit: "5",
     });

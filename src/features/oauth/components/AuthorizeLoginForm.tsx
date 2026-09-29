@@ -27,8 +27,10 @@ export function AuthorizeLoginForm({
 
       <p className="text-center text-sm text-text-muted">
         Log in to let{" "}
-        <span className="font-medium text-text">{clientName ?? "this app"}</span>{" "}
-        connect to your Maxwell account.
+        <span className="font-medium text-text">
+          {clientName ?? "this app"}
+        </span>{" "}
+        connect to your account.
       </p>
 
       <div className="flex flex-col gap-1">

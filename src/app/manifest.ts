@@ -1,42 +1,33 @@
 import type { MetadataRoute } from "next";
 
 /**
- * What a phone needs before it will let someone keep Maxwell.
+ * The site's manifest — the library's, since "/" is the library.
  *
- * Installing is not decoration here: a web push subscription on iOS
- * exists only for a site added to the home screen, so the manifest is
- * the price of the notifications. On Android and desktop it buys the
- * ordinary things — a window without a URL bar, an icon among the other
- * apps, a splash colour that matches the page instead of flashing white
- * on the way in.
+ * Installing is not decoration: a web push subscription on iOS exists
+ * only for a site added to the home screen, and on Android and desktop
+ * it buys a window without a URL bar and an icon among the other apps.
  *
- * `start_url` is "/maxwell", which is the redirect that already knows
- * whether to send you to your stories or to sign in. (It used to be "/",
- * which is the library now; `scope` stays "/" so the library and the
- * sign-in pages open inside the installed app rather than a browser.)
- * An installed app opened cold should land where the site would have
- * put you, not on a page that assumes a session it may not have.
- *
- * `id` is fixed and must stay that way. It is how a browser recognises
- * this as the app it already has installed; changing it later hands
- * somebody a second copy of Maxwell beside the one they were using.
+ * `id` stays "/". It used to be Maxwell's, so a phone that installed
+ * Maxwell from here now has the library under that icon; Maxwell has a
+ * manifest of its own (id "/maxwell", see app/maxwell/manifest.webmanifest)
+ * and is installed again from inside /maxwell. That is the price of
+ * this one saying nothing about it.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Maxwell — DAG Task Manager",
-    short_name: "Maxwell",
-    description: "Define a Start and a Goal, then build the path between them.",
-    start_url: "/maxwell",
+    name: "蔵書",
+    short_name: "蔵書",
+    description: "みんなの本棚の目録。",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     background_color: "#0a0d14",
     theme_color: "#0a0d14",
-    // Both ways up. The graph is a canvas that pans, the lists read
-    // fine in either, and a task manager somebody opens on a notification
+    // Both ways up: a shelf reads fine either way, and the scanner
     // should not argue about which way the phone is being held.
     orientation: "any",
-    categories: ["productivity"],
+    categories: ["books", "productivity"],
     icons: [
       {
         src: "/icons/icon-192.png",

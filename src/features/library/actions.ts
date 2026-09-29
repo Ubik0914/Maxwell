@@ -163,12 +163,12 @@ export type ScanOutcome =
  * invent a title: an ISBN openBD does not know comes back as not_found
  * for the person to fill in, rather than as a row called "9784…".
  *
- * `defaults` are the scanning session's settings (which shelf, read or
- * not), applied to every book it adds.
+ * `defaults` are the scanning session's settings (which shelf the books
+ * are going on), applied to every book it adds.
  */
 export async function addBookByIsbnAction(
   rawIsbn: string,
-  defaults: Pick<BookFieldsInput, "location" | "reading_status"> = {},
+  defaults: Pick<BookFieldsInput, "location"> = {},
 ): Promise<ActionResult<ScanOutcome>> {
   const parsed = isbnLookupSchema.safeParse(rawIsbn);
   if (!parsed.success) {

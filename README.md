@@ -6,13 +6,13 @@ DAGベースのタスク管理システム。StoryのStartとGoalを先に定義
 
 | パス | 中身 |
 | --- | --- |
-| `/` | **蔵書管理**（書名・著者・出版社・発売日・価格・ISBN・場所・読書状況・貸出先）。ISBN を入れると openBD から書誌を補完する |
+| `/` | **蔵書管理**（書名・著者・出版社・発売日・価格・ISBN・場所・貸出先）。複数人で使う前提なので読書状況は持たない。本の追加はスキャンが主、手入力は副 |
 | `/scan` | 蔵書の**連続スキャン**。カメラ（Android Chrome は BarcodeDetector、iPhone Safari などは ZXing）かバーコードリーダーで ISBN を読むたびに openBD で書誌を引いて即登録する。登録済み・書誌なしは一覧に残り、取消・手入力・再試行ができる |
-| `/maxwell` | Maxwell 本体（`/maxwell/stories`・`/maxwell/workspaces`・`/maxwell/routines`・`/maxwell/docs`） |
+| `/maxwell` | Maxwell 本体（`/maxwell/stories`・`/maxwell/workspaces`・`/maxwell/routines`・`/maxwell/docs`）。**蔵書側からの導線は無い**（リンク・タイトル・PWA 名・MCP 名のどこにも出さない）。docs を含め全体が要ログインで、独自の manifest（id `/maxwell`）を持つ |
 | `/login`・`/signup` | 両方で共通のサインイン。`?next=/path` でサインイン後の戻り先を指定できる |
 | `/api/*`・`/oauth/*` | Maxwell の REST API / MCP / OAuth。外部クライアントの接続先を変えないためルートのまま |
 
-旧パス（`/stories/...` など）は `next.config.ts` の redirects で `/maxwell/...` へ 308 で転送する。
+旧パス（`/stories/...` など）の転送は置かない（`/maxwell` の存在を推測させないため）。古いブックマークは 404 になる。
 蔵書は `dag.books`（`supabase/migrations/20260929090000_create_dag_books.sql`）に持ち、RLS で本人の行だけが見える。
 
 使い方のガイドはアプリ自身の `/maxwell/docs` にある（本文は [`src/content/docs/`](src/content/docs) の Markdown）。このREADMEは動かし方と繋ぎ方、`/maxwell/docs` は使い方。

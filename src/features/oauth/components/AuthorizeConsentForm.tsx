@@ -19,13 +19,14 @@ export function AuthorizeConsentForm({
       <OAuthHiddenFields request={request} />
 
       <p className="text-center text-sm text-text-muted">
-        <span className="font-medium text-text">{clientName ?? "This app"}</span>{" "}
-        wants to connect to your Maxwell account as{" "}
+        <span className="font-medium text-text">
+          {clientName ?? "This app"}
+        </span>{" "}
+        wants to connect to your account as{" "}
         <span className="font-medium text-text">{email}</span>.
       </p>
       <p className="text-center text-xs text-text-muted">
-        It will be able to read and change your workspaces, stories, and
-        tasks — the same access you have.
+        It will act as you, with the same access you have.
       </p>
 
       <div className="flex gap-3">

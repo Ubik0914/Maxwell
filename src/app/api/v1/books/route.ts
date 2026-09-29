@@ -10,7 +10,7 @@ import * as bookRepository from "@/repositories/book.repository";
  * The caller's books, searched the same way the library page searches
  * them: every word must appear somewhere, width, case and kana folded.
  *
- *   GET /api/v1/books?q=orwell&status=READ&sort=title&limit=20
+ *   GET /api/v1/books?q=orwell&lent=true&sort=title&limit=20
  *
  * The whole shelf is read and filtered here rather than in SQL so the
  * API and the page cannot disagree about what "matches" means — there
@@ -36,11 +36,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { q, status, sort, limit } = parsed.data;
+  const { q, lent, sort, limit } = parsed.data;
 
   try {
     const books = await bookRepository.listBooks(supabase);
-    const matched = sortBooks(filterBooks(books, { query: q, status }), sort);
+    const matched = sortBooks(
+      filterBooks(books, { query: q, lentOnly: lent }),
+      sort,
+    );
     return apiSuccess({
       books: matched.slice(0, limit),
       total: matched.length,

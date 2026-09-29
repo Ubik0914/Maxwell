@@ -33,14 +33,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const protectedPrefixes = [
-    "/maxwell/stories",
-    "/maxwell/workspaces",
-    "/maxwell/settings",
-  ];
-  const isProtectedRoute = protectedPrefixes.some((prefix) =>
-    request.nextUrl.pathname.startsWith(prefix),
-  );
+  // All of Maxwell, the guide included: to someone not signed in,
+  // /maxwell is a login form and nothing more — not a page that says
+  // what is behind it. The manifest is the one exception, because a
+  // browser fetches it without cookies and a redirect there is a broken
+  // install, not a secret kept.
+  const { pathname } = request.nextUrl;
+  const isProtectedRoute =
+    (pathname === "/maxwell" || pathname.startsWith("/maxwell/")) &&
+    pathname !== "/maxwell/manifest.webmanifest";
 
   if (!user && isProtectedRoute) {
     const loginUrl = new URL("/login", request.url);

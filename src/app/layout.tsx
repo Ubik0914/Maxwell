@@ -15,10 +15,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/*
+ * The whole site speaks as the library. Maxwell lives at /maxwell for
+ * the people who already know it is there, and its own layout carries
+ * its own name, manifest and icons; nothing a library user can reach
+ * from "/" — tab titles, the install prompt, the home screen label —
+ * says it exists.
+ */
 export const metadata: Metadata = {
-  title: "Maxwell — DAG Task Manager",
-  description: "Define a Start and a Goal, then build the path between them.",
-  applicationName: "Maxwell",
+  title: "蔵書",
+  description: "みんなの本棚の目録。",
+  applicationName: "蔵書",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
@@ -32,14 +39,14 @@ export const metadata: Metadata = {
    */
   appleWebApp: {
     capable: true,
-    title: "Maxwell",
+    title: "蔵書",
     statusBarStyle: "black-translucent",
   },
 };
 
 /*
  * The colour behind the status bar and the splash screen, so an
- * installed Maxwell opens out of the dark it is drawn in rather than
+ * installed app opens out of the dark it is drawn in rather than
  * flashing white on the way in. It is --bg from globals.css; there is
  * one theme, so there is one value.
  */
@@ -56,9 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/* Runs before the first paint so the page never opens with the
             wrong amount of motion and corrects itself a frame later. */}
-        <script
-          dangerouslySetInnerHTML={{ __html: MOTION_BOOTSTRAP_SCRIPT }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: MOTION_BOOTSTRAP_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
         <ToastProvider>

@@ -11,8 +11,7 @@ import {
   lookupIsbnAction,
   updateBookAction,
 } from "@/features/library/actions";
-import type { ReadingStatus, ShelvedBook } from "@/domain/library/filter";
-import { READING_STATUS_LABEL } from "@/components/library/labels";
+import type { ShelvedBook } from "@/domain/library/filter";
 
 const INPUT =
   "w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none";
@@ -26,7 +25,6 @@ interface Draft {
   published: string;
   price: string;
   location: string;
-  reading_status: ReadingStatus;
   lent_to: string;
   note: string;
 }
@@ -40,7 +38,6 @@ function draftOf(book?: ShelvedBook, initialIsbn?: string): Draft {
     published: book?.published ?? "",
     price: book?.price == null ? "" : String(book.price),
     location: book?.location ?? "",
-    reading_status: book?.reading_status ?? "UNREAD",
     lent_to: book?.lent_to ?? "",
     note: book?.note ?? "",
   };
@@ -160,8 +157,12 @@ export function BookDialog({
 
   return (
     <Modal
-      title={book ? "本を編集" : "本を登録"}
-      subtitle={book ? undefined : "ISBN を入れて「探す」と書誌が埋まります"}
+      title={book ? "本を編集" : "手入力で追加"}
+      subtitle={
+        book
+          ? undefined
+          : "バーコードの無い本はここから。ISBN があれば「探す」で書誌が埋まります"
+      }
       onClose={onClose}
       width="max-w-lg"
     >
@@ -296,34 +297,6 @@ export function BookDialog({
             />
           </div>
         </div>
-
-        <fieldset className="flex flex-col gap-1">
-          <legend className={`${LABEL} mb-1`}>読書状況</legend>
-          <div className="flex gap-1 rounded-lg border border-border p-1">
-            {(Object.keys(READING_STATUS_LABEL) as ReadingStatus[]).map(
-              (status) => (
-                <label
-                  key={status}
-                  className={`flex-1 cursor-pointer rounded-md px-2 py-1.5 text-center text-sm transition-colors ${
-                    draft.reading_status === status
-                      ? "bg-accent-soft text-accent"
-                      : "text-text-muted hover:bg-surface-hover"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="reading_status"
-                    value={status}
-                    checked={draft.reading_status === status}
-                    onChange={() => set("reading_status", status)}
-                    className="sr-only"
-                  />
-                  {READING_STATUS_LABEL[status]}
-                </label>
-              ),
-            )}
-          </div>
-        </fieldset>
 
         <div className="flex flex-col gap-1">
           <label htmlFor="book-note" className={LABEL}>

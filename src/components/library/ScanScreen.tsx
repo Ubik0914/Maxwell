@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon } from "@/components/icons";
+import { ArrowLeftIcon, PlusIcon } from "@/components/icons";
 import { Spinner } from "@/components/Spinner";
 import { BookDialog } from "@/components/library/BookDialog";
-import { READING_STATUS_LABEL } from "@/components/library/labels";
 import {
   useBarcodeScanner,
   type ScannerState,
@@ -16,7 +15,7 @@ import {
 } from "@/features/library/actions";
 import { formatIsbn } from "@/domain/library/isbn";
 import { isbnFromBarcode, ScanSession } from "@/domain/library/scan";
-import type { ReadingStatus, ShelvedBook } from "@/domain/library/filter";
+import type { ShelvedBook } from "@/domain/library/filter";
 
 type RowState =
   | { kind: "pending" }
@@ -35,7 +34,7 @@ interface Row {
 const SCANNER_MESSAGE: Partial<Record<ScannerState, string>> = {
   starting: "カメラを起動しています…",
   denied:
-    "カメラの使用が許可されていません。ブラウザの設定で許可するか、下の欄に ISBN を入力してください。",
+    "カメラの使用が許可されていません。ブラウザの設定で許可するか、下のバーコードリーダー / 手入力をお使いください。",
   unavailable:
     "この端末ではカメラを使えません。バーコードリーダーか手入力で続けられます。",
   error: "カメラを起動できませんでした。もう一度お試しください。",
@@ -51,9 +50,13 @@ const SCANNER_MESSAGE: Partial<Record<ScannerState, string>> = {
  * because the list below reads in the order the books were scanned.
  *
  * Nothing waits on the person. A found book is added there and then with
- * the session's shelf and reading status, so scanning thirty books is
+ * the session's shelf, so scanning thirty books is
  * thirty scans — the list is where mistakes get undone, afterwards,
  * rather than a confirm step standing between every book and the next.
+ *
+ * Scanning is the way in, so the camera starts as soon as the page
+ * opens. Typing — an ISBN, or a whole book with no barcode — is still
+ * here, folded away below it.
  */
 export function ScanScreen() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -64,11 +67,12 @@ export function ScanScreen() {
   const rowByIsbn = useRef(new Map<string, number>());
   const audio = useRef<AudioContext | null>(null);
 
-  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [typingBook, setTypingBook] = useState(false);
   const [manual, setManual] = useState("");
   const [manualError, setManualError] = useState<string | null>(null);
   const [location, setLocation] = useState("");
-  const [readingStatus, setReadingStatus] = useState<ReadingStatus>("UNREAD");
   const [rows, setRows] = useState<Row[]>([]);
   const [flash, setFlash] = useState<number | null>(null);
   const [manualEntry, setManualEntry] = useState<Row | null>(null);
@@ -76,10 +80,10 @@ export function ScanScreen() {
   // Read when a scan is processed, not when it is queued, so changing
   // the shelf mid-session applies to the next book rather than to
   // whichever were still waiting.
-  const defaults = useRef({ location, readingStatus });
+  const defaults = useRef({ location });
   useEffect(() => {
-    defaults.current = { location, readingStatus };
-  }, [location, readingStatus]);
+    defaults.current = { location };
+  }, [location]);
 
   const update = useCallback((id: number, state: RowState) => {
     setRows((current) =>
@@ -108,11 +112,10 @@ export function ScanScreen() {
   const process = useCallback(
     (id: number, isbn: string) => {
       queue.current = queue.current.then(async () => {
-        const { location, readingStatus } = defaults.current;
-        const result = await addBookByIsbnAction(isbn, {
-          location,
-          reading_status: readingStatus,
-        }).catch(() => null);
+        const { location } = defaults.current;
+        const result = await addBookByIsbnAction(isbn, { location }).catch(
+          () => null,
+        );
 
         if (!result || !result.success) {
           // The ISBN stays "seen": the book is probably still in front
@@ -173,11 +176,17 @@ export function ScanScreen() {
   }, [flash]);
 
   const scannerState = useBarcodeScanner(videoRef, offer, cameraOn);
+  const cameraFailed =
+    scannerState === "denied" ||
+    scannerState === "unavailable" ||
+    scannerState === "error";
 
-  function toggleCamera() {
-    // The AudioContext has to be born inside a click, or iOS keeps it
-    // muted for good. Starting the camera is the click that will do.
-    if (!audio.current) {
+  // The AudioContext has to be born inside a user gesture, or iOS keeps
+  // it muted for good. The camera now starts on its own, so the first
+  // touch anywhere on the page is the gesture that will do.
+  useEffect(() => {
+    function unlock() {
+      if (audio.current) return;
       try {
         const Context =
           window.AudioContext ??
@@ -188,8 +197,13 @@ export function ScanScreen() {
         audio.current = null;
       }
     }
-    setCameraOn((on) => !on);
-  }
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   function submitManual(event: React.FormEvent) {
     event.preventDefault();
@@ -263,14 +277,14 @@ export function ScanScreen() {
             {cameraOn && scannerState === "running" && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="h-1/3 w-4/5 rounded-lg border-2 border-accent/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+                <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-white/90">
+                  上段の ISBN バーコードを枠に合わせてください
+                </p>
               </div>
             )}
             {!cameraOn && (
               <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 px-6 text-center sm:aspect-video">
-                <p className="text-sm text-text-muted">
-                  カメラで裏表紙の ISBN バーコード（978 / 979 で始まる上段）を
-                  次々に読み取ります。
-                </p>
+                <p className="text-sm text-text-muted">カメラは停止中です。</p>
               </div>
             )}
           </div>
@@ -286,29 +300,45 @@ export function ScanScreen() {
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={toggleCamera}
-            className={`rounded-md px-4 py-2.5 text-sm font-medium transition-colors ${
-              cameraOn
-                ? "border border-border text-text hover:bg-surface-hover"
-                : "bg-accent text-inverse hover:bg-accent-hover"
-            }`}
-          >
-            {cameraOn ? "カメラを止める" : "カメラでスキャン開始"}
-          </button>
-
-          <form onSubmit={submitManual} className="flex flex-col gap-1">
-            <label
-              htmlFor="scan-manual"
-              className="text-xs font-medium text-text-muted"
+          <div className="flex items-center gap-2">
+            <input
+              id="scan-location"
+              aria-label="登録先の場所"
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              placeholder="登録先の場所（例: 会社）"
+              maxLength={100}
+              className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setCameraOn((on) => !on)}
+              className="shrink-0 rounded-md border border-border px-3 py-2 text-sm text-text transition-colors hover:bg-surface-hover"
             >
-              バーコードリーダー / 手入力
-            </label>
+              {cameraOn ? "カメラ停止" : "カメラ再開"}
+            </button>
+          </div>
+        </section>
+
+        {/* The secondary ways in. Folded away while the camera works;
+            opened for you when it cannot. */}
+        <details
+          open={manualOpen || cameraFailed}
+          onToggle={(event) => setManualOpen(event.currentTarget.open)}
+          className="group rounded-lg border border-border bg-surface px-3 py-2"
+        >
+          <summary className="cursor-pointer list-none text-xs text-text-muted select-none">
+            <span className="inline-block transition-transform group-open:rotate-90">
+              ›
+            </span>{" "}
+            バーコードリーダー / 手入力
+          </summary>
+          <form onSubmit={submitManual} className="mt-2 flex flex-col gap-1">
             <div className="flex gap-2">
               <input
                 ref={inputRef}
                 id="scan-manual"
+                aria-label="ISBN"
                 value={manual}
                 onChange={(event) => setManual(event.target.value)}
                 inputMode="numeric"
@@ -330,55 +360,15 @@ export function ScanScreen() {
               </p>
             )}
           </form>
-        </section>
-
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="scan-location"
-              className="text-xs font-medium text-text-muted"
-            >
-              登録先の場所
-            </label>
-            <input
-              id="scan-location"
-              value={location}
-              onChange={(event) => setLocation(event.target.value)}
-              placeholder="自宅 / 会社 / 本棚A"
-              maxLength={100}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
-            />
-          </div>
-          <fieldset className="flex flex-col gap-1">
-            <legend className="mb-1 text-xs font-medium text-text-muted">
-              読書状況
-            </legend>
-            <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
-              {(Object.keys(READING_STATUS_LABEL) as ReadingStatus[]).map(
-                (status) => (
-                  <label
-                    key={status}
-                    className={`flex-1 cursor-pointer rounded-md px-2 py-1 text-center text-sm transition-colors ${
-                      readingStatus === status
-                        ? "bg-accent-soft text-accent"
-                        : "text-text-muted hover:bg-surface-hover"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="scan-reading-status"
-                      value={status}
-                      checked={readingStatus === status}
-                      onChange={() => setReadingStatus(status)}
-                      className="sr-only"
-                    />
-                    {READING_STATUS_LABEL[status]}
-                  </label>
-                ),
-              )}
-            </div>
-          </fieldset>
-        </section>
+          <button
+            type="button"
+            onClick={() => setTypingBook(true)}
+            className="mt-2 mb-1 flex items-center gap-1 text-xs text-text-muted transition-colors hover:text-text"
+          >
+            <PlusIcon className="h-3.5 w-3.5" />
+            バーコードの無い本を手入力で追加
+          </button>
+        </details>
 
         <section className="flex flex-col gap-2">
           <p className="text-xs text-text-faint" aria-live="polite">
@@ -408,6 +398,23 @@ export function ScanScreen() {
           )}
         </section>
       </main>
+
+      {typingBook && (
+        <BookDialog
+          onClose={() => setTypingBook(false)}
+          onSaved={(book) => {
+            const id = nextId.current++;
+            if (book.isbn) {
+              session.current.admit(book.isbn);
+              rowByIsbn.current.set(book.isbn, id);
+            }
+            setRows((current) => [
+              { id, isbn: book.isbn ?? "", state: { kind: "added", book } },
+              ...current,
+            ]);
+          }}
+        />
+      )}
 
       {manualEntry && (
         <BookDialog

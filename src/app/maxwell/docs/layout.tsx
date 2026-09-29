@@ -6,11 +6,10 @@ import { DocsNav } from "@/components/docs/DocsNav";
 /**
  * The guide's own chrome.
  *
- * Not AppShell, and the difference is deliberate: this is the one
- * signed-in-app page that has to work for somebody who is not signed in
- * — nobody should have to have an account to read what the product
- * does. AppShell's bar carries a drawer full of workspaces and stories,
- * which for a reader who has neither is a menu of placeholders.
+ * Not AppShell, and the difference is deliberate: the guide is read by
+ * people who may have no workspace or story yet, and AppShell's bar
+ * carries a drawer full of them, which for such a reader is a menu of
+ * placeholders. (It is behind the sign-in like the rest of /maxwell.)
  *
  * So it borrows the bar's measurements and nothing else: the same
  * height, the same rule underneath, and one way back into the app.

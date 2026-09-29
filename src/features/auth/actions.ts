@@ -27,7 +27,7 @@ export async function loginAction(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
     if (error.code === "email_not_confirmed") {
@@ -54,17 +54,10 @@ export async function loginAction(
     };
   }
 
-  // The page that sent them here gets them back. Without one, it is
-  // Maxwell's old answer: your stories, or a workspace to make first.
-  const next = safeNextPath(formData.get("next"));
-  if (next) redirect(next);
-
-  const { count } = await supabase
-    .from("workspace_members")
-    .select("workspace_id", { count: "exact", head: true })
-    .eq("user_id", data.user.id);
-
-  redirect(count && count > 0 ? "/maxwell/stories" : "/maxwell/workspaces");
+  // The page that sent them here gets them back. Without one, the
+  // front door is the library — the only thing a sign-in from /login
+  // is assumed to be for.
+  redirect(safeNextPath(formData.get("next")) ?? "/");
 }
 
 export async function signupAction(
@@ -103,7 +96,7 @@ export async function signupAction(
   }
 
   if (data.session) {
-    redirect("/maxwell/workspaces");
+    redirect("/");
   }
 
   return { success: true, data: { requiresEmailConfirmation: true } };
