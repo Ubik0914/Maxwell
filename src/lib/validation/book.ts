@@ -45,6 +45,14 @@ export const bookFieldsSchema = z.object({
       return isbn;
     }),
   location: optionalText(100, "場所"),
+  cover_url: z
+    .string()
+    .trim()
+    .max(500)
+    .regex(/^https:\/\//, "表紙の URL は https で始まる必要があります")
+    .nullable()
+    .optional()
+    .transform((value) => (value ? value : null)),
   lent_to: optionalText(100, "貸出先"),
   note: optionalText(5000, "メモ"),
 });

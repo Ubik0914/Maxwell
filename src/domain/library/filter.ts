@@ -19,6 +19,7 @@ export interface ShelvedBook {
   price: number | null;
   isbn: string | null;
   location: string | null;
+  cover_url: string | null;
   lent_to: string | null;
   note: string | null;
   created_at: string;

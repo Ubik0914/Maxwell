@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { SearchIcon } from "@/components/icons";
+import { BookCover } from "@/components/library/BookCover";
+import { normalizeIsbn } from "@/domain/library/isbn";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
   createBookAction,
@@ -25,6 +27,7 @@ interface Draft {
   published: string;
   price: string;
   location: string;
+  cover_url: string | null;
   lent_to: string;
   note: string;
 }
@@ -38,6 +41,7 @@ function draftOf(book?: ShelvedBook, initialIsbn?: string): Draft {
     published: book?.published ?? "",
     price: book?.price == null ? "" : String(book.price),
     location: book?.location ?? "",
+    cover_url: book?.cover_url ?? null,
     lent_to: book?.lent_to ?? "",
     note: book?.note ?? "",
   };
@@ -104,6 +108,7 @@ export function BookDialog({
       publisher: found.publisher ?? current.publisher,
       published: found.published ?? current.published,
       price: found.price == null ? current.price : String(found.price),
+      cover_url: found.cover_url ?? current.cover_url,
     }));
     setNotice("openBD から書誌を読み込みました。");
   }
@@ -167,56 +172,74 @@ export function BookDialog({
       width="max-w-lg"
     >
       <form onSubmit={save} className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="book-isbn" className={LABEL}>
-            ISBN
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="book-isbn"
-              value={draft.isbn}
-              onChange={(event) => set("isbn", event.target.value)}
-              onKeyDown={(event) => {
-                // Enter in the ISBN box means "look it up", not "save a
-                // book that has no title yet". A barcode scanner types
-                // the digits and presses Enter, so this is also what
-                // makes a scanner work.
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  void lookup();
-                }
-              }}
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="978-4-15-120053-3"
-              autoFocus={!book && !initialIsbn}
-              className={INPUT}
-            />
-            <button
-              type="button"
-              onClick={() => void lookup()}
-              disabled={isLookingUp || draft.isbn.trim() === ""}
-              className="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-text transition-colors hover:bg-surface-hover disabled:opacity-50"
-            >
-              {isLookingUp ? <Spinner /> : <SearchIcon />}
-              探す
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label htmlFor="book-title" className={LABEL}>
-            書名 <span className="text-danger">*</span>
-          </label>
-          <input
-            id="book-title"
-            value={draft.title}
-            onChange={(event) => set("title", event.target.value)}
-            autoFocus={Boolean(initialIsbn)}
-            required
-            maxLength={500}
-            className={INPUT}
+        <div className="flex gap-3">
+          <BookCover
+            title={draft.title || "表紙"}
+            isbn={normalizeIsbn(draft.isbn)}
+            coverUrl={draft.cover_url}
+            size="lg"
           />
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="book-isbn" className={LABEL}>
+                ISBN
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="book-isbn"
+                  value={draft.isbn}
+                  onChange={(event) =>
+                    // A different ISBN is a different book: the cover that
+                    // came with the old one no longer belongs here.
+                    setDraft((current) => ({
+                      ...current,
+                      isbn: event.target.value,
+                      cover_url: null,
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    // Enter in the ISBN box means "look it up", not "save a
+                    // book that has no title yet". A barcode scanner types
+                    // the digits and presses Enter, so this is also what
+                    // makes a scanner work.
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void lookup();
+                    }
+                  }}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="978-4-15-120053-3"
+                  autoFocus={!book && !initialIsbn}
+                  className={INPUT}
+                />
+                <button
+                  type="button"
+                  onClick={() => void lookup()}
+                  disabled={isLookingUp || draft.isbn.trim() === ""}
+                  className="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-text transition-colors hover:bg-surface-hover disabled:opacity-50"
+                >
+                  {isLookingUp ? <Spinner /> : <SearchIcon />}
+                  探す
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="book-title" className={LABEL}>
+                書名 <span className="text-danger">*</span>
+              </label>
+              <input
+                id="book-title"
+                value={draft.title}
+                onChange={(event) => set("title", event.target.value)}
+                autoFocus={Boolean(initialIsbn)}
+                required
+                maxLength={500}
+                className={INPUT}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

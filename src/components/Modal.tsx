@@ -49,7 +49,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`modal-panel w-full ${width} rounded-xl border border-border bg-surface p-6 shadow-[0_24px_70px_rgba(0,0,0,0.65)]`}
+        className={`modal-panel max-h-[calc(100dvh-2rem)] w-full ${width} overflow-y-auto rounded-xl border border-border bg-surface p-6 shadow-[0_24px_70px_rgba(0,0,0,0.65)]`}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">

@@ -11,6 +11,7 @@ import {
 import { Select } from "@/components/ui/Select";
 import { logoutAction } from "@/features/auth/actions";
 import { BookDialog } from "@/components/library/BookDialog";
+import { BookCover } from "@/components/library/BookCover";
 import {
   filterBooks,
   libraryStats,
@@ -212,12 +213,12 @@ function BookTable({
       <table className="w-full table-fixed text-left text-sm">
         <thead className="bg-surface text-[11px] tracking-wide text-text-faint uppercase">
           <tr>
-            <th className="w-[34%] px-3 py-2 font-semibold">書名</th>
+            <th className="w-[38%] px-3 py-2 font-semibold">書名</th>
             <th className="w-[20%] px-3 py-2 font-semibold">著者</th>
             <th className="w-[13%] px-3 py-2 font-semibold">出版社</th>
             <th className="w-[9%] px-3 py-2 font-semibold">発売</th>
             <th className="w-[10%] px-3 py-2 font-semibold">場所</th>
-            <th className="w-[14%] px-3 py-2 font-semibold">貸出</th>
+            <th className="w-[10%] px-3 py-2 font-semibold">貸出</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -227,25 +228,35 @@ function BookTable({
               onClick={() => onOpen(book)}
               className="cursor-pointer transition-colors hover:bg-surface-hover"
             >
-              <td className="px-3 py-2.5">
-                {/* A real button in the first cell, so the row can be
+              <td className="px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <BookCover
+                    title={book.title}
+                    isbn={book.isbn}
+                    coverUrl={book.cover_url}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    {/* A real button in the first cell, so the row can be
                     reached and opened from the keyboard. */}
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpen(book);
-                  }}
-                  className="block w-full truncate text-left font-medium text-text focus:outline-none focus-visible:text-accent"
-                  title={book.title}
-                >
-                  {book.title}
-                </button>
-                {book.isbn && (
-                  <span className="block truncate text-[11px] text-text-faint tabular-nums">
-                    {formatIsbn(book.isbn)}
-                  </span>
-                )}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpen(book);
+                      }}
+                      className="block w-full truncate text-left font-medium text-text focus:outline-none focus-visible:text-accent"
+                      title={book.title}
+                    >
+                      {book.title}
+                    </button>
+                    {book.isbn && (
+                      <span className="block truncate text-[11px] text-text-faint tabular-nums">
+                        {formatIsbn(book.isbn)}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </td>
               <td
                 className="truncate px-3 py-2.5 text-text-muted"
@@ -288,23 +299,32 @@ function BookCards({
           <button
             type="button"
             onClick={() => onOpen(book)}
-            className="flex w-full flex-col gap-1.5 rounded-lg border border-border bg-surface px-3 py-2.5 text-left transition-colors hover:bg-surface-hover"
+            className="flex w-full gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 text-left transition-colors hover:bg-surface-hover"
           >
-            <span className="text-sm font-medium text-text">{book.title}</span>
-            {(book.authors || book.publisher) && (
-              <span className="text-xs text-text-muted">
-                {[book.authors, book.publisher, book.published]
-                  .filter(Boolean)
-                  .join(" ・ ")}
+            <BookCover
+              title={book.title}
+              isbn={book.isbn}
+              coverUrl={book.cover_url}
+            />
+            <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="text-sm font-medium text-text">
+                {book.title}
               </span>
-            )}
-            <span className="flex items-center justify-between gap-2">
-              <LentPill book={book} />
-              {book.location && (
-                <span className="truncate text-[11px] text-text-faint">
-                  {book.location}
+              {(book.authors || book.publisher) && (
+                <span className="text-xs text-text-muted">
+                  {[book.authors, book.publisher, book.published]
+                    .filter(Boolean)
+                    .join(" ・ ")}
                 </span>
               )}
+              <span className="flex items-center justify-between gap-2">
+                <LentPill book={book} />
+                {book.location && (
+                  <span className="truncate text-[11px] text-text-faint">
+                    {book.location}
+                  </span>
+                )}
+              </span>
             </span>
           </button>
         </li>

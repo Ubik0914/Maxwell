@@ -1,4 +1,9 @@
-import { formatAuthors, formatPubdate, parseOpenBdRecord } from "../openbd";
+import {
+  coverOf,
+  formatAuthors,
+  formatPubdate,
+  parseOpenBdRecord,
+} from "../openbd";
 
 describe("formatPubdate", () => {
   it("keeps the year and month, whatever the shape", () => {
@@ -32,6 +37,26 @@ describe("formatAuthors", () => {
   });
 });
 
+describe("coverOf", () => {
+  it("keeps an https cover link", () => {
+    expect(coverOf("https://cover.openbd.jp/9784151200533.jpg")).toBe(
+      "https://cover.openbd.jp/9784151200533.jpg",
+    );
+  });
+
+  it("upgrades http, which a secure page would refuse to load", () => {
+    expect(coverOf("http://cover.openbd.jp/1.jpg")).toBe(
+      "https://cover.openbd.jp/1.jpg",
+    );
+  });
+
+  it("drops what is empty or not a web link", () => {
+    expect(coverOf("")).toBeNull();
+    expect(coverOf("javascript:alert(1)")).toBeNull();
+    expect(coverOf(undefined)).toBeNull();
+  });
+});
+
 describe("parseOpenBdRecord", () => {
   const record = {
     summary: {
@@ -41,6 +66,7 @@ describe("parseOpenBdRecord", () => {
       publisher: "早川書房",
       pubdate: "20090725",
       author: "Orwell,George,1903-1950／著 高橋和久／訳",
+      cover: "https://cover.openbd.jp/9784151200533.jpg",
     },
     onix: {
       ProductSupply: {
@@ -56,6 +82,7 @@ describe("parseOpenBdRecord", () => {
       publisher: "早川書房",
       published: "2009-07",
       price: 860,
+      cover_url: "https://cover.openbd.jp/9784151200533.jpg",
     });
   });
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeftIcon, PlusIcon } from "@/components/icons";
 import { Spinner } from "@/components/Spinner";
 import { BookDialog } from "@/components/library/BookDialog";
+import { BookCover } from "@/components/library/BookCover";
 import {
   useBarcodeScanner,
   type ScannerState,
@@ -463,6 +464,12 @@ function ScanRow({
         TONE[state.kind]
       } ${highlighted ? "ring-2 ring-accent" : ""}`}
     >
+      <BookCover
+        title={book?.title ?? formatIsbn(row.isbn)}
+        isbn={row.isbn || null}
+        coverUrl={book?.cover_url ?? null}
+        size="sm"
+      />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-text">
           {book ? book.title : formatIsbn(row.isbn)}
