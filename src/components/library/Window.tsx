@@ -60,29 +60,54 @@ export function Kbd({ children }: { children: ReactNode }) {
   );
 }
 
-/** A button in the footer: a label and, on keyboards, its shortcut. */
-export function FooterButton({
+const TONE = {
+  primary:
+    "bg-accent text-inverse hover:bg-accent-hover shadow-[0_6px_20px_rgba(34,211,238,0.25)]",
+  ghost: "text-text-muted hover:bg-surface-hover hover:text-text",
+  outline:
+    "border border-border text-text-muted hover:bg-surface-hover hover:text-text",
+  danger: "text-danger hover:bg-danger-soft",
+} as const;
+
+/**
+ * A button that is a picture. The library's buttons are icons first:
+ * the shape says what it does, and the words live in `label` — read
+ * out by a screen reader and shown as a tooltip on hover — rather than
+ * printed on every button in the window.
+ *
+ * Thumb-sized (44px) on a phone, the compact 32px Raycast size from
+ * `sm` up. `keys` is the keyboard shortcut, shown beside it where there
+ * is a keyboard.
+ */
+export function IconButton({
+  label,
   onClick,
   children,
+  tone = "ghost",
   keys,
-  primary = false,
+  type = "button",
+  disabled = false,
+  className = "",
 }: {
-  onClick: () => void;
+  label: string;
+  onClick?: () => void;
   children: ReactNode;
+  tone?: keyof typeof TONE;
   keys?: string[];
-  primary?: boolean;
+  type?: "button" | "submit";
+  disabled?: boolean;
+  className?: string;
 }) {
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
-      // Thumb-sized on a phone (44px, the primary one filled so it reads
-      // as the button); the compact Raycast strip from `sm` up.
-      className={`flex min-h-11 items-center gap-1.5 rounded-lg px-3.5 transition-[transform,background-color,color] active:scale-[0.96] sm:min-h-0 sm:rounded-md sm:px-2 sm:py-1 ${
-        primary
-          ? "bg-accent font-medium text-inverse hover:bg-accent-hover sm:bg-transparent sm:text-text sm:hover:bg-surface-hover"
-          : "text-text-muted hover:bg-surface-hover hover:text-text"
-      }`}
+      disabled={disabled}
+      aria-label={label}
+      title={keys ? `${label}（${keys.join("")}）` : label}
+      className={`flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl transition-[transform,background-color,color] active:scale-[0.92] disabled:opacity-50 sm:h-8 sm:min-w-8 sm:rounded-lg ${
+        keys ? "px-2.5 sm:px-1.5" : ""
+      } ${TONE[tone]} ${className}`}
     >
       {children}
       {keys && (

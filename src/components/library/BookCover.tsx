@@ -56,44 +56,50 @@ export function BookCover({
 
   const frame = `${SIZE[size]} shrink-0 overflow-hidden rounded-sm border border-border`;
 
-  if (!source) {
-    return (
-      <div
-        aria-hidden="true"
-        className={`${frame} flex items-center justify-center bg-surface-hover p-1 text-center leading-tight text-text-faint ${className}`}
-      >
-        <span className="line-clamp-4 break-all">{title}</span>
-      </div>
-    );
-  }
-
+  // The title card is always drawn, and the picture fades in on top of
+  // it once it has actually arrived. A cover that is slow, or never
+  // answers, leaves the card showing rather than an empty frame.
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- see above
-    <img
-      // An image already in the cache can finish before React attaches
-      // onLoad; the ref catches that one so it does not stay invisible.
-      ref={(image) => {
-        if (image?.complete && image.naturalWidth > 1 && loaded !== source) {
-          setLoaded(source);
-        }
-      }}
-      data-loaded={loaded === source}
-      src={source}
-      alt=""
-      loading="lazy"
-      decoding="async"
-      referrerPolicy="no-referrer"
-      onError={() => setFailed({ key, count: attempt + 1 })}
-      onLoad={(event) => {
-        // The NDL answers some unknown ISBNs with a 1×1 placeholder
-        // rather than a 404; treat that as the miss it is.
-        if (event.currentTarget.naturalWidth <= 1) {
-          setFailed({ key, count: attempt + 1 });
-        } else {
-          setLoaded(source);
-        }
-      }}
-      className={`lib-cover ${frame} bg-surface-hover object-cover ${className}`}
-    />
+    <div
+      aria-hidden="true"
+      className={`${frame} relative flex items-center justify-center bg-surface-hover p-1 text-center leading-tight text-text-faint ${className}`}
+    >
+      <span className="line-clamp-4 break-all">{title}</span>
+      {source && (
+        // eslint-disable-next-line @next/next/no-img-element -- see above
+        <img
+          key={source}
+          // An image already in the cache can finish before React
+          // attaches onLoad; the ref catches that one so it does not
+          // stay invisible.
+          ref={(image) => {
+            if (
+              image?.complete &&
+              image.naturalWidth > 1 &&
+              loaded !== source
+            ) {
+              setLoaded(source);
+            }
+          }}
+          data-loaded={loaded === source}
+          src={source}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed({ key, count: attempt + 1 })}
+          onLoad={(event) => {
+            // The NDL answers some unknown ISBNs with a 1×1 placeholder
+            // rather than a 404; treat that as the miss it is.
+            if (event.currentTarget.naturalWidth <= 1) {
+              setFailed({ key, count: attempt + 1 });
+            } else {
+              setLoaded(source);
+            }
+          }}
+          className="lib-cover absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+    </div>
   );
 }

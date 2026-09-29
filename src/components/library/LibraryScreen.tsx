@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   BarcodeIcon,
   BookIcon,
-  CloseIcon,
-  ListIcon,
+  CopyIcon,
+  LogoutIcon,
+  MoreIcon,
+  PencilIcon,
   PlusIcon,
+  RefreshIcon,
   SearchIcon,
+  SortIcon,
   TrashIcon,
 } from "@/components/icons";
 import { useToast } from "@/components/Toast";
@@ -21,7 +25,7 @@ import { BookDialog } from "@/components/library/BookDialog";
 import { BookCover } from "@/components/library/BookCover";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
 import {
-  FooterButton,
+  IconButton,
   Kbd,
   Window,
   WindowBar,
@@ -44,6 +48,9 @@ const SORT_LABEL: Record<BookSort, string> = {
 };
 
 const yen = new Intl.NumberFormat("ja-JP");
+
+/** Icon size inside an IconButton: larger under a thumb, 16px with a mouse. */
+const ICON = "h-5 w-5 sm:h-4 sm:w-4";
 
 /** Is a key press meant for a text field rather than for the list? */
 function typingElsewhere(target: EventTarget | null, search: Element | null) {
@@ -160,7 +167,7 @@ export function LibraryScreen({
           id: "refresh",
           section: selected.title,
           title: "書誌を再取得（価格・表紙などを補完）",
-          icon: <SearchIcon />,
+          icon: <RefreshIcon />,
           run: () => void refresh(selected),
         });
       }
@@ -170,7 +177,7 @@ export function LibraryScreen({
           id: "copy-isbn",
           section: selected.title,
           title: "ISBN をコピー",
-          icon: <ListIcon />,
+          icon: <CopyIcon />,
           run: () => {
             navigator.clipboard
               ?.writeText(isbn)
@@ -212,14 +219,14 @@ export function LibraryScreen({
           id: `sort-${option}`,
           section: "表示",
           title: `並び順: ${SORT_LABEL[option]}`,
-          icon: <ListIcon />,
+          icon: <SortIcon />,
           run: () => setSort(option),
         })),
       {
         id: "logout",
         section: "アカウント",
         title: `ログアウト（${userEmail}）`,
-        icon: <CloseIcon />,
+        icon: <LogoutIcon />,
         run: () => void logoutAction(),
       },
     );
@@ -381,25 +388,27 @@ export function LibraryScreen({
             </>
           }
         >
-          <FooterButton onClick={scan} primary>
-            <BarcodeIcon className="text-accent" />
-            スキャンして追加
-          </FooterButton>
           {selected && (
             <span className="hidden sm:contents">
-              <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
-              <FooterButton onClick={() => setEditing(selected)} keys={["↵"]}>
-                開く
-              </FooterButton>
+              <IconButton
+                label="開いて編集"
+                keys={["↵"]}
+                onClick={() => setEditing(selected)}
+              >
+                <PencilIcon className={ICON} />
+              </IconButton>
             </span>
           )}
-          <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
-          <FooterButton
-            onClick={() => setActionsOpen((open) => !open)}
+          <IconButton
+            label="アクション"
             keys={["⌘", "K"]}
+            onClick={() => setActionsOpen((open) => !open)}
           >
-            アクション
-          </FooterButton>
+            <MoreIcon className={ICON} />
+          </IconButton>
+          <IconButton label="スキャンして追加" tone="primary" onClick={scan}>
+            <BarcodeIcon className={ICON} />
+          </IconButton>
         </WindowFooter>
       </div>
 
@@ -608,23 +617,18 @@ function BookDetail({
       )}
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="rounded-md bg-surface-hover text-text transition-[transform,background-color] hover:bg-border active:scale-[0.97] min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-sm"
-        >
-          編集
-        </button>
+        <IconButton label="編集" tone="outline" onClick={onEdit}>
+          <PencilIcon className={ICON} />
+        </IconButton>
         {book.isbn && missingDetails(book) && (
-          <button
-            type="button"
+          <IconButton
+            label="書誌を再取得（価格・表紙などを補完）"
+            tone="outline"
             onClick={onRefresh}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-md border border-border text-text-muted transition-[transform,background-color] hover:bg-surface-hover hover:text-text active:scale-[0.97] disabled:opacity-60 min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-sm"
           >
-            {refreshing ? <Spinner /> : <SearchIcon />}
-            書誌を再取得
-          </button>
+            {refreshing ? <Spinner /> : <RefreshIcon className={ICON} />}
+          </IconButton>
         )}
       </div>
 
@@ -683,16 +687,15 @@ function ShelfSummary({ total, value }: { total: number; value: number }) {
 function EmptyShelf({ onScan }: { onScan: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <BarcodeIcon className="h-8 w-8 text-text-faint" />
       <p className="text-sm text-text-muted">まだ本が登録されていません</p>
-      <button
-        type="button"
+      <IconButton
+        label="スキャンして追加"
+        tone="primary"
         onClick={onScan}
-        className="flex items-center gap-2 rounded-md bg-accent font-medium text-inverse transition-colors hover:bg-accent-hover min-h-11 px-5 py-2.5 text-base sm:min-h-0 sm:px-4 sm:py-2 sm:text-sm"
+        className="!h-14 !w-14 !rounded-2xl"
       >
-        <BarcodeIcon />
-        スキャンして追加
-      </button>
+        <BarcodeIcon className="h-6 w-6" />
+      </IconButton>
     </div>
   );
 }
