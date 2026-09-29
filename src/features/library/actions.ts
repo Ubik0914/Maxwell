@@ -7,7 +7,8 @@ import {
   isbnLookupSchema,
   type BookFieldsInput,
 } from "@/lib/validation/book";
-import { parseOpenBdRecord, type BookDetails } from "@/domain/library/openbd";
+import type { BookDetails } from "@/domain/library/openbd";
+import { fetchOpenBd } from "@/features/library/openbd";
 import type { ShelvedBook } from "@/domain/library/filter";
 import * as bookRepository from "@/repositories/book.repository";
 import type { ActionResult } from "@/types/action-result";
@@ -34,13 +35,17 @@ function invalid<T>(message: string): ActionResult<T> {
   };
 }
 
-function failed<T>(error: unknown, message: string): ActionResult<T> {
-  if (
-    error &&
+function isDuplicate(error: unknown): boolean {
+  return (
+    !!error &&
     typeof error === "object" &&
     "code" in error &&
     error.code === bookRepository.DUPLICATE_ISBN
-  ) {
+  );
+}
+
+function failed<T>(error: unknown, message: string): ActionResult<T> {
+  if (isDuplicate(error)) {
     return invalid("この ISBN の本はすでに登録されています。");
   }
   return {
@@ -122,15 +127,7 @@ export async function lookupIsbnAction(
 
   const isbn = parsed.data;
   try {
-    const response = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`, {
-      signal: AbortSignal.timeout(8000),
-      next: { revalidate: 86400 },
-    });
-    if (!response.ok) throw new Error(`openBD ${response.status}`);
-    const records: unknown = await response.json();
-    const details = Array.isArray(records)
-      ? parseOpenBdRecord(records[0])
-      : null;
+    const details = await fetchOpenBd(isbn);
     if (!details) {
       return invalid(
         "この ISBN の書誌が見つかりませんでした。手で入力してください。",
@@ -138,12 +135,85 @@ export async function lookupIsbnAction(
     }
     return { success: true, data: { ...details, isbn } };
   } catch {
-    return {
-      success: false,
-      error: {
-        code: ErrorCode.INTERNAL_ERROR,
-        message: "openBD に接続できませんでした。手で入力してください。",
-      },
-    };
+    return unreachable();
+  }
+}
+
+function unreachable<T>(): ActionResult<T> {
+  return {
+    success: false,
+    error: {
+      code: ErrorCode.INTERNAL_ERROR,
+      message: "openBD に接続できませんでした。手で入力してください。",
+    },
+  };
+}
+
+export type ScanOutcome =
+  | { status: "added"; book: ShelvedBook }
+  | { status: "duplicate"; book: ShelvedBook }
+  | { status: "not_found"; isbn: string };
+
+/**
+ * One scan: an ISBN in, a book on the shelf out.
+ *
+ * The continuous scanner calls this once per barcode, so it does the
+ * whole job in one round trip — check the shelf, ask openBD, insert —
+ * rather than making the page choreograph three. What it cannot do is
+ * invent a title: an ISBN openBD does not know comes back as not_found
+ * for the person to fill in, rather than as a row called "9784…".
+ *
+ * `defaults` are the scanning session's settings (which shelf, read or
+ * not), applied to every book it adds.
+ */
+export async function addBookByIsbnAction(
+  rawIsbn: string,
+  defaults: Pick<BookFieldsInput, "location" | "reading_status"> = {},
+): Promise<ActionResult<ScanOutcome>> {
+  const parsed = isbnLookupSchema.safeParse(rawIsbn);
+  if (!parsed.success) {
+    return invalid(parsed.error.issues[0]?.message ?? "Invalid ISBN");
+  }
+
+  const { supabase, user } = await requireUser();
+  if (!user) return notLoggedIn();
+
+  const isbn = parsed.data;
+
+  try {
+    const existing = await bookRepository.findBookByIsbn(supabase, isbn);
+    if (existing)
+      return { success: true, data: { status: "duplicate", book: existing } };
+  } catch (error) {
+    return failed(error, "本棚を確認できませんでした。");
+  }
+
+  let details: BookDetails | null;
+  try {
+    details = await fetchOpenBd(isbn);
+  } catch {
+    return unreachable();
+  }
+  if (!details) return { success: true, data: { status: "not_found", isbn } };
+
+  const fields = bookFieldsSchema.safeParse({ ...details, ...defaults, isbn });
+  if (!fields.success) {
+    return invalid(fields.error.issues[0]?.message ?? "Invalid input");
+  }
+
+  try {
+    const book = await bookRepository.createBook(supabase, fields.data);
+    return { success: true, data: { status: "added", book } };
+  } catch (error) {
+    // Two scans of the same book racing each other: the unique index
+    // lets one in, and the other is the duplicate it would have been
+    // had it arrived a moment later.
+    if (isDuplicate(error)) {
+      const book = await bookRepository
+        .findBookByIsbn(supabase, isbn)
+        .catch(() => null);
+      if (book) return { success: true, data: { status: "duplicate", book } };
+    }
+    return failed(error, "本を登録できませんでした。");
   }
 }

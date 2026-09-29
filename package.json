@@ -17,6 +17,8 @@
     "@supabase/supabase-js": "^2.112.4",
     "@types/web-push": "^3.6.4",
     "@xyflow/react": "^12.11.5",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",

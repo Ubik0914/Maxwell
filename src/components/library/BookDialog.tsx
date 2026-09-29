@@ -31,9 +31,9 @@ interface Draft {
   note: string;
 }
 
-function draftOf(book?: ShelvedBook): Draft {
+function draftOf(book?: ShelvedBook, initialIsbn?: string): Draft {
   return {
-    isbn: book?.isbn ?? "",
+    isbn: book?.isbn ?? initialIsbn ?? "",
     title: book?.title ?? "",
     authors: book?.authors ?? "",
     publisher: book?.publisher ?? "",
@@ -56,17 +56,20 @@ function draftOf(book?: ShelvedBook): Draft {
  */
 export function BookDialog({
   book,
+  initialIsbn,
   onClose,
   onSaved,
   onDeleted,
 }: {
   /** The book being edited, or undefined when adding one. */
   book?: ShelvedBook;
+  /** Prefills the ISBN of a new book — a scan openBD had no record for. */
+  initialIsbn?: string;
   onClose: () => void;
   onSaved: (book: ShelvedBook) => void;
-  onDeleted: (bookId: string) => void;
+  onDeleted?: (bookId: string) => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(() => draftOf(book));
+  const [draft, setDraft] = useState<Draft>(() => draftOf(book, initialIsbn));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -151,7 +154,7 @@ export function BookDialog({
       return;
     }
 
-    onDeleted(book.id);
+    onDeleted?.(book.id);
     onClose();
   }
 
@@ -185,7 +188,7 @@ export function BookDialog({
               inputMode="numeric"
               autoComplete="off"
               placeholder="978-4-15-120053-3"
-              autoFocus={!book}
+              autoFocus={!book && !initialIsbn}
               className={INPUT}
             />
             <button
@@ -208,6 +211,7 @@ export function BookDialog({
             id="book-title"
             value={draft.title}
             onChange={(event) => set("title", event.target.value)}
+            autoFocus={Boolean(initialIsbn)}
             required
             maxLength={500}
             className={INPUT}

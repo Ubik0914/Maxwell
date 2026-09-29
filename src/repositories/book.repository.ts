@@ -37,6 +37,21 @@ export async function findBook(
   return data;
 }
 
+/** The caller's copy of an ISBN (13-digit form), if they have one. */
+export async function findBookByIsbn(
+  supabase: Client,
+  isbn: string,
+): Promise<ShelvedBook | null> {
+  const { data, error } = await supabase
+    .from("books")
+    .select(COLUMNS)
+    .eq("isbn", isbn)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function createBook(
   supabase: Client,
   fields: BookFields,
