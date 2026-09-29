@@ -398,7 +398,6 @@ export type Database = {
           price: number | null;
           isbn: string | null;
           location: string | null;
-          reading_status: "UNREAD" | "READING" | "READ";
           lent_to: string | null;
           note: string | null;
           created_at: string;
@@ -414,7 +413,6 @@ export type Database = {
           price?: number | null;
           isbn?: string | null;
           location?: string | null;
-          reading_status?: "UNREAD" | "READING" | "READ";
           lent_to?: string | null;
           note?: string | null;
           created_at?: string;
@@ -430,7 +428,6 @@ export type Database = {
           price?: number | null;
           isbn?: string | null;
           location?: string | null;
-          reading_status?: "UNREAD" | "READING" | "READ";
           lent_to?: string | null;
           note?: string | null;
           created_at?: string;

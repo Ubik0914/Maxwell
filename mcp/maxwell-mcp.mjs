@@ -41,7 +41,9 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 import { MaxwellError, apiRequest, readCredentials } from "../cli/client.mjs";
 
-const SERVER = { name: "maxwell", version: "0.1.0" };
+// Named for what it serves. The library is what a connected client
+// sees; nothing it is told should point anywhere else.
+const SERVER = { name: "library", version: "0.2.0" };
 
 /**
  * Protocol versions this speaks. A client asks for one in `initialize`;
@@ -54,9 +56,8 @@ const SERVER = { name: "maxwell", version: "0.1.0" };
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 /** What the model is told about this server once, on connection. */
-const INSTRUCTIONS = `This server reads the signed-in user's personal library: the books
-they own, where each one is, whether it has been read, and who it is
-lent to. It only reads — nothing here adds, changes or removes a book.
+const INSTRUCTIONS = `This server reads the signed-in user's library: the books on the
+shelf, where each one is, and who it is lent to. It only reads — nothing here adds, changes or removes a book.
 
 search_books is the call to start with. With no query it lists the
 shelf, newest first; with one, every word must appear somewhere in the
@@ -67,14 +68,13 @@ Its reply carries \`total\` (how many matched before the limit) and
 can be told apart. get_book returns one book by the id search_books
 gave it.
 
-reading_status is UNREAD, READING or READ. A book with lent_to set is
-out on loan to that person; null means it is at home.
+A book with lent_to set is out on loan to that person; null means it
+is on the shelf.
 
 Everything acts as the signed-in user, so it can reach exactly the
 books they own. A book it cannot see returns "not found" rather than
 saying so.`;
 
-const READING_STATUSES = ["UNREAD", "READING", "READ"];
 const SORTS = ["recent", "title", "author", "published"];
 
 /* ------------------------------------------------------------------ */
@@ -118,7 +118,7 @@ const TOOLS = [
     name: "search_books",
     title: "Search the library",
     description:
-      "Finds books on the user's shelf. With no query, lists them all (newest first). With one, every word must appear somewhere — title, author, publisher, ISBN, location, borrower or note. Filter by reading status or to books out on loan. The reply includes how many matched in total and counts for the whole shelf.",
+      "Finds books on the user's shelf. With no query, lists them all (newest first). With one, every word must appear somewhere — title, author, publisher, ISBN, location, borrower or note. Can be narrowed to the books out on loan. The reply includes how many matched in total and counts for the whole shelf.",
     inputSchema: {
       type: "object",
       properties: {
@@ -127,11 +127,9 @@ const TOOLS = [
           description:
             'Words to look for, space-separated, e.g. "orwell 早川" or an ISBN. Leave out to list everything.',
         },
-        status: {
-          type: "string",
-          enum: ["ALL", "LENT", ...READING_STATUSES],
-          description:
-            "UNREAD, READING or READ; LENT for books out on loan. Defaults to ALL.",
+        lentOnly: {
+          type: "boolean",
+          description: "Only books currently lent to someone. Defaults to false.",
         },
         sort: {
           type: "string",
@@ -149,10 +147,10 @@ const TOOLS = [
       additionalProperties: false,
     },
     annotations: READ_ONLY,
-    run({ query, status, sort, limit }, call) {
+    run({ query, lentOnly, sort, limit }, call) {
       const params = new URLSearchParams();
       if (query) params.set("q", query);
-      if (status) params.set("status", status);
+      if (lentOnly) params.set("lent", "true");
       if (sort) params.set("sort", sort);
       if (limit !== undefined) params.set("limit", String(limit));
       const qs = params.toString();

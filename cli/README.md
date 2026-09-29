@@ -109,7 +109,7 @@ POST /api/v1/auth/token
 | PATCH | `/api/v1/routines/{id}` | ルーチン更新（タイトル・曜日・一時停止）|
 | DELETE | `/api/v1/routines/{id}` | ルーチン削除（記録ごと消える）|
 | PUT | `/api/v1/routines/{id}/completion` | ある日の完了/取り消し（`{ "date", "done" }`）|
-| GET | `/api/v1/books?q=&status=&sort=&limit=` | 蔵書検索（`status`: ALL/UNREAD/READING/READ/LENT、`sort`: recent/title/author/published）。`total` と棚全体の `stats` 付き |
+| GET | `/api/v1/books?q=&lent=&sort=&limit=` | 蔵書検索（`lent=true` で貸出中のみ、`sort`: recent/title/author/published）。`total` と棚全体の `stats` 付き |
 | GET | `/api/v1/books/{id}` | 蔵書1冊 |
 
 成功は `{ "data": … }`、失敗は `{ "error": { "code": …, "message": … } }`。

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Offline — Maxwell",
+  title: "オフライン",
 };
 
 /**
@@ -19,11 +19,9 @@ export const metadata: Metadata = {
 export default function Offline() {
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-bg px-6 text-center">
-      <h1 className="text-2xl font-semibold text-text">You&apos;re offline</h1>
+      <h1 className="text-2xl font-semibold text-text">オフラインです</h1>
       <p className="max-w-sm text-sm text-text-muted">
-        Maxwell needs the network to show a story — a graph you cannot
-        change is a picture, and a stale one would be worse than none.
-        This page will work again the moment the connection does.
+        表示にはネットワーク接続が必要です。接続が戻ればそのまま使えます。
       </p>
     </div>
   );

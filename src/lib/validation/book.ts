@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { normalizeIsbn } from "@/domain/library/isbn";
-import { READING_STATUSES } from "@/domain/library/filter";
 
 /** A blank box is "not written down", which the table stores as null. */
 function optionalText(max: number, label: string) {
@@ -46,7 +45,6 @@ export const bookFieldsSchema = z.object({
       return isbn;
     }),
   location: optionalText(100, "場所"),
-  reading_status: z.enum(READING_STATUSES).default("UNREAD"),
   lent_to: optionalText(100, "貸出先"),
   note: optionalText(5000, "メモ"),
 });
@@ -69,7 +67,10 @@ export const isbnLookupSchema = z.string().transform((value, ctx) => {
 /** The query string GET /api/v1/books reads. Everything is optional. */
 export const bookSearchSchema = z.object({
   q: z.string().max(200, "Query must be 200 characters or fewer").default(""),
-  status: z.enum(["ALL", "LENT", ...READING_STATUSES]).default("ALL"),
+  lent: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   sort: z.enum(["recent", "title", "author", "published"]).default("recent"),
   limit: z.coerce.number().int().min(1).max(500).default(50),
 });

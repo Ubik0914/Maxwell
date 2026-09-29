@@ -16,7 +16,6 @@ function book(overrides: Partial<ShelvedBook>): ShelvedBook {
     price: null,
     isbn: null,
     location: null,
-    reading_status: "UNREAD",
     lent_to: null,
     note: null,
     created_at: "2026-09-01T00:00:00Z",
@@ -32,7 +31,6 @@ const shelf = [
     published: "2009-07",
     price: 860,
     isbn: "9784151200533",
-    reading_status: "READ",
     created_at: "2026-09-02T00:00:00Z",
   }),
   book({
@@ -40,7 +38,6 @@ const shelf = [
     authors: "Dick, Philip K.",
     publisher: "早川書房",
     published: "2011-06",
-    reading_status: "READING",
     lent_to: "田中",
     created_at: "2026-09-03T00:00:00Z",
   }),
@@ -63,31 +60,29 @@ describe("foldForSearch", () => {
 
 describe("filterBooks", () => {
   it("returns everything for an empty query", () => {
-    expect(filterBooks(shelf, { query: " ", status: "ALL" })).toHaveLength(3);
+    expect(filterBooks(shelf, { query: " " })).toHaveLength(3);
   });
 
   it("needs every word to match, anywhere", () => {
-    const found = filterBooks(shelf, { query: "orwell 早川", status: "ALL" });
+    const found = filterBooks(shelf, { query: "orwell 早川" });
     expect(found.map((b) => b.title)).toEqual(["一九八四年"]);
   });
 
   it("finds katakana typed as hiragana", () => {
-    const found = filterBooks(shelf, { query: "あんどろいど", status: "ALL" });
+    const found = filterBooks(shelf, { query: "あんどろいど" });
     expect(found).toHaveLength(1);
   });
 
   it("finds by ISBN with hyphens", () => {
     const found = filterBooks(shelf, {
       query: "978-4151200533",
-      status: "ALL",
     });
     expect(found.map((b) => b.title)).toEqual(["一九八四年"]);
   });
 
-  it("filters by reading status and by lent", () => {
-    expect(filterBooks(shelf, { query: "", status: "READ" })).toHaveLength(1);
+  it("narrows to the books out on loan", () => {
     expect(
-      filterBooks(shelf, { query: "", status: "LENT" }).map((b) => b.lent_to),
+      filterBooks(shelf, { query: "", lentOnly: true }).map((b) => b.lent_to),
     ).toEqual(["田中"]);
   });
 });
@@ -113,13 +108,6 @@ describe("sortBooks", () => {
 
 describe("libraryStats", () => {
   it("counts the shelf", () => {
-    expect(libraryStats(shelf)).toEqual({
-      total: 3,
-      read: 1,
-      reading: 1,
-      unread: 1,
-      lent: 1,
-      value: 1960,
-    });
+    expect(libraryStats(shelf)).toEqual({ total: 3, lent: 1, value: 1960 });
   });
 });

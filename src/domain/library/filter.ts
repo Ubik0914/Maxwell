@@ -1,13 +1,14 @@
 /**
  * Finding a book on the shelf.
  *
- * A personal library is hundreds of books, not millions, so every book
- * is on the page already and the search runs in the browser as you
+ * A library of this size is hundreds of books, not millions, so every
+ * book is on the page already and the search runs in the browser as you
  * type — no round trip between a keystroke and the answer.
+ *
+ * There is no reading status. The shelf is shared by several people,
+ * and "read" is a fact about a reader, not about a book; the one state
+ * a shared book does have is whether somebody has borrowed it.
  */
-
-export const READING_STATUSES = ["UNREAD", "READING", "READ"] as const;
-export type ReadingStatus = (typeof READING_STATUSES)[number];
 
 export interface ShelvedBook {
   id: string;
@@ -18,13 +19,10 @@ export interface ShelvedBook {
   price: number | null;
   isbn: string | null;
   location: string | null;
-  reading_status: ReadingStatus;
   lent_to: string | null;
   note: string | null;
   created_at: string;
 }
-
-export type StatusFilter = ReadingStatus | "LENT" | "ALL";
 
 export type BookSort = "recent" | "title" | "author" | "published";
 
@@ -62,7 +60,7 @@ function haystack(book: ShelvedBook): string {
 
 export function filterBooks(
   books: ShelvedBook[],
-  { query, status }: { query: string; status: StatusFilter },
+  { query, lentOnly = false }: { query: string; lentOnly?: boolean },
 ): ShelvedBook[] {
   // Every word has to match somewhere, in any order: "orwell 早川" finds
   // the book whether the words are in the title, author or publisher.
@@ -72,14 +70,7 @@ export function filterBooks(
     .filter((word) => word !== "");
 
   return books.filter((book) => {
-    if (status === "LENT" && !book.lent_to) return false;
-    if (
-      status !== "ALL" &&
-      status !== "LENT" &&
-      book.reading_status !== status
-    ) {
-      return false;
-    }
+    if (lentOnly && !book.lent_to) return false;
     if (words.length === 0) return true;
     const text = haystack(book);
     return words.every((word) => text.includes(word));
@@ -117,9 +108,6 @@ export function sortBooks(books: ShelvedBook[], sort: BookSort): ShelvedBook[] {
 
 export interface LibraryStats {
   total: number;
-  read: number;
-  reading: number;
-  unread: number;
   lent: number;
   /** Sum of the cover prices that were written down. */
   value: number;
@@ -129,12 +117,9 @@ export function libraryStats(books: ShelvedBook[]): LibraryStats {
   return books.reduce<LibraryStats>(
     (stats, book) => ({
       total: stats.total + 1,
-      read: stats.read + (book.reading_status === "READ" ? 1 : 0),
-      reading: stats.reading + (book.reading_status === "READING" ? 1 : 0),
-      unread: stats.unread + (book.reading_status === "UNREAD" ? 1 : 0),
       lent: stats.lent + (book.lent_to ? 1 : 0),
       value: stats.value + (book.price ?? 0),
     }),
-    { total: 0, read: 0, reading: 0, unread: 0, lent: 0, value: 0 },
+    { total: 0, lent: 0, value: 0 },
   );
 }
