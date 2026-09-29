@@ -7,6 +7,7 @@ DAGベースのタスク管理システム。StoryのStartとGoalを先に定義
 | パス | 中身 |
 | --- | --- |
 | `/` | **蔵書管理**（書名・著者・出版社・発売日・価格・ISBN・場所・読書状況・貸出先）。ISBN を入れると openBD から書誌を補完する |
+| `/scan` | 蔵書の**連続スキャン**。カメラ（Android Chrome は BarcodeDetector、iPhone Safari などは ZXing）かバーコードリーダーで ISBN を読むたびに openBD で書誌を引いて即登録する。登録済み・書誌なしは一覧に残り、取消・手入力・再試行ができる |
 | `/maxwell` | Maxwell 本体（`/maxwell/stories`・`/maxwell/workspaces`・`/maxwell/routines`・`/maxwell/docs`） |
 | `/login`・`/signup` | 両方で共通のサインイン。`?next=/path` でサインイン後の戻り先を指定できる |
 | `/api/*`・`/oauth/*` | Maxwell の REST API / MCP / OAuth。外部クライアントの接続先を変えないためルートのまま |

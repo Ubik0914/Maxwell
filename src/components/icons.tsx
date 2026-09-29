@@ -277,6 +277,19 @@ export function SettingsIcon({ className }: { className?: string }) {
   );
 }
 
+/** Scan brackets around a few bars: read a barcode. */
+export function BarcodeIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M3 6.5V4.5a1.5 1.5 0 0 1 1.5-1.5h2" />
+      <path d="M13.5 3h2A1.5 1.5 0 0 1 17 4.5v2" />
+      <path d="M17 13.5v2a1.5 1.5 0 0 1-1.5 1.5h-2" />
+      <path d="M6.5 17h-2A1.5 1.5 0 0 1 3 15.5v-2" />
+      <path d="M7 7v6M10 7v6M13 7v6" />
+    </Icon>
+  );
+}
+
 export function SearchIcon({ className }: { className?: string }) {
   return (
     <Icon className={className}>

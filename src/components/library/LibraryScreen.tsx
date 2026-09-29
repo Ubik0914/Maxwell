@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BookIcon, PlusIcon, SearchIcon } from "@/components/icons";
+import {
+  BarcodeIcon,
+  BookIcon,
+  PlusIcon,
+  SearchIcon,
+} from "@/components/icons";
 import { Select } from "@/components/ui/Select";
 import { logoutAction } from "@/features/auth/actions";
 import { BookDialog } from "@/components/library/BookDialog";
@@ -146,10 +151,17 @@ export function LibraryScreen({
               options={SORT_OPTIONS}
               onChange={setSort}
             />
+            <Link
+              href="/scan"
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-text transition-colors hover:bg-surface-hover"
+            >
+              <BarcodeIcon />
+              連続スキャン
+            </Link>
             <button
               type="button"
               onClick={() => setEditing("new")}
-              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
+              className="flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
             >
               <PlusIcon />
               本を登録
