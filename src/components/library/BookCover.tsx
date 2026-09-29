@@ -50,6 +50,7 @@ export function BookCover({
   // whichever failed before.
   const key = sources.join("|");
   const [failed, setFailed] = useState({ key, count: 0 });
+  const [loaded, setLoaded] = useState<string | null>(null);
   const attempt = failed.key === key ? failed.count : 0;
   const source = sources[attempt];
 
@@ -69,6 +70,14 @@ export function BookCover({
   return (
     // eslint-disable-next-line @next/next/no-img-element -- see above
     <img
+      // An image already in the cache can finish before React attaches
+      // onLoad; the ref catches that one so it does not stay invisible.
+      ref={(image) => {
+        if (image?.complete && image.naturalWidth > 1 && loaded !== source) {
+          setLoaded(source);
+        }
+      }}
+      data-loaded={loaded === source}
       src={source}
       alt=""
       loading="lazy"
@@ -80,9 +89,11 @@ export function BookCover({
         // rather than a 404; treat that as the miss it is.
         if (event.currentTarget.naturalWidth <= 1) {
           setFailed({ key, count: attempt + 1 });
+        } else {
+          setLoaded(source);
         }
       }}
-      className={`${frame} bg-surface-hover object-cover ${className}`}
+      className={`lib-cover ${frame} bg-surface-hover object-cover ${className}`}
     />
   );
 }

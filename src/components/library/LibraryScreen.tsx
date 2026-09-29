@@ -13,7 +13,13 @@ import {
 } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { logoutAction } from "@/features/auth/actions";
-import { deleteBookAction } from "@/features/library/actions";
+import {
+  deleteBookAction,
+  refreshBookAction,
+} from "@/features/library/actions";
+import { Modal } from "@/components/Modal";
+import { Spinner } from "@/components/Spinner";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { BookDialog } from "@/components/library/BookDialog";
 import { BookCover } from "@/components/library/BookCover";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
@@ -85,6 +91,10 @@ export function LibraryScreen({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
+  // Phones have no room for a detail pane; tapping a book opens it as a
+  // sheet instead, and editing is one more tap from there.
+  const [viewing, setViewing] = useState<ShelvedBook | null>(null);
+  const [refreshing, setRefreshing] = useState<string | null>(null);
 
   const stats = useMemo(() => libraryStats(books), [books]);
   const shown = useMemo(
@@ -126,6 +136,29 @@ export function LibraryScreen({
     [showError, showSuccess],
   );
 
+  const refresh = useCallback(
+    async (book: ShelvedBook) => {
+      setRefreshing(book.id);
+      const result = await refreshBookAction(book.id);
+      setRefreshing(null);
+      if (!result.success) {
+        showError(result.error.message);
+        return;
+      }
+      const { book: updated, filled } = result.data;
+      setBooks((current) =>
+        current.map((b) => (b.id === updated.id ? updated : b)),
+      );
+      setViewing((open) => (open?.id === updated.id ? updated : open));
+      showSuccess(
+        filled.length > 0
+          ? `${filled.map((key) => FIELD_LABEL[key]).join("・")}を補完しました`
+          : "新しく取得できた情報はありませんでした",
+      );
+    },
+    [showError, showSuccess],
+  );
+
   const actions = useMemo<Action[]>(() => {
     const list: Action[] = [];
     if (selected) {
@@ -146,6 +179,15 @@ export function LibraryScreen({
           run: () => setEditing(selected),
         },
       );
+      if (selected.isbn && missingDetails(selected)) {
+        list.push({
+          id: "refresh",
+          section: selected.title,
+          title: "書誌を再取得（価格・表紙などを補完）",
+          icon: <SearchIcon />,
+          run: () => void refresh(selected),
+        });
+      }
       if (selected.isbn) {
         const isbn = selected.isbn;
         list.push({
@@ -217,6 +259,7 @@ export function LibraryScreen({
     userEmail,
     scan,
     remove,
+    refresh,
     showError,
     showSuccess,
   ]);
@@ -225,7 +268,7 @@ export function LibraryScreen({
   // is, the way Raycast's does; ↑↓ move the selection, ↵ opens it,
   // ⌘K opens the actions, and Escape clears the search.
   useEffect(() => {
-    if (editing || actionsOpen) return;
+    if (editing || actionsOpen || viewing) return;
 
     function onKeyDown(event: KeyboardEvent) {
       if (typingElsewhere(event.target, searchRef.current)) return;
@@ -261,6 +304,7 @@ export function LibraryScreen({
   }, [
     editing,
     actionsOpen,
+    viewing,
     select,
     selectedIndex,
     shown.length,
@@ -330,6 +374,8 @@ export function LibraryScreen({
                   {shown.map((book, index) => (
                     <li
                       key={book.id}
+                      className="lib-row"
+                      style={{ "--i": index } as React.CSSProperties}
                       ref={(element) => {
                         if (element) rowRefs.current.set(book.id, element);
                         else rowRefs.current.delete(book.id);
@@ -343,6 +389,10 @@ export function LibraryScreen({
                           setSelectedId(book.id);
                           setEditing(book);
                         }}
+                        onView={() => {
+                          setSelectedId(book.id);
+                          setViewing(book);
+                        }}
                       />
                     </li>
                   ))}
@@ -354,7 +404,14 @@ export function LibraryScreen({
 
         <aside className="hidden min-w-0 flex-1 overflow-y-auto md:block">
           {selected ? (
-            <BookDetail book={selected} />
+            <div key={selected.id} className="lib-detail">
+              <BookDetail
+                book={selected}
+                refreshing={refreshing === selected.id}
+                onEdit={() => setEditing(selected)}
+                onRefresh={() => void refresh(selected)}
+              />
+            </div>
           ) : (
             <ShelfSummary
               total={stats.total}
@@ -405,37 +462,68 @@ export function LibraryScreen({
         </WindowFooter>
       </div>
 
+      {viewing && !editing && (
+        <DetailSheet
+          book={viewing}
+          refreshing={refreshing === viewing.id}
+          onClose={() => setViewing(null)}
+          onEdit={() => setEditing(viewing)}
+          onRefresh={() => void refresh(viewing)}
+        />
+      )}
+
       {editing && (
         <BookDialog
           book={editing === "new" ? undefined : editing}
           onClose={() => setEditing(null)}
-          onSaved={saved}
-          onDeleted={(bookId) =>
-            setBooks((current) => current.filter((b) => b.id !== bookId))
-          }
+          onSaved={(book) => {
+            saved(book);
+            setViewing((open) => (open?.id === book.id ? book : open));
+          }}
+          onDeleted={(bookId) => {
+            setBooks((current) => current.filter((b) => b.id !== bookId));
+            setViewing(null);
+          }}
         />
       )}
     </Window>
   );
 }
 
+/** The line under the author: who published it, when, for how much. */
+function imprint(book: ShelvedBook): string {
+  return [
+    book.publisher,
+    book.published,
+    book.price == null ? null : `¥${yen.format(book.price)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /**
- * One list item: cover as the icon, title and author as the text, and
- * the "accessories" Raycast puts on the right — who has it, where it is.
- * Clicking selects (and on a phone, where there is no detail pane,
- * opens); double-clicking opens.
+ * One list item: cover as the icon, and the text on three lines —
+ * title, author, then publisher · date · price — so the imprint is not
+ * run together with the author the way one long line did. Raycast's
+ * "accessories" sit on the right: who has it, where it is.
+ *
+ * Clicking selects on a desktop, where the detail pane shows it; on a
+ * phone, where there is no pane, it opens the detail sheet.
  */
 function BookRow({
   book,
   selected,
   onSelect,
   onOpen,
+  onView,
 }: {
   book: ShelvedBook;
   selected: boolean;
   onSelect: () => void;
   onOpen: () => void;
+  onView: () => void;
 }) {
+  const line = imprint(book);
   return (
     <button
       type="button"
@@ -443,10 +531,10 @@ function BookRow({
       aria-selected={selected}
       onClick={() => {
         if (window.matchMedia("(min-width: 768px)").matches) onSelect();
-        else onOpen();
+        else onView();
       }}
       onDoubleClick={onOpen}
-      className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors ${
+      className={`lib-select flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left ${
         selected ? "bg-surface-hover" : "hover:bg-surface-hover/60"
       }`}
     >
@@ -459,19 +547,24 @@ function BookRow({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm text-text">{book.title}</span>
         {book.authors && (
-          <span className="block truncate text-xs text-text-faint">
+          <span className="block truncate text-xs text-text-muted">
             {book.authors}
           </span>
         )}
+        {line && (
+          <span className="block truncate text-[11px] text-text-faint">
+            {line}
+          </span>
+        )}
       </span>
-      <span className="flex shrink-0 items-center gap-1.5">
+      <span className="flex shrink-0 flex-col items-end gap-1">
         {book.lent_to && (
           <span className="max-w-24 truncate rounded bg-accent-soft px-1.5 py-0.5 text-[11px] text-accent">
             {book.lent_to}
           </span>
         )}
         {book.location && (
-          <span className="hidden max-w-24 truncate text-[11px] text-text-faint sm:inline">
+          <span className="max-w-24 truncate text-[11px] text-text-faint">
             {book.location}
           </span>
         )}
@@ -480,8 +573,44 @@ function BookRow({
   );
 }
 
-/** Raycast's detail pane: a picture on top, then label / value rows. */
-function BookDetail({ book }: { book: ShelvedBook }) {
+const FIELD_LABEL: Record<string, string> = {
+  authors: "著者",
+  publisher: "出版社",
+  published: "発売",
+  price: "価格",
+  cover_url: "表紙",
+};
+
+/** Whether a re-lookup could still add something to this book. */
+function missingDetails(book: ShelvedBook): boolean {
+  return (
+    !book.authors ||
+    !book.publisher ||
+    !book.published ||
+    book.price == null ||
+    !book.cover_url
+  );
+}
+
+/**
+ * Raycast's detail pane: a picture on top, then the metadata. Each label
+ * sits on its own line above its value — a long publisher or a pair of
+ * translators reads as one block instead of being squeezed against the
+ * right edge.
+ */
+function BookDetail({
+  book,
+  refreshing,
+  onEdit,
+  onRefresh,
+  compact = false,
+}: {
+  book: ShelvedBook;
+  refreshing: boolean;
+  onEdit: () => void;
+  onRefresh: () => void;
+  compact?: boolean;
+}) {
   const rows: [string, string | null][] = [
     ["著者", book.authors],
     ["出版社", book.publisher],
@@ -493,23 +622,36 @@ function BookDetail({ book }: { book: ShelvedBook }) {
   ];
 
   return (
-    <div className="flex flex-col gap-4 p-5">
-      <BookCover
-        title={book.title}
-        isbn={book.isbn}
-        coverUrl={book.cover_url}
-        size="lg"
-        className="self-center"
-      />
-      <h2 className="text-center text-base font-semibold text-text">
-        {book.title}
-      </h2>
-      <dl className="flex flex-col divide-y divide-border border-t border-border text-sm">
+    <div className={`flex flex-col gap-4 ${compact ? "" : "p-5"}`}>
+      <div className="flex items-start gap-4">
+        <BookCover
+          title={book.title}
+          isbn={book.isbn}
+          coverUrl={book.cover_url}
+          size="lg"
+          className="shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
+          <h2 className="text-base leading-snug font-semibold text-text">
+            {book.title}
+          </h2>
+          {book.authors && (
+            <p className="text-sm text-text-muted">{book.authors}</p>
+          )}
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm">
         {rows.map(([label, value]) => (
-          <div key={label} className="flex items-baseline gap-4 py-2">
-            <dt className="w-16 shrink-0 text-xs text-text-faint">{label}</dt>
+          <div
+            key={label}
+            className={
+              label === "著者" || label === "出版社" ? "col-span-2" : ""
+            }
+          >
+            <dt className="text-[11px] text-text-faint">{label}</dt>
             <dd
-              className={`min-w-0 flex-1 text-right break-words ${
+              className={`mt-0.5 break-words ${
                 value ? "text-text" : "text-text-faint"
               }`}
             >
@@ -518,16 +660,69 @@ function BookDetail({ book }: { book: ShelvedBook }) {
           </div>
         ))}
       </dl>
+
       {book.note && (
         <p className="rounded-md bg-bg/40 p-3 text-xs whitespace-pre-wrap text-text-muted">
           {book.note}
         </p>
       )}
-      <p className="flex items-center justify-center gap-1.5 text-[11px] text-text-faint">
-        <Kbd>↵</Kbd> で編集 · <Kbd>⌘</Kbd>
-        <Kbd>K</Kbd> でアクション
-      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="rounded-md bg-surface-hover px-3 py-1.5 text-sm text-text transition-[transform,background-color] hover:bg-border active:scale-[0.97]"
+        >
+          編集
+        </button>
+        {book.isbn && missingDetails(book) && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted transition-[transform,background-color] hover:bg-surface-hover hover:text-text active:scale-[0.97] disabled:opacity-60"
+          >
+            {refreshing ? <Spinner /> : <SearchIcon />}
+            書誌を再取得
+          </button>
+        )}
+      </div>
+
+      {!compact && (
+        <p className="flex items-center gap-1.5 text-[11px] text-text-faint">
+          <Kbd>↵</Kbd> で編集 · <Kbd>⌘</Kbd>
+          <Kbd>K</Kbd> でアクション
+        </p>
+      )}
     </div>
+  );
+}
+
+/** The detail pane, as a sheet, for screens too narrow to show it. */
+function DetailSheet({
+  book,
+  refreshing,
+  onClose,
+  onEdit,
+  onRefresh,
+}: {
+  book: ShelvedBook;
+  refreshing: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onRefresh: () => void;
+}) {
+  useEscapeKey(onClose, true, { exclusive: true });
+  return (
+    <Modal title="本の詳細" onClose={onClose} width="max-w-md">
+      <BookDetail
+        book={book}
+        refreshing={refreshing}
+        onEdit={onEdit}
+        onRefresh={onRefresh}
+        compact
+      />
+    </Modal>
   );
 }
 

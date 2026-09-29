@@ -68,7 +68,7 @@ export function ActionPanel({
       ref={panelRef}
       role="dialog"
       aria-label="アクション"
-      className="absolute right-2 bottom-12 z-30 flex max-h-[min(24rem,70dvh)] w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-lg border border-border-strong bg-surface shadow-[0_20px_60px_rgba(0,0,0,0.6)] sm:right-3"
+      className="lib-pop absolute right-2 bottom-12 z-30 flex max-h-[min(24rem,70dvh)] w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-lg border border-border-strong bg-surface shadow-[0_20px_60px_rgba(0,0,0,0.6)] sm:right-3"
       onKeyDown={(event) => {
         if (event.key === "ArrowDown") {
           event.preventDefault();
