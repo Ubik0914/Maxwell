@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, PlusIcon } from "@/components/icons";
+import { ArrowLeftIcon, BarcodeIcon, PlusIcon } from "@/components/icons";
+import { useRouter } from "next/navigation";
+import {
+  FooterButton,
+  Window,
+  WindowBar,
+  WindowFooter,
+} from "@/components/library/Window";
 import { Spinner } from "@/components/Spinner";
 import { BookDialog } from "@/components/library/BookDialog";
 import { BookCover } from "@/components/library/BookCover";
@@ -60,6 +67,7 @@ const SCANNER_MESSAGE: Partial<Record<ScannerState, string>> = {
  * here, folded away below it.
  */
 export function ScanScreen() {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const session = useRef(new ScanSession());
@@ -242,8 +250,8 @@ export function ScanScreen() {
   );
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg">
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-bg/95 px-3 py-3 backdrop-blur sm:px-6">
+    <Window>
+      <WindowBar>
         <Link
           href="/"
           aria-label="蔵書に戻る"
@@ -251,19 +259,13 @@ export function ScanScreen() {
         >
           <ArrowLeftIcon />
         </Link>
-        <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-text">
+        <h1 className="min-w-0 flex-1 truncate text-base text-text sm:text-lg">
           連続スキャン
         </h1>
-        <Link
-          href="/"
-          className="shrink-0 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
-        >
-          完了
-        </Link>
-      </header>
+      </WindowBar>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-4 sm:px-6">
-        <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-3">
+      <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3 sm:px-4">
+        <section className="flex flex-col gap-3 rounded-lg bg-bg/40 p-3">
           <div className="relative overflow-hidden rounded-md bg-black">
             {/* Kept mounted while off so the stream has somewhere to go
                 the moment it starts; hidden rather than removed. */}
@@ -326,7 +328,7 @@ export function ScanScreen() {
         <details
           open={manualOpen || cameraFailed}
           onToggle={(event) => setManualOpen(event.currentTarget.open)}
-          className="group rounded-lg border border-border bg-surface px-3 py-2"
+          className="group rounded-lg bg-bg/40 px-3 py-2"
         >
           <summary className="cursor-pointer list-none text-xs text-text-muted select-none">
             <span className="inline-block transition-transform group-open:rotate-90">
@@ -372,19 +374,15 @@ export function ScanScreen() {
         </details>
 
         <section className="flex flex-col gap-2">
-          <p className="text-xs text-text-faint" aria-live="polite">
-            追加 {counts.added ?? 0} ・ 登録済み {counts.duplicate ?? 0} ・
-            見つからず {counts.not_found ?? 0}
-            {counts.error ? ` ・ エラー ${counts.error}` : ""}
-            {counts.pending ? ` ・ 処理中 ${counts.pending}` : ""}
+          <p className="px-1 text-[11px] font-semibold text-text-faint">
+            読み取った本
           </p>
-
           {rows.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-text-muted">
               読み取った本がここに並びます。
             </p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-1">
               {rows.map((row) => (
                 <ScanRow
                   key={row.id}
@@ -399,6 +397,24 @@ export function ScanScreen() {
           )}
         </section>
       </main>
+
+      <WindowFooter
+        left={
+          <>
+            <BarcodeIcon className="text-accent" />
+            <span className="truncate" aria-live="polite">
+              追加 {counts.added ?? 0} · 登録済み {counts.duplicate ?? 0} ·
+              書誌なし {counts.not_found ?? 0}
+              {counts.error ? ` · エラー ${counts.error}` : ""}
+              {counts.pending ? ` · 処理中 ${counts.pending}` : ""}
+            </span>
+          </>
+        }
+      >
+        <FooterButton onClick={() => router.push("/")} primary>
+          完了
+        </FooterButton>
+      </WindowFooter>
 
       {typingBook && (
         <BookDialog
@@ -424,17 +440,17 @@ export function ScanScreen() {
           onSaved={(book) => update(manualEntry.id, { kind: "added", book })}
         />
       )}
-    </div>
+    </Window>
   );
 }
 
 const TONE: Record<RowState["kind"], string> = {
-  pending: "border-border",
-  added: "border-success/40",
-  duplicate: "border-warning/40",
-  not_found: "border-danger/40",
-  undone: "border-border opacity-60",
-  error: "border-danger/40",
+  pending: "",
+  added: "",
+  duplicate: "",
+  not_found: "",
+  undone: "opacity-50",
+  error: "",
 };
 
 function ScanRow({
@@ -460,9 +476,9 @@ function ScanRow({
 
   return (
     <li
-      className={`flex items-center gap-3 rounded-lg border bg-surface px-3 py-2.5 transition-shadow ${
+      className={`flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-hover/60 ${
         TONE[state.kind]
-      } ${highlighted ? "ring-2 ring-accent" : ""}`}
+      } ${highlighted ? "bg-surface-hover ring-1 ring-accent" : ""}`}
     >
       <BookCover
         title={book?.title ?? formatIsbn(row.isbn)}
