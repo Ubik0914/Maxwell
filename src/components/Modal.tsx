@@ -26,17 +26,64 @@ export function Modal({
   onClose,
   children,
   width = "max-w-md",
+  fullScreenOnMobile = false,
 }: {
   title: string;
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
   width?: string;
+  /**
+   * On a phone, be a page rather than a card floating over one: the
+   * whole screen, a fixed header, the body scrolling under it, and room
+   * left for the notch and the home indicator. From `sm` up it is the
+   * ordinary centred dialog.
+   */
+  fullScreenOnMobile?: boolean;
 }) {
   // No portal target during SSR. Every caller mounts this in response to
   // a click, so there is no first client render for it to disagree with
   // and no hydration mismatch to create.
   if (typeof document === "undefined") return null;
+
+  if (fullScreenOnMobile) {
+    return createPortal(
+      <div
+        className="modal-backdrop fixed inset-0 z-[60] flex items-stretch justify-center bg-black/70 sm:items-center sm:px-4"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          className={`modal-panel modal-page flex h-dvh w-full ${width} flex-col overflow-hidden bg-surface sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:rounded-xl sm:border sm:border-border sm:shadow-[0_24px_70px_rgba(0,0,0,0.65)]`}
+        >
+          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:items-start sm:border-0 sm:px-6 sm:pt-6 sm:pb-0">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-text">{title}</h2>
+              {subtitle && (
+                <p className="mt-0.5 text-xs text-text-faint">{subtitle}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-faint transition-colors hover:bg-surface-hover hover:text-text sm:-m-1.5 sm:h-auto sm:w-auto sm:p-1.5"
+            >
+              <CloseIcon className="h-5 w-5 sm:h-4 sm:w-4" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
+            {children}
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
 
   return createPortal(
     <div

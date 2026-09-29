@@ -13,10 +13,7 @@ import {
 } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { logoutAction } from "@/features/auth/actions";
-import {
-  deleteBookAction,
-  refreshBookAction,
-} from "@/features/library/actions";
+import { refreshBookAction } from "@/features/library/actions";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -89,6 +86,9 @@ export function LibraryScreen({
   const [sort, setSort] = useState<BookSort>("recent");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
+  // ⌘K's 削除 opens the book with its own delete confirmation already
+  // showing, rather than a browser confirm() box over the page.
+  const [deleting, setDeleting] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   // Phones have no room for a detail pane; tapping a book opens it as a
   // sheet instead, and editing is one more tap from there.
@@ -120,20 +120,6 @@ export function LibraryScreen({
   );
 
   const scan = useCallback(() => router.push("/scan"), [router]);
-
-  const remove = useCallback(
-    async (book: ShelvedBook) => {
-      if (!window.confirm(`「${book.title}」を削除しますか？`)) return;
-      const result = await deleteBookAction(book.id);
-      if (!result.success) {
-        showError(result.error.message);
-        return;
-      }
-      setBooks((current) => current.filter((b) => b.id !== book.id));
-      showSuccess("削除しました");
-    },
-    [showError, showSuccess],
-  );
 
   const refresh = useCallback(
     async (book: ShelvedBook) => {
@@ -199,7 +185,10 @@ export function LibraryScreen({
         title: "削除…",
         icon: <TrashIcon />,
         danger: true,
-        run: () => void remove(selected),
+        run: () => {
+          setDeleting(true);
+          setEditing(selected);
+        },
       });
     }
     list.push(
@@ -235,16 +224,7 @@ export function LibraryScreen({
       },
     );
     return list;
-  }, [
-    selected,
-    sort,
-    userEmail,
-    scan,
-    remove,
-    refresh,
-    showError,
-    showSuccess,
-  ]);
+  }, [selected, sort, userEmail, scan, refresh, showError, showSuccess]);
 
   // The list's keyboard. Typing goes to the search box wherever focus
   // is, the way Raycast's does; ↑↓ move the selection, ↵ opens it,
@@ -436,7 +416,11 @@ export function LibraryScreen({
       {editing && (
         <BookDialog
           book={editing === "new" ? undefined : editing}
-          onClose={() => setEditing(null)}
+          confirmingDelete={deleting}
+          onClose={() => {
+            setEditing(null);
+            setDeleting(false);
+          }}
           onSaved={(book) => {
             saved(book);
             setViewing((open) => (open?.id === book.id ? book : open));
@@ -444,6 +428,7 @@ export function LibraryScreen({
           onDeleted={(bookId) => {
             setBooks((current) => current.filter((b) => b.id !== bookId));
             setViewing(null);
+            showSuccess("削除しました");
           }}
         />
       )}
@@ -669,7 +654,12 @@ function DetailSheet({
 }) {
   useEscapeKey(onClose, true, { exclusive: true });
   return (
-    <Modal title="本の詳細" onClose={onClose} width="max-w-md">
+    <Modal
+      title="本の詳細"
+      onClose={onClose}
+      width="max-w-md"
+      fullScreenOnMobile
+    >
       <BookDetail
         book={book}
         refreshing={refreshing}

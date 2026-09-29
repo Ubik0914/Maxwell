@@ -56,6 +56,7 @@ function draftOf(book?: ShelvedBook, initialIsbn?: string): Draft {
 export function BookDialog({
   book,
   initialIsbn,
+  confirmingDelete = false,
   onClose,
   onSaved,
   onDeleted,
@@ -64,6 +65,8 @@ export function BookDialog({
   book?: ShelvedBook;
   /** Prefills the ISBN of a new book — a scan openBD had no record for. */
   initialIsbn?: string;
+  /** Open with the delete confirmation already showing (⌘K's 削除). */
+  confirmingDelete?: boolean;
   onClose: () => void;
   onSaved: (book: ShelvedBook) => void;
   onDeleted?: (bookId: string) => void;
@@ -73,7 +76,7 @@ export function BookDialog({
   const [notice, setNotice] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(confirmingDelete);
 
   useEscapeKey(onClose, true, { exclusive: true });
 
@@ -168,6 +171,7 @@ export function BookDialog({
       }
       onClose={onClose}
       width="max-w-lg"
+      fullScreenOnMobile
     >
       <form onSubmit={save} className="flex flex-col gap-3">
         <div className="flex gap-3">
@@ -331,55 +335,66 @@ export function BookDialog({
           </p>
         )}
 
-        <div className="mt-1 flex items-center justify-between gap-2">
-          {book ? (
-            confirmDelete ? (
-              <div className="flex items-center gap-2">
+        {/* Pinned to the bottom of the page on a phone, so 保存 is never
+            a scroll away from whichever field was just filled in. */}
+        <div className="sticky bottom-0 -mx-4 mt-1 flex items-center justify-between gap-2 border-t border-border bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+          {book && confirmDelete ? (
+            // Confirming takes the whole bar: the question and its two
+            // answers, with 保存 out of the way until it is settled.
+            <>
+              <p className="min-w-0 truncate text-sm text-text-muted">
+                この本を削除しますか？
+              </p>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="min-h-11 rounded-md px-4 py-2.5 text-base whitespace-nowrap text-text-muted hover:text-text sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
+                >
+                  やめる
+                </button>
                 <button
                   type="button"
                   onClick={() => void remove()}
                   disabled={isPending}
-                  className="rounded-md bg-danger font-medium text-inverse transition-colors hover:bg-danger-hover disabled:opacity-50 min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
+                  className="min-h-11 rounded-md bg-danger px-4 py-2.5 text-base font-medium whitespace-nowrap text-inverse transition-colors hover:bg-danger-hover disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
                 >
                   削除する
                 </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {book ? (
                 <button
                   type="button"
-                  onClick={() => setConfirmDelete(false)}
-                  className="rounded-md text-text-muted hover:text-text min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
+                  onClick={() => setConfirmDelete(true)}
+                  className="min-h-11 rounded-md px-4 py-2.5 text-base whitespace-nowrap text-danger transition-colors hover:bg-danger-soft sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
                 >
-                  やめる
+                  削除
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="min-h-11 rounded-md px-4 py-2.5 text-base whitespace-nowrap text-text-muted hover:text-text sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="flex min-h-11 items-center gap-2 rounded-md bg-accent px-5 py-2.5 text-base font-medium whitespace-nowrap text-inverse transition-colors hover:bg-accent-hover disabled:opacity-50 sm:min-h-0 sm:px-4 sm:py-2 sm:text-sm"
+                >
+                  {isPending && <Spinner />}
+                  {book ? "保存" : "登録"}
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                className="rounded-md text-danger transition-colors hover:bg-danger-soft min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
-              >
-                削除
-              </button>
-            )
-          ) : (
-            <span />
+            </>
           )}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md text-text-muted hover:text-text min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
-            >
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="flex items-center gap-2 rounded-md bg-accent font-medium text-inverse transition-colors hover:bg-accent-hover disabled:opacity-50 min-h-11 px-5 py-2.5 text-base sm:min-h-0 sm:px-4 sm:py-2 sm:text-sm"
-            >
-              {isPending && <Spinner />}
-              {book ? "保存" : "登録"}
-            </button>
-          </div>
         </div>
       </form>
     </Modal>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { CloseIcon } from "@/components/icons";
 import { Kbd } from "@/components/library/Window";
 import { foldForSearch } from "@/domain/library/filter";
 
@@ -19,10 +20,14 @@ export interface Action {
  * Raycast's ⌘K panel: every action for the selected thing, in a list
  * you can filter by typing and walk with the arrow keys.
  *
- * It floats above the footer's right-hand corner, where the button that
- * opens it lives, and takes the keyboard while it is open — arrows move
- * within it, Enter runs, Escape closes — so nothing typed here reaches
- * the list underneath.
+ * On a desktop it floats above the footer's right-hand corner, where
+ * the button that opens it lives, and takes the keyboard while it is
+ * open — arrows move within it, Enter runs, Escape closes — so nothing
+ * typed here reaches the list underneath.
+ *
+ * On a phone a popover that small is a target you miss, so it is a page
+ * instead: the whole screen, a header with a close button, the search
+ * at the top, and the keyboard left down until you ask for it.
  */
 export function ActionPanel({
   actions,
@@ -34,6 +39,16 @@ export function ActionPanel({
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Type-to-filter is the point on a keyboard; on a phone, focusing the
+  // field would throw the on-screen keyboard over the list you opened
+  // this to tap.
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 640px)").matches) {
+      inputRef.current?.focus();
+    }
+  }, []);
 
   const shown = useMemo(() => {
     const words = query.split(/\s+/).map(foldForSearch).filter(Boolean);
@@ -68,7 +83,8 @@ export function ActionPanel({
       ref={panelRef}
       role="dialog"
       aria-label="アクション"
-      className="lib-pop absolute right-2 bottom-12 z-30 flex max-h-[min(24rem,70dvh)] w-[min(22rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-lg border border-border-strong bg-surface shadow-[0_20px_60px_rgba(0,0,0,0.6)] sm:right-3"
+      aria-modal="true"
+      className="lib-pop fixed inset-0 z-[70] flex flex-col overflow-hidden bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:absolute sm:inset-auto sm:right-3 sm:bottom-12 sm:z-30 sm:max-h-[min(24rem,70dvh)] sm:w-[22rem] sm:rounded-lg sm:border sm:border-border-strong sm:p-0 sm:shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
       onKeyDown={(event) => {
         if (event.key === "ArrowDown") {
           event.preventDefault();
@@ -91,7 +107,21 @@ export function ActionPanel({
         }
       }}
     >
-      <ul role="listbox" className="min-h-0 flex-1 overflow-y-auto p-1">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2 sm:hidden">
+        <h2 className="text-lg font-semibold text-text">アクション</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="閉じる"
+          className="-mr-2 flex h-11 w-11 items-center justify-center rounded-full text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
+        >
+          <CloseIcon className="h-5 w-5" />
+        </button>
+      </div>
+      <ul
+        role="listbox"
+        className="order-2 min-h-0 flex-1 overflow-y-auto p-2 sm:order-none sm:p-1"
+      >
         {shown.length === 0 && (
           <li className="px-3 py-6 text-center text-xs text-text-faint">
             該当するアクションはありません
@@ -104,7 +134,7 @@ export function ActionPanel({
           return (
             <li key={action.id}>
               {heading && (
-                <p className="px-2 pt-2 pb-1 text-[10px] font-semibold text-text-faint">
+                <p className="px-3 pt-3 pb-1 text-xs font-semibold text-text-faint sm:px-2 sm:pt-2 sm:text-[10px]">
                   {heading}
                 </p>
               )}
@@ -123,7 +153,7 @@ export function ActionPanel({
                 </span>
                 <span className="min-w-0 flex-1 truncate">{action.title}</span>
                 {action.keys && (
-                  <span className="flex shrink-0 gap-0.5">
+                  <span className="hidden shrink-0 gap-0.5 sm:flex">
                     {action.keys.map((key) => (
                       <Kbd key={key}>{key}</Kbd>
                     ))}
@@ -135,7 +165,7 @@ export function ActionPanel({
         })}
       </ul>
       <input
-        autoFocus
+        ref={inputRef}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -143,7 +173,7 @@ export function ActionPanel({
         }}
         placeholder="アクションを検索…"
         aria-label="アクションを検索"
-        className="shrink-0 border-t border-border bg-transparent px-3 py-3 text-base text-text placeholder:text-text-faint focus:outline-none sm:py-2 sm:text-sm"
+        className="order-1 m-3 shrink-0 rounded-md border border-border bg-bg px-3 py-2.5 text-base text-text placeholder:text-text-faint focus:border-accent focus:outline-none sm:order-none sm:m-0 sm:rounded-none sm:border-0 sm:border-t sm:bg-transparent sm:py-2 sm:text-sm"
       />
     </div>
   );
