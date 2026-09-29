@@ -61,7 +61,9 @@ maxwell task status <task-id> DONE
 /api/v1/auth/token` で発行・更新）。どちらも user-scoped クライアントに
 なるため RLS の効き方は同じで、Service Role Key は使わない。
 
-MCPサーバーは同じAPIを12個のツールとして公開する。繋ぎ方は3つ:
+MCPサーバーは**蔵書の読み取りだけ**を3つのツール（`whoami` /
+`search_books` / `get_book`）として公開する。Maxwell のグラフ操作ツールは
+廃止した（グラフは引き続き REST API と CLI から操作できる）。繋ぎ方は3つ:
 
 ```bash
 # リモート — クローン不要。URLとトークンだけ
@@ -78,7 +80,7 @@ OAuth 2.1 (Dynamic Client Registration → ブラウザでログイン/確認 �
 トークン取得) を Maxwell 自身が認可サーバーとして受け持つ。詳しくは
 [`mcp/README.md`](mcp/README.md)。
 
-同じ12ツール・同じディスパッチで、違うのは「APIへの到達手段」だけ。
+どの繋ぎ方でも同じツール・同じディスパッチで、違うのは「APIへの到達手段」だけ。
 サインインはツールにしていない — パスワードはツール引数ではない。
 
 エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)、

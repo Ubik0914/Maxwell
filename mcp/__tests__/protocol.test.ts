@@ -45,7 +45,7 @@ describe("initialize", () => {
     expect(response?.result?.protocolVersion).toBe(PROTOCOL_VERSIONS[0]);
     expect(response?.result?.capabilities?.tools).toBeDefined();
     expect(response?.result?.serverInfo?.name).toBe("maxwell");
-    expect(response?.result?.instructions).toContain("BLOCKED");
+    expect(response?.result?.instructions).toContain("search_books");
   });
 
   it("agrees to an older version the client asks for", async () => {
@@ -96,20 +96,19 @@ describe("tools/list", () => {
     }
   });
 
-  it("marks the tools that only read as read-only", () => {
-    const readers = ["whoami", "list_workspaces", "list_stories", "get_story", "get_frontier"];
-    for (const tool of TOOLS) {
-      expect(tool.annotations?.readOnlyHint ?? false).toBe(
-        readers.includes(tool.name),
-      );
-    }
+  it("offers only the library readers", () => {
+    expect(TOOLS.map((tool) => tool.name).sort()).toEqual([
+      "get_book",
+      "search_books",
+      "whoami",
+    ]);
   });
 
-  it("marks the tools that destroy something as destructive", () => {
-    const destroyers = TOOLS.filter(
-      (tool) => tool.annotations?.destructiveHint,
-    ).map((tool) => tool.name);
-    expect(destroyers.sort()).toEqual(["delete_task", "disconnect_tasks"]);
+  it("marks every tool read-only, and none destructive", () => {
+    for (const tool of TOOLS) {
+      expect(tool.annotations?.readOnlyHint).toBe(true);
+      expect(tool.annotations?.destructiveHint ?? false).toBe(false);
+    }
   });
 });
 
@@ -121,11 +120,11 @@ describe("tools/call", () => {
 
   it("says which argument is missing without a round trip", async () => {
     const response = await request("tools/call", {
-      name: "set_task_status",
-      arguments: { taskId: "a" },
+      name: "get_book",
+      arguments: {},
     });
     expect(response?.error?.code).toBe(-32602);
-    expect(response?.error?.message).toContain("status");
+    expect(response?.error?.message).toContain("bookId");
   });
 
   /**
@@ -149,16 +148,18 @@ describe("tools/call", () => {
   }
 
   it("hands back what the tool returned, as text and as data", async () => {
-    const response = await callWith("list_workspaces", async () => [
-      { workspaceId: "w1", name: "Home", role: "OWNER" },
-    ]);
+    const response = await callWith("search_books", async () => ({
+      books: [{ id: "b1", title: "一九八四年" }],
+      total: 1,
+    }));
 
     expect(response?.result?.isError).toBeUndefined();
     const [content] = response!.result!.content!;
     expect(content.type).toBe("text");
-    expect(JSON.parse(content.text)).toEqual([
-      { workspaceId: "w1", name: "Home", role: "OWNER" },
-    ]);
+    expect(JSON.parse(content.text)).toEqual({
+      books: [{ id: "b1", title: "一九八四年" }],
+      total: 1,
+    });
   });
 
   it("hands the tool whichever way of reaching the API it was given", async () => {
@@ -169,109 +170,106 @@ describe("tools/call", () => {
     const asked: string[] = [];
     const call = async (path: string) => {
       asked.push(path);
-      return path === "/api/v1/me"
-        ? { id: "u1", email: "a@b.c" }
-        : [{ workspaceId: "w1" }];
+      return { id: "u1", email: "a@b.c" };
     };
 
     const response = await dispatch(
-      { jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "whoami", arguments: {} } },
-      call,
-    );
-
-    expect(asked.sort()).toEqual(["/api/v1/me", "/api/v1/workspaces"]);
-    const text = (response as Answer).result!.content![0].text;
-    expect(JSON.parse(text)).toEqual({
-      userId: "u1",
-      email: "a@b.c",
-      workspaces: 1,
-    });
-  });
-
-  it("reports a failed call as a result, not as a transport error", async () => {
-    // A task that no longer exists, a connection that would close a
-    // cycle, an expired token: facts about the world the model should
-    // see and can act on. As a JSON-RPC error the host might swallow
-    // them before the model ever heard.
-    const response = await callWith("delete_task", async () => {
-      throw new Error("Task not found.");
-    }, { taskId: "gone" });
-
-    expect(response?.error).toBeUndefined();
-    expect(response?.result?.isError).toBe(true);
-    expect(response?.result?.content?.[0]?.text).toBe("Task not found.");
-  });
-});
-
-/**
- * A task is a step on a path from START to GOAL. The tool says so, and
- * this is the half of that promise the model cannot get wrong: a call
- * that names no dependency is wired to START rather than left floating.
- */
-describe("create_task builds from START", () => {
-  function recorder(nodes: { id: string; type: string }[]) {
-    const seen: { path: string; body?: unknown }[] = [];
-    const call = async (
-      path: string,
-      options: { method?: string; body?: unknown } = {},
-    ) => {
-      seen.push({ path, body: options.body });
-      if (path.endsWith("/graph")) return { nodes, edges: [] };
-      if (path.endsWith("/tasks")) return { id: "task-1", title: "First" };
-      if (path.endsWith("/edges")) return { id: "edge-1" };
-      return null;
-    };
-    return { seen, call };
-  }
-
-  const create = (args: Record<string, unknown>, call: CallApi) =>
-    dispatch(
       {
         jsonrpc: "2.0",
-        id: 3,
+        id: 9,
         method: "tools/call",
-        params: { name: "create_task", arguments: { storyId: "s1", title: "First", ...args } },
+        params: { name: "whoami", arguments: {} },
       },
       call,
     );
 
-  it("connects a task that named no dependency to the story's START", async () => {
-    const { seen, call } = recorder([
-      { id: "start-1", type: "START" },
-      { id: "goal-1", type: "GOAL" },
-    ]);
+    expect(asked).toEqual(["/api/v1/me"]);
+    const text = (response as Answer).result!.content![0].text;
+    expect(JSON.parse(text)).toEqual({ userId: "u1", email: "a@b.c" });
+  });
 
-    await create({}, call);
+  it("reports a failed call as a result, not as a transport error", async () => {
+    // A book that no longer exists, an expired token: facts about the
+    // world the model should see and can act on. As a JSON-RPC error
+    // the host might swallow them before the model ever heard.
+    const response = await callWith(
+      "get_book",
+      async () => {
+        throw new Error("Book not found.");
+      },
+      { bookId: "gone" },
+    );
 
-    const edges = seen.filter((request) => request.path.endsWith("/edges"));
-    expect(edges).toHaveLength(1);
-    expect(edges[0].body).toEqual({
-      sourceNodeId: "start-1",
-      targetNodeId: "task-1",
+    expect(response?.error).toBeUndefined();
+    expect(response?.result?.isError).toBe(true);
+    expect(response?.result?.content?.[0]?.text).toBe("Book not found.");
+  });
+});
+
+/**
+ * search_books is a query string builder over GET /api/v1/books. What
+ * matters is that it asks for exactly what it was given — and nothing
+ * for what it was not, so the API's own defaults stay the defaults.
+ */
+describe("search_books", () => {
+  async function pathFor(args: Record<string, unknown>) {
+    const asked: string[] = [];
+    const call: CallApi = async (path) => {
+      asked.push(path);
+      return { books: [], total: 0 };
+    };
+    await dispatch(
+      {
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: { name: "search_books", arguments: args },
+      },
+      call,
+    );
+    return asked[0];
+  }
+
+  it("lists the whole shelf when given nothing", async () => {
+    expect(await pathFor({})).toBe("/api/v1/books");
+  });
+
+  it("passes the query, status, sort and limit through", async () => {
+    const path = new URL(
+      await pathFor({
+        query: "orwell 早川",
+        status: "READ",
+        sort: "title",
+        limit: 5,
+      }),
+      "http://x",
+    );
+    expect(path.pathname).toBe("/api/v1/books");
+    expect(Object.fromEntries(path.searchParams)).toEqual({
+      q: "orwell 早川",
+      status: "READ",
+      sort: "title",
+      limit: "5",
     });
   });
+});
 
-  it("leaves the dependencies alone when the caller gave some", async () => {
-    const { seen, call } = recorder([{ id: "start-1", type: "START" }]);
-
-    await create({ dependsOn: ["task-0"] }, call);
-
-    // No graph read either: nothing to look up, and a story's graph is
-    // the most expensive call here.
-    expect(seen.some((request) => request.path.endsWith("/graph"))).toBe(false);
-    const edges = seen.filter((request) => request.path.endsWith("/edges"));
-    expect(edges.map((edge) => edge.body)).toEqual([
-      { sourceNodeId: "task-0", targetNodeId: "task-1" },
-    ]);
-  });
-
-  it("still creates the task when the story has no START to hang it on", async () => {
-    const { seen, call } = recorder([{ id: "goal-1", type: "GOAL" }]);
-
-    const response = await create({}, call);
-
-    expect((response as Answer).result?.isError).toBeUndefined();
-    expect(seen.some((request) => request.path.endsWith("/edges"))).toBe(false);
+describe("get_book", () => {
+  it("asks for the book by id", async () => {
+    const asked: string[] = [];
+    await dispatch(
+      {
+        jsonrpc: "2.0",
+        id: 5,
+        method: "tools/call",
+        params: { name: "get_book", arguments: { bookId: "b-1" } },
+      },
+      async (path) => {
+        asked.push(path);
+        return { id: "b-1" };
+      },
+    );
+    expect(asked).toEqual(["/api/v1/books/b-1"]);
   });
 });
 
@@ -279,12 +277,6 @@ describe("the catalogue", () => {
   it("names every tool once", () => {
     const names = TOOLS.map((tool) => tool.name);
     expect(new Set(names).size).toBe(names.length);
-  });
-
-  it("never offers to set BLOCKED, which the graph derives", () => {
-    const status = TOOLS.find((tool) => tool.name === "set_task_status")!;
-    const allowed = status.inputSchema.properties!.status as { enum: string[] };
-    expect(allowed.enum).not.toContain("BLOCKED");
   });
 
   it("has no sign-in tool — a password is not a tool argument", () => {

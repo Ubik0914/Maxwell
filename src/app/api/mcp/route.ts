@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { handle, type CallApi } from "@mcp/maxwell-mcp.mjs";
 
 /**
- * Maxwell as a remote MCP server.
+ * The library, as a remote MCP server.
  *
- * The same twelve tools the stdio server offers (mcp/maxwell-mcp.mjs),
+ * The same read-only book tools the stdio server offers
+ * (mcp/maxwell-mcp.mjs),
  * over Streamable HTTP instead of a pipe, so a client that cannot run a
  * process on the user's machine can still reach them — no clone, no
  * Node, no `maxwell login`, just a URL and a token:
@@ -64,7 +65,7 @@ function callerFor(request: NextRequest): CallApi {
 
 export async function POST(request: NextRequest) {
   // Every method here is protected, tools/list included: what tools
-  // exist is a fact about a Maxwell, not a public directory. 401 with a
+  // exist is a fact about a deployment, not a public directory. 401 with a
   // challenge is what tells a client to go and get a token rather than
   // that the server is broken. resource_metadata (RFC 9728) is what
   // turns that challenge into a client that can actually get one on its

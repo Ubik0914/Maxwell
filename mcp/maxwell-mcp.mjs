@@ -7,14 +7,19 @@
  * Nothing else may be written to stdout — a stray console.log is a
  * protocol error — so everything diagnostic goes to stderr.
  *
- * Imported, it is the same twelve tools and the same dispatch with the
+ * Imported, it is the same tools and the same dispatch with the
  * transport left out, which is what /api/mcp serves over HTTP. The
  * tools take the function that reaches the API as an argument rather
  * than closing over one, so there is one catalogue and one `handle`,
  * and a tool cannot behave differently depending on how it was reached.
  *
+ * What it offers is the library at "/", read-only: searching the
+ * signed-in user's books and reading one. Maxwell's own graph tools
+ * were withdrawn from here; the graph is still reachable over /api/v1
+ * and the CLI.
+ *
  * It is a client of /api/v1 and nothing more, exactly as the CLI is.
- * There is no second code path into the graph here: the same endpoints,
+ * There is no second code path into the data here: the same endpoints,
  * the same bearer token, the same RLS. A model driving this can reach
  * precisely the rows the person whose token it is could reach, which is
  * the property that makes handing it to an agent reasonable at all.
@@ -49,36 +54,33 @@ const SERVER = { name: "maxwell", version: "0.1.0" };
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 /** What the model is told about this server once, on connection. */
-const INSTRUCTIONS = `Maxwell is a task graph: a story is a DAG running from START to GOAL.
+const INSTRUCTIONS = `This server reads the signed-in user's personal library: the books
+they own, where each one is, whether it has been read, and who it is
+lent to. It only reads — nothing here adds, changes or removes a book.
 
-An edge means "must happen first". A task with an unfinished task before
-it is BLOCKED, and it becomes READY by itself the moment the last thing
-it waits on is DONE — so BLOCKED is derived, never set. set_task_status
-accepts READY, IN_PROGRESS, DONE and CANCELLED only.
+search_books is the call to start with. With no query it lists the
+shelf, newest first; with one, every word must appear somewhere in the
+title, author, publisher, ISBN, location, borrower or note, in any
+order, with full/half width, case and katakana/hiragana treated alike.
+Its reply carries \`total\` (how many matched before the limit) and
+\`stats\` for the whole shelf, so an empty page and a truncated one
+can be told apart. get_book returns one book by the id search_books
+gave it.
 
-get_story is the one call worth making first: it returns every node and
-edge with its id, the tallies, and the frontier — the tasks that could
-be started right now. Ids are what every other tool takes.
+reading_status is UNREAD, READING or READ. A book with lent_to set is
+out on loan to that person; null means it is at home.
 
-Build from START, always. A task is a step on a path from START to
-GOAL, so every task gets its dependencies at the moment it is created:
-pass the ids of the tasks it follows in \`dependsOn\`, and the GOAL's id
-in \`blocks\` for anything the story ends with. A first step names no
-dependency and is attached to START for you — never leave a task
-hanging off nothing, because a node with no path from START is not part
-of the story, it is a note lying beside it, and it will sit on the
-frontier claiming to be startable forever.
+Everything acts as the signed-in user, so it can reach exactly the
+books they own. A book it cannot see returns "not found" rather than
+saying so.`;
 
-Everything acts as the signed-in user, so it can reach exactly what they
-can. Anything it cannot see returns "not found" rather than saying so.`;
-
-const TASK_STATUSES = ["READY", "IN_PROGRESS", "DONE", "CANCELLED"];
+const READING_STATUSES = ["UNREAD", "READING", "READ"];
+const SORTS = ["recent", "title", "author", "published"];
 
 /* ------------------------------------------------------------------ */
 /* Tools                                                               */
 /* ------------------------------------------------------------------ */
 
-const string = (description) => ({ type: "string", description });
 const uuid = (description) => ({
   type: "string",
   format: "uuid",
@@ -86,343 +88,94 @@ const uuid = (description) => ({
 });
 
 /**
- * The graph's vocabulary, one verb at a time.
+ * The library, read-only.
  *
- * These are named for what someone would ask for — connect_tasks, not
- * create_edge — because the name is most of what a model has to go on
- * when it is choosing between twelve of them. The descriptions say when
- * to reach for one, not what it does to the database.
- *
- * `annotations` are hints, not enforcement: a host may use readOnlyHint
- * to run something without asking and destructiveHint to insist on
- * asking, and getting them wrong is how an agent deletes something on a
- * confirmation nobody saw.
+ * Maxwell's graph tools used to live here and were withdrawn: the one
+ * thing this server now offers is looking books up. Every tool is a
+ * reader, and says so in `annotations`, so a host can run them without
+ * stopping to ask — there is nothing here that could destroy anything.
  */
+const READ_ONLY = { readOnlyHint: true, openWorldHint: true };
+
 const TOOLS = [
   {
     name: "whoami",
     title: "Who am I",
     description:
-      "Which Maxwell account these tools are acting as, and whether its stored token still works. Start here if a call comes back unauthorised.",
+      "Which account these tools are acting as, and whether its stored token still works. Start here if a call comes back unauthorised.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    annotations: { readOnlyHint: true, openWorldHint: true },
+    annotations: READ_ONLY,
     async run(_args, call) {
-      // Round-trips on purpose, and asks the server rather than reading
-      // a file: the question is whether this token still works and for
-      // whom, and only the auth server knows.
-      //
-      // One after the other rather than at once. If the stored token
-      // has expired, two calls in parallel both get 401 and both go
-      // and refresh — with the same refresh token, which rotates on
-      // use, so the second one is spending a token the first already
-      // spent. Sequentially the first refresh happens, is written
-      // down, and the second call uses it.
+      // Asks the server rather than reading a file: the question is
+      // whether this token still works and for whom, and only the auth
+      // server knows.
       const me = await call("/api/v1/me");
-      const workspaces = await call("/api/v1/workspaces");
-      return {
-        userId: me.id,
-        email: me.email,
-        workspaces: workspaces.length,
-      };
+      return { userId: me.id, email: me.email };
     },
   },
 
   {
-    name: "list_workspaces",
-    title: "List workspaces",
+    name: "search_books",
+    title: "Search the library",
     description:
-      "The workspaces this account belongs to, with its role in each. Every story lives in one, so this is where a workspaceId comes from.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    annotations: { readOnlyHint: true, openWorldHint: true },
-    run: (_args, call) => call("/api/v1/workspaces"),
-  },
-
-  {
-    name: "list_stories",
-    title: "List stories",
-    description:
-      "Every story in a workspace, with its status and how far its tasks have got.",
-    inputSchema: {
-      type: "object",
-      properties: { workspaceId: uuid("From list_workspaces.") },
-      required: ["workspaceId"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: true, openWorldHint: true },
-    run: ({ workspaceId }, call) =>
-      call(`/api/v1/stories?workspaceId=${encodeURIComponent(workspaceId)}`),
-  },
-
-  {
-    name: "get_story",
-    title: "Get a story's graph",
-    description:
-      "The whole story: every node and edge with its id, the tallies, and the frontier. Read this before changing anything — it is where the ids the other tools need come from.",
-    inputSchema: {
-      type: "object",
-      properties: { storyId: uuid("From list_stories.") },
-      required: ["storyId"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: true, openWorldHint: true },
-    run: ({ storyId }, call) => call(`/api/v1/stories/${storyId}/graph`),
-  },
-
-  {
-    name: "get_frontier",
-    title: "Get what can be started",
-    description:
-      "The tasks that could be picked up right now — nothing unfinished stands in front of them. The answer to \"what should I do next\".",
-    inputSchema: {
-      type: "object",
-      properties: { storyId: uuid("From list_stories.") },
-      required: ["storyId"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: true, openWorldHint: true },
-    async run({ storyId }, call) {
-      const graph = await call(`/api/v1/stories/${storyId}/graph`);
-      return graph.frontier;
-    },
-  },
-
-  {
-    name: "create_story",
-    title: "Create a story",
-    description:
-      "A new story, empty but for its START and GOAL. Both states are required: a story is the distance between where things are and where they should be, and it cannot be drawn without both ends.",
+      "Finds books on the user's shelf. With no query, lists them all (newest first). With one, every word must appear somewhere — title, author, publisher, ISBN, location, borrower or note. Filter by reading status or to books out on loan. The reply includes how many matched in total and counts for the whole shelf.",
     inputSchema: {
       type: "object",
       properties: {
-        workspaceId: uuid("From list_workspaces."),
-        title: string("What the story is called."),
-        startState: string("Where things stand today."),
-        goalState: string("What being finished looks like."),
-        description: string("Optional. Markdown is fine."),
-      },
-      required: ["workspaceId", "title", "startState", "goalState"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    run: (input, call) =>
-      call("/api/v1/stories", { method: "POST", body: input }),
-  },
-
-  {
-    name: "create_task",
-    title: "Add a task",
-    description:
-      "Adds a task and wires it into the graph in the same call: `dependsOn` are the nodes that must finish first, `blocks` the ones that wait on it. Say what the task depends on here, when you create it — a task is a step on a path from START to GOAL, not a note left beside the story. Building a graph a task at a time is the ordinary way to use this: pass the id of whatever this task follows in `dependsOn`, and the GOAL's id in `blocks` for anything the story ends with. A task created with no `dependsOn` is connected to the story's START rather than left floating. Without a position it is placed clear of what is already there; the app's auto-layout arranges it properly.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        storyId: uuid("The story to add it to."),
-        title: string("What the task is."),
-        description: string("Optional. Markdown is fine."),
-        dependsOn: {
-          type: "array",
-          items: uuid("A node that must be DONE first."),
+        query: {
+          type: "string",
           description:
-            "Node ids this task waits on. Leave it empty only for a first step: the task is then connected to START, which is always satisfied, so it is READY immediately either way.",
+            'Words to look for, space-separated, e.g. "orwell 早川" or an ISBN. Leave out to list everything.',
         },
-        blocks: {
-          type: "array",
-          items: uuid("A node that waits on this one."),
-          description: "Node ids that cannot start until this task is done.",
+        status: {
+          type: "string",
+          enum: ["ALL", "LENT", ...READING_STATUSES],
+          description:
+            "UNREAD, READING or READ; LENT for books out on loan. Defaults to ALL.",
         },
-        position: {
-          type: "object",
-          properties: { x: { type: "number" }, y: { type: "number" } },
-          required: ["x", "y"],
-          description: "Optional canvas coordinates.",
-          additionalProperties: false,
+        sort: {
+          type: "string",
+          enum: SORTS,
+          description:
+            "recent (added newest first, the default), title, author, or published (newest first).",
         },
-      },
-      required: ["storyId", "title"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    async run({ storyId, title, description, position, dependsOn, blocks }, call) {
-      // A task nobody named a dependency for is a first step, and a
-      // first step comes after START. Attaching it here is the same
-      // rule the CSV import already applies to a row that waits on
-      // nothing (see import_tasks), and it is what keeps "every task
-      // is on a path from START" true no matter which door the task
-      // came in through. START is always satisfied, so this changes
-      // where the node sits in the story, never whether it is READY.
-      const after = dependsOn?.length
-        ? dependsOn
-        : await startNodeId(storyId, call);
-
-      const task = await call(`/api/v1/stories/${storyId}/tasks`, {
-        method: "POST",
-        body: {
-          title,
-          ...(description ? { description } : {}),
-          ...(position ? { position } : {}),
-        },
-      });
-
-      // The task exists from here on, so a connection that fails is
-      // reported rather than thrown: telling the model the whole call
-      // failed would invite it to create the task a second time.
-      const wanted = [
-        ...after.map((id) => ({
-          sourceNodeId: id,
-          targetNodeId: task.id,
-        })),
-        ...(blocks ?? []).map((id) => ({
-          sourceNodeId: task.id,
-          targetNodeId: id,
-        })),
-      ];
-
-      const connected = [];
-      const refused = [];
-      for (const edge of wanted) {
-        try {
-          const created = await call(`/api/v1/stories/${storyId}/edges`, {
-            method: "POST",
-            body: edge,
-          });
-          connected.push({ id: created.id, ...edge });
-        } catch (error) {
-          refused.push({ ...edge, reason: messageFor(error) });
-        }
-      }
-
-      return {
-        ...task,
-        ...(connected.length > 0 ? { connected } : {}),
-        ...(refused.length > 0 ? { refused } : {}),
-      };
-    },
-  },
-
-  {
-    name: "update_task",
-    title: "Edit a task",
-    description:
-      "Changes a task's title, description, priority or due date. Status is not settable here — use set_task_status, which re-derives what the change unblocks.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        taskId: uuid("From get_story."),
-        title: string("New title."),
-        description: {
-          type: ["string", "null"],
-          description: "New description; null clears it.",
-        },
-        priority: {
-          type: ["integer", "null"],
+        limit: {
+          type: "integer",
           minimum: 1,
-          maximum: 4,
-          description: "1 is highest, 4 lowest; null clears it.",
-        },
-        dueDate: {
-          type: ["string", "null"],
-          description: "YYYY-MM-DD, or null to clear it.",
+          maximum: 500,
+          description: "At most this many books. Defaults to 50.",
         },
       },
-      required: ["taskId"],
       additionalProperties: false,
     },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    run: ({ taskId, ...patch }, call) =>
-      call(`/api/v1/tasks/${taskId}`, { method: "PATCH", body: patch }),
+    annotations: READ_ONLY,
+    run({ query, status, sort, limit }, call) {
+      const params = new URLSearchParams();
+      if (query) params.set("q", query);
+      if (status) params.set("status", status);
+      if (sort) params.set("sort", sort);
+      if (limit !== undefined) params.set("limit", String(limit));
+      const qs = params.toString();
+      return call(`/api/v1/books${qs ? `?${qs}` : ""}`);
+    },
   },
 
   {
-    name: "set_task_status",
-    title: "Move a task",
-    description: `Moves a task to ${TASK_STATUSES.join(", ")}. Marking one DONE re-derives everything downstream, so tasks that were only waiting on it come back READY — the reply lists which ones moved. BLOCKED cannot be set: it is what the graph works out.`,
-    inputSchema: {
-      type: "object",
-      properties: {
-        taskId: uuid("From get_story."),
-        status: { type: "string", enum: TASK_STATUSES },
-      },
-      required: ["taskId", "status"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    run: ({ taskId, status }, call) =>
-      call(`/api/v1/tasks/${taskId}/status`, {
-        method: "PATCH",
-        body: { status },
-      }),
-  },
-
-  {
-    name: "delete_task",
-    title: "Delete a task",
+    name: "get_book",
+    title: "Get a book",
     description:
-      "Removes a task and every connection through it. Nothing is kept. To take something off the board without losing it, set its status to CANCELLED instead.",
+      "Everything recorded about one book — including its note — by the id search_books returned.",
     inputSchema: {
       type: "object",
-      properties: { taskId: uuid("From get_story.") },
-      required: ["taskId"],
+      properties: { bookId: uuid("From search_books.") },
+      required: ["bookId"],
       additionalProperties: false,
     },
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-    run: ({ taskId }, call) =>
-      call(`/api/v1/tasks/${taskId}`, { method: "DELETE" }),
-  },
-
-  {
-    name: "connect_tasks",
-    title: "Connect two tasks",
-    description:
-      "Makes the target wait on the source. Refused if it would close a cycle — a story has to be able to finish.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        storyId: uuid("The story both nodes are in."),
-        sourceNodeId: uuid("The one that happens first."),
-        targetNodeId: uuid("The one that waits."),
-      },
-      required: ["storyId", "sourceNodeId", "targetNodeId"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-    run: ({ storyId, sourceNodeId, targetNodeId }, call) =>
-      call(`/api/v1/stories/${storyId}/edges`, {
-        method: "POST",
-        body: { sourceNodeId, targetNodeId },
-      }),
-  },
-
-  {
-    name: "disconnect_tasks",
-    title: "Remove a connection",
-    description:
-      "Deletes one dependency, leaving both tasks in place. Whatever the connection was holding back is re-derived, so a task waiting on nothing else becomes READY.",
-    inputSchema: {
-      type: "object",
-      properties: { edgeId: uuid("From get_story's edges.") },
-      required: ["edgeId"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
-    run: ({ edgeId }, call) =>
-      call(`/api/v1/edges/${edgeId}`, { method: "DELETE" }),
+    annotations: READ_ONLY,
+    run: ({ bookId }, call) =>
+      call(`/api/v1/books/${encodeURIComponent(bookId)}`),
   },
 ];
-
-/**
- * The story's START, for a task that named no dependency of its own.
- *
- * Read rather than remembered: the id belongs to the story, and this
- * server keeps nothing between calls. A story always has one — it is
- * created with START and GOAL and neither can be deleted — but the
- * lookup still tolerates its absence, because failing to create a task
- * over a missing edge would be a worse answer than an unattached task.
- */
-async function startNodeId(storyId, call) {
-  const graph = await call(`/api/v1/stories/${storyId}/graph`);
-  const start = (graph?.nodes ?? []).find((node) => node.type === "START");
-  return start ? [start.id] : [];
-}
 
 const BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
@@ -468,7 +221,7 @@ function missingFrom(schema, args) {
  * between the two transports. Over stdio it is the CLI's own client,
  * carrying the token from ~/.maxwell/credentials.json; inside the app
  * (see /api/mcp) it is a request carrying whatever bearer token the
- * caller arrived with. The twelve tools are written once and know about
+ * caller arrived with. The tools are written once and know about
  * neither.
  *
  * Returns null for a notification — those have no id and take no reply,
@@ -479,8 +232,8 @@ function missingFrom(schema, args) {
  * means the call was malformed or the tool does not exist: the client
  * has a bug. A tool that ran and failed comes back as an ordinary
  * result carrying isError, because that is a fact about the world the
- * model should see and can act on — a task that no longer exists, a
- * connection that would have made a cycle — rather than a transport
+ * model should see and can act on — a book that no longer exists, an
+ * expired token — rather than a transport
  * fault the host might swallow before the model ever hears about it.
  */
 export async function handle(message, call = apiRequest) {

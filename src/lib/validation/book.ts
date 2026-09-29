@@ -65,3 +65,11 @@ export const isbnLookupSchema = z.string().transform((value, ctx) => {
   }
   return isbn;
 });
+
+/** The query string GET /api/v1/books reads. Everything is optional. */
+export const bookSearchSchema = z.object({
+  q: z.string().max(200, "Query must be 200 characters or fewer").default(""),
+  status: z.enum(["ALL", "LENT", ...READING_STATUSES]).default("ALL"),
+  sort: z.enum(["recent", "title", "author", "published"]).default("recent"),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
+});

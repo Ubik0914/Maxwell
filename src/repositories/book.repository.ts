@@ -22,6 +22,21 @@ export async function listBooks(supabase: Client): Promise<ShelvedBook[]> {
   return data;
 }
 
+/** One book, or null when it does not exist or is not the caller's. */
+export async function findBook(
+  supabase: Client,
+  bookId: string,
+): Promise<ShelvedBook | null> {
+  const { data, error } = await supabase
+    .from("books")
+    .select(COLUMNS)
+    .eq("id", bookId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function createBook(
   supabase: Client,
   fields: BookFields,
