@@ -399,7 +399,6 @@ export type Database = {
           isbn: string | null;
           location: string | null;
           cover_url: string | null;
-          lent_to: string | null;
           note: string | null;
           created_at: string;
           updated_at: string;
@@ -415,7 +414,6 @@ export type Database = {
           isbn?: string | null;
           location?: string | null;
           cover_url?: string | null;
-          lent_to?: string | null;
           note?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -431,7 +429,6 @@ export type Database = {
           isbn?: string | null;
           location?: string | null;
           cover_url?: string | null;
-          lent_to?: string | null;
           note?: string | null;
           created_at?: string;
           updated_at?: string;

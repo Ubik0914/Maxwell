@@ -28,7 +28,6 @@ interface Draft {
   price: string;
   location: string;
   cover_url: string | null;
-  lent_to: string;
   note: string;
 }
 
@@ -42,7 +41,6 @@ function draftOf(book?: ShelvedBook, initialIsbn?: string): Draft {
     price: book?.price == null ? "" : String(book.price),
     location: book?.location ?? "",
     cover_url: book?.cover_url ?? null,
-    lent_to: book?.lent_to ?? "",
     note: book?.note ?? "",
   };
 }
@@ -302,19 +300,6 @@ export function BookDialog({
               value={draft.location}
               onChange={(event) => set("location", event.target.value)}
               placeholder="自宅 / 会社 / 本棚A"
-              maxLength={100}
-              className={INPUT}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="book-lent-to" className={LABEL}>
-              貸出先
-            </label>
-            <input
-              id="book-lent-to"
-              value={draft.lent_to}
-              onChange={(event) => set("lent_to", event.target.value)}
-              placeholder="空欄なら手元にある"
               maxLength={100}
               className={INPUT}
             />

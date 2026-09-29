@@ -17,7 +17,6 @@ function book(overrides: Partial<ShelvedBook>): ShelvedBook {
     isbn: null,
     location: null,
     cover_url: null,
-    lent_to: null,
     note: null,
     created_at: "2026-09-01T00:00:00Z",
     ...overrides,
@@ -39,7 +38,6 @@ const shelf = [
     authors: "Dick, Philip K.",
     publisher: "早川書房",
     published: "2011-06",
-    lent_to: "田中",
     created_at: "2026-09-03T00:00:00Z",
   }),
   book({
@@ -80,12 +78,6 @@ describe("filterBooks", () => {
     });
     expect(found.map((b) => b.title)).toEqual(["一九八四年"]);
   });
-
-  it("narrows to the books out on loan", () => {
-    expect(
-      filterBooks(shelf, { query: "", lentOnly: true }).map((b) => b.lent_to),
-    ).toEqual(["田中"]);
-  });
 });
 
 describe("sortBooks", () => {
@@ -109,6 +101,6 @@ describe("sortBooks", () => {
 
 describe("libraryStats", () => {
   it("counts the shelf", () => {
-    expect(libraryStats(shelf)).toEqual({ total: 3, lent: 1, value: 1960 });
+    expect(libraryStats(shelf)).toEqual({ total: 3, value: 1960 });
   });
 });

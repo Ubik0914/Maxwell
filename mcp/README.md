@@ -116,7 +116,7 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 | ツール | 内容 |
 | --- | --- |
 | `whoami` | どのアカウントとして動いているか、トークンがまだ有効か |
-| `search_books` | 蔵書検索（**最初に呼ぶべき1本**）。`query` 省略で全件（登録が新しい順）。`lentOnly`（true で貸出中のみ）・`sort`（recent / title / author / published）・`limit`（既定50、最大500） |
+| `search_books` | 蔵書検索（**最初に呼ぶべき1本**）。`query` 省略で全件（登録が新しい順）。`sort`（recent / title / author / published）・`limit`（既定50、最大500） |
 | `get_book` | 1冊の全項目（メモ含む）。id は `search_books` から |
 
 すべて `readOnlyHint: true`。追加・変更・削除のツールは無いので、
@@ -124,11 +124,11 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 
 検索はアプリの蔵書画面と同じ関数（`src/domain/library/filter.ts`）を
 通る。スペース区切りの語が**すべて**、書名・著者・出版社・ISBN・場所・
-貸出先・メモのどこかに含まれる本が返る。全角半角・大文字小文字・
+メモのどこかに含まれる本が返る。全角半角・大文字小文字・
 カタカナひらがなは同一視する。
 
 応答には `total`（`limit` で切る前の件数）と棚全体の `stats`
-（冊数・読了・読書中・未読・貸出中・価格合計）が付くので、
+（冊数・価格合計）が付くので、
 「該当なし」と「切り詰められた」を区別できる。
 
 ## プロトコル
