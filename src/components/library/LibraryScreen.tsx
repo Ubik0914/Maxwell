@@ -13,10 +13,7 @@ import {
 } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { logoutAction } from "@/features/auth/actions";
-import {
-  deleteBookAction,
-  refreshBookAction,
-} from "@/features/library/actions";
+import { refreshBookAction } from "@/features/library/actions";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -89,6 +86,9 @@ export function LibraryScreen({
   const [sort, setSort] = useState<BookSort>("recent");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
+  // ⌘K's 削除 opens the book with its own delete confirmation already
+  // showing, rather than a browser confirm() box over the page.
+  const [deleting, setDeleting] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   // Phones have no room for a detail pane; tapping a book opens it as a
   // sheet instead, and editing is one more tap from there.
@@ -120,20 +120,6 @@ export function LibraryScreen({
   );
 
   const scan = useCallback(() => router.push("/scan"), [router]);
-
-  const remove = useCallback(
-    async (book: ShelvedBook) => {
-      if (!window.confirm(`「${book.title}」を削除しますか？`)) return;
-      const result = await deleteBookAction(book.id);
-      if (!result.success) {
-        showError(result.error.message);
-        return;
-      }
-      setBooks((current) => current.filter((b) => b.id !== book.id));
-      showSuccess("削除しました");
-    },
-    [showError, showSuccess],
-  );
 
   const refresh = useCallback(
     async (book: ShelvedBook) => {
@@ -199,7 +185,10 @@ export function LibraryScreen({
         title: "削除…",
         icon: <TrashIcon />,
         danger: true,
-        run: () => void remove(selected),
+        run: () => {
+          setDeleting(true);
+          setEditing(selected);
+        },
       });
     }
     list.push(
@@ -235,16 +224,7 @@ export function LibraryScreen({
       },
     );
     return list;
-  }, [
-    selected,
-    sort,
-    userEmail,
-    scan,
-    remove,
-    refresh,
-    showError,
-    showSuccess,
-  ]);
+  }, [selected, sort, userEmail, scan, refresh, showError, showSuccess]);
 
   // The list's keyboard. Typing goes to the search box wherever focus
   // is, the way Raycast's does; ↑↓ move the selection, ↵ opens it,
@@ -315,7 +295,7 @@ export function LibraryScreen({
           placeholder="本を検索…"
           aria-label="蔵書を検索"
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:text-lg"
+          className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:min-h-0 sm:text-lg"
         />
       </WindowBar>
 
@@ -436,7 +416,11 @@ export function LibraryScreen({
       {editing && (
         <BookDialog
           book={editing === "new" ? undefined : editing}
-          onClose={() => setEditing(null)}
+          confirmingDelete={deleting}
+          onClose={() => {
+            setEditing(null);
+            setDeleting(false);
+          }}
           onSaved={(book) => {
             saved(book);
             setViewing((open) => (open?.id === book.id ? book : open));
@@ -444,6 +428,7 @@ export function LibraryScreen({
           onDeleted={(bookId) => {
             setBooks((current) => current.filter((b) => b.id !== bookId));
             setViewing(null);
+            showSuccess("削除しました");
           }}
         />
       )}
@@ -626,7 +611,7 @@ function BookDetail({
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-md bg-surface-hover px-3 py-1.5 text-sm text-text transition-[transform,background-color] hover:bg-border active:scale-[0.97]"
+          className="rounded-md bg-surface-hover text-text transition-[transform,background-color] hover:bg-border active:scale-[0.97] min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-sm"
         >
           編集
         </button>
@@ -635,7 +620,7 @@ function BookDetail({
             type="button"
             onClick={onRefresh}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted transition-[transform,background-color] hover:bg-surface-hover hover:text-text active:scale-[0.97] disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-md border border-border text-text-muted transition-[transform,background-color] hover:bg-surface-hover hover:text-text active:scale-[0.97] disabled:opacity-60 min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-sm"
           >
             {refreshing ? <Spinner /> : <SearchIcon />}
             書誌を再取得
@@ -669,7 +654,12 @@ function DetailSheet({
 }) {
   useEscapeKey(onClose, true, { exclusive: true });
   return (
-    <Modal title="本の詳細" onClose={onClose} width="max-w-md">
+    <Modal
+      title="本の詳細"
+      onClose={onClose}
+      width="max-w-md"
+      fullScreenOnMobile
+    >
       <BookDetail
         book={book}
         refreshing={refreshing}
@@ -698,7 +688,7 @@ function EmptyShelf({ onScan }: { onScan: () => void }) {
       <button
         type="button"
         onClick={onScan}
-        className="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
+        className="flex items-center gap-2 rounded-md bg-accent font-medium text-inverse transition-colors hover:bg-accent-hover min-h-11 px-5 py-2.5 text-base sm:min-h-0 sm:px-4 sm:py-2 sm:text-sm"
       >
         <BarcodeIcon />
         スキャンして追加

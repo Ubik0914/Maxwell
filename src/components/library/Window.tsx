@@ -40,7 +40,9 @@ export function WindowFooter({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 border-t border-border bg-bg/40 px-3 py-2 text-xs text-text-muted sm:px-4">
+    // On a phone the footer is where the thumb is, so it is sized for
+    // one: taller, larger text, and padded clear of the home indicator.
+    <div className="flex shrink-0 items-center gap-2 border-t border-border bg-bg/40 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-sm text-text-muted sm:px-4 sm:py-2 sm:text-xs">
       <div className="flex min-w-0 flex-1 items-center gap-2 truncate">
         {left}
       </div>
@@ -74,9 +76,11 @@ export function FooterButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-md px-2 py-1 transition-[transform,background-color,color] active:scale-[0.96] ${
+      // Thumb-sized on a phone (44px, the primary one filled so it reads
+      // as the button); the compact Raycast strip from `sm` up.
+      className={`flex min-h-11 items-center gap-1.5 rounded-lg px-3.5 transition-[transform,background-color,color] active:scale-[0.96] sm:min-h-0 sm:rounded-md sm:px-2 sm:py-1 ${
         primary
-          ? "font-medium text-text hover:bg-surface-hover"
+          ? "bg-accent font-medium text-inverse hover:bg-accent-hover sm:bg-transparent sm:text-text sm:hover:bg-surface-hover"
           : "text-text-muted hover:bg-surface-hover hover:text-text"
       }`}
     >
