@@ -16,6 +16,7 @@ function book(overrides: Partial<ShelvedBook>): ShelvedBook {
     price: null,
     isbn: null,
     location: null,
+    cover_url: null,
     lent_to: null,
     note: null,
     created_at: "2026-09-01T00:00:00Z",

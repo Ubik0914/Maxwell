@@ -18,6 +18,8 @@ export interface BookDetails {
   publisher: string | null;
   published: string | null;
   price: number | null;
+  /** openBD's cover image, when it has one. Always https. */
+  cover_url: string | null;
 }
 
 type Unknown = Record<string, unknown> | null | undefined;
@@ -63,6 +65,21 @@ export function formatAuthors(raw: unknown): string | null {
   return names.length > 0 ? names.join(" / ") : null;
 }
 
+/** openBD's cover link, if it is one we would put in an <img>. */
+export function coverOf(raw: unknown): string | null {
+  const value = text(raw);
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "http:") url.protocol = "https:";
+    return url.protocol === "https:" && url.href.length <= 500
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function priceOf(record: Unknown): number | null {
   const onix = record?.onix as Unknown;
   const supply = (onix?.ProductSupply as Unknown)?.SupplyDetail as Unknown;
@@ -89,5 +106,6 @@ export function parseOpenBdRecord(record: unknown): BookDetails | null {
     publisher: text(summary?.publisher),
     published: formatPubdate(summary?.pubdate),
     price: priceOf(record as Unknown),
+    cover_url: coverOf(summary?.cover),
   };
 }
