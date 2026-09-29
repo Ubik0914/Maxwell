@@ -114,7 +114,7 @@ export function ActionPanel({
                 aria-selected={i === index}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => run(action)}
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${
+                className={`flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-base sm:min-h-0 sm:px-2 sm:py-1.5 sm:text-sm ${
                   i === index ? "bg-surface-hover" : ""
                 } ${action.danger ? "text-danger" : "text-text"}`}
               >
@@ -143,7 +143,7 @@ export function ActionPanel({
         }}
         placeholder="アクションを検索…"
         aria-label="アクションを検索"
-        className="shrink-0 border-t border-border bg-transparent px-3 py-2 text-sm text-text placeholder:text-text-faint focus:outline-none"
+        className="shrink-0 border-t border-border bg-transparent px-3 py-3 text-base text-text placeholder:text-text-faint focus:outline-none sm:py-2 sm:text-sm"
       />
     </div>
   );

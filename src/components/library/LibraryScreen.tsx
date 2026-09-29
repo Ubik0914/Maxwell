@@ -315,7 +315,7 @@ export function LibraryScreen({
           placeholder="本を検索…"
           aria-label="蔵書を検索"
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:text-lg"
+          className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:min-h-0 sm:text-lg"
         />
       </WindowBar>
 
@@ -626,7 +626,7 @@ function BookDetail({
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-md bg-surface-hover px-3 py-1.5 text-sm text-text transition-[transform,background-color] hover:bg-border active:scale-[0.97]"
+          className="rounded-md bg-surface-hover text-text transition-[transform,background-color] hover:bg-border active:scale-[0.97] min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-sm"
         >
           編集
         </button>
@@ -635,7 +635,7 @@ function BookDetail({
             type="button"
             onClick={onRefresh}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-muted transition-[transform,background-color] hover:bg-surface-hover hover:text-text active:scale-[0.97] disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-md border border-border text-text-muted transition-[transform,background-color] hover:bg-surface-hover hover:text-text active:scale-[0.97] disabled:opacity-60 min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-sm"
           >
             {refreshing ? <Spinner /> : <SearchIcon />}
             書誌を再取得
@@ -698,7 +698,7 @@ function EmptyShelf({ onScan }: { onScan: () => void }) {
       <button
         type="button"
         onClick={onScan}
-        className="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover"
+        className="flex items-center gap-2 rounded-md bg-accent font-medium text-inverse transition-colors hover:bg-accent-hover min-h-11 px-5 py-2.5 text-base sm:min-h-0 sm:px-4 sm:py-2 sm:text-sm"
       >
         <BarcodeIcon />
         スキャンして追加

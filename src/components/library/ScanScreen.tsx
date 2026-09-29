@@ -255,7 +255,7 @@ export function ScanScreen() {
         <Link
           href="/"
           aria-label="蔵書に戻る"
-          className="-ml-1 rounded-md p-1.5 text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
+          className="-ml-1 flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text sm:h-auto sm:w-auto sm:p-1.5"
         >
           <ArrowLeftIcon />
         </Link>
@@ -311,12 +311,12 @@ export function ScanScreen() {
               onChange={(event) => setLocation(event.target.value)}
               placeholder="登録先の場所（例: 会社）"
               maxLength={100}
-              className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
+              className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
             />
             <button
               type="button"
               onClick={() => setCameraOn((on) => !on)}
-              className="shrink-0 rounded-md border border-border px-3 py-2 text-sm text-text transition-colors hover:bg-surface-hover"
+              className="shrink-0 rounded-md border border-border text-text transition-colors hover:bg-surface-hover min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
             >
               {cameraOn ? "カメラ停止" : "カメラ再開"}
             </button>
@@ -330,7 +330,7 @@ export function ScanScreen() {
           onToggle={(event) => setManualOpen(event.currentTarget.open)}
           className="group rounded-lg bg-bg/40 px-3 py-2"
         >
-          <summary className="cursor-pointer list-none text-xs text-text-muted select-none">
+          <summary className="-mx-3 -my-2 flex min-h-11 cursor-pointer list-none items-center gap-1 px-3 py-2 text-sm text-text-muted select-none sm:min-h-0 sm:text-xs">
             <span className="inline-block transition-transform group-open:rotate-90">
               ›
             </span>{" "}
@@ -348,11 +348,11 @@ export function ScanScreen() {
                 autoComplete="off"
                 enterKeyHint="send"
                 placeholder="ISBN を読み取るか入力して Enter"
-                className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
               />
               <button
                 type="submit"
-                className="shrink-0 rounded-md border border-border px-3 py-2 text-sm text-text transition-colors hover:bg-surface-hover"
+                className="shrink-0 rounded-md border border-border text-text transition-colors hover:bg-surface-hover min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
               >
                 追加
               </button>
@@ -366,7 +366,7 @@ export function ScanScreen() {
           <button
             type="button"
             onClick={() => setTypingBook(true)}
-            className="mt-2 mb-1 flex items-center gap-1 text-xs text-text-muted transition-colors hover:text-text"
+            className="mt-2 mb-1 flex min-h-11 items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text sm:min-h-0 sm:text-xs"
           >
             <PlusIcon className="h-3.5 w-3.5" />
             バーコードの無い本を手入力で追加
@@ -528,7 +528,7 @@ function ScanRow({
             <button
               type="button"
               onClick={() => onUndo(row as Row & { state: { kind: "added" } })}
-              className="rounded-md px-2 py-1 text-xs text-text-muted transition-colors hover:bg-surface-hover hover:text-text"
+              className="rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text min-h-10 px-3 py-2 text-sm sm:min-h-0 sm:px-2 sm:py-1 sm:text-xs"
             >
               取消
             </button>
@@ -543,7 +543,7 @@ function ScanRow({
           <button
             type="button"
             onClick={() => onFillIn(row)}
-            className="rounded-md border border-border px-2 py-1 text-xs text-text transition-colors hover:bg-surface-hover"
+            className="rounded-md border border-border text-text transition-colors hover:bg-surface-hover min-h-10 px-3 py-2 text-sm sm:min-h-0 sm:px-2 sm:py-1 sm:text-xs"
           >
             手入力
           </button>
@@ -552,7 +552,7 @@ function ScanRow({
           <button
             type="button"
             onClick={() => onRetry(row)}
-            className="rounded-md border border-border px-2 py-1 text-xs text-text transition-colors hover:bg-surface-hover"
+            className="rounded-md border border-border text-text transition-colors hover:bg-surface-hover min-h-10 px-3 py-2 text-sm sm:min-h-0 sm:px-2 sm:py-1 sm:text-xs"
           >
             再試行
           </button>

@@ -16,7 +16,7 @@ import {
 import type { ShelvedBook } from "@/domain/library/filter";
 
 const INPUT =
-  "w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none";
+  "w-full rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm";
 const LABEL = "text-xs font-medium text-text-muted";
 
 interface Draft {
@@ -215,7 +215,7 @@ export function BookDialog({
                   type="button"
                   onClick={() => void lookup()}
                   disabled={isLookingUp || draft.isbn.trim() === ""}
-                  className="flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-text transition-colors hover:bg-surface-hover disabled:opacity-50"
+                  className="flex shrink-0 items-center gap-1.5 rounded-md border border-border text-text transition-colors hover:bg-surface-hover disabled:opacity-50 min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
                 >
                   {isLookingUp ? <Spinner /> : <SearchIcon />}
                   探す
@@ -339,14 +339,14 @@ export function BookDialog({
                   type="button"
                   onClick={() => void remove()}
                   disabled={isPending}
-                  className="rounded-md bg-danger px-3 py-2 text-sm font-medium text-inverse transition-colors hover:bg-danger-hover disabled:opacity-50"
+                  className="rounded-md bg-danger font-medium text-inverse transition-colors hover:bg-danger-hover disabled:opacity-50 min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
                 >
                   削除する
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(false)}
-                  className="rounded-md px-3 py-2 text-sm text-text-muted hover:text-text"
+                  className="rounded-md text-text-muted hover:text-text min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
                 >
                   やめる
                 </button>
@@ -355,7 +355,7 @@ export function BookDialog({
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
-                className="rounded-md px-3 py-2 text-sm text-danger transition-colors hover:bg-danger-soft"
+                className="rounded-md text-danger transition-colors hover:bg-danger-soft min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
               >
                 削除
               </button>
@@ -367,14 +367,14 @@ export function BookDialog({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md px-3 py-2 text-sm text-text-muted hover:text-text"
+              className="rounded-md text-text-muted hover:text-text min-h-11 px-4 py-2.5 text-base sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm"
             >
               キャンセル
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse transition-colors hover:bg-accent-hover disabled:opacity-50"
+              className="flex items-center gap-2 rounded-md bg-accent font-medium text-inverse transition-colors hover:bg-accent-hover disabled:opacity-50 min-h-11 px-5 py-2.5 text-base sm:min-h-0 sm:px-4 sm:py-2 sm:text-sm"
             >
               {isPending && <Spinner />}
               {book ? "保存" : "登録"}
