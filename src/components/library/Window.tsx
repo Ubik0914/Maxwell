@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
 export function Window({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-dvh justify-center bg-bg sm:px-6 sm:py-8">
-      <div className="flex h-full w-full max-w-5xl flex-col overflow-hidden bg-surface sm:rounded-xl sm:border sm:border-border sm:shadow-[0_30px_90px_rgba(0,0,0,0.7)]">
+      <div className="lib-window flex h-full w-full max-w-5xl flex-col overflow-hidden bg-surface sm:rounded-xl sm:border sm:border-border sm:shadow-[0_30px_90px_rgba(0,0,0,0.7)]">
         {children}
       </div>
     </div>
@@ -74,7 +74,7 @@ export function FooterButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors ${
+      className={`flex items-center gap-1.5 rounded-md px-2 py-1 transition-[transform,background-color,color] active:scale-[0.96] ${
         primary
           ? "font-medium text-text hover:bg-surface-hover"
           : "text-text-muted hover:bg-surface-hover hover:text-text"

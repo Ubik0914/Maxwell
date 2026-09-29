@@ -279,7 +279,7 @@ export function ScanScreen() {
             />
             {cameraOn && scannerState === "running" && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="h-1/3 w-4/5 rounded-lg border-2 border-accent/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+                <div className="lib-scan-frame h-1/3 w-4/5 rounded-lg border-2 border-accent/80" />
                 <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-white/90">
                   上段の ISBN バーコードを枠に合わせてください
                 </p>
@@ -476,7 +476,12 @@ function ScanRow({
 
   return (
     <li
-      className={`flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-hover/60 ${
+      // Every row drops in when it is queued, and glows once when the
+      // book actually lands on the shelf: the class arrives with the
+      // "added" state, so that is when its animation starts.
+      className={`lib-scan-in flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-hover/60 ${
+        state.kind === "added" ? "lib-scan-added" : ""
+      } ${
         TONE[state.kind]
       } ${highlighted ? "bg-surface-hover ring-1 ring-accent" : ""}`}
     >
@@ -492,13 +497,25 @@ function ScanRow({
         </p>
         <p className="truncate text-xs text-text-muted">
           {state.kind === "pending" && "書誌を取得しています…"}
-          {state.kind === "added" &&
-            [book?.authors, book?.publisher].filter(Boolean).join(" ・ ")}
+          {state.kind === "added" && (book?.authors ?? "著者不明")}
           {state.kind === "duplicate" && "すでに登録されています"}
-          {state.kind === "not_found" && "openBD に書誌がありません"}
+          {state.kind === "not_found" && "書誌データベースに見つかりません"}
           {state.kind === "undone" && "取り消しました"}
           {state.kind === "error" && state.message}
         </p>
+        {state.kind === "added" && book && (
+          <p className="truncate text-[11px] text-text-faint">
+            {[
+              book.publisher,
+              book.published,
+              book.price == null
+                ? null
+                : `¥${book.price.toLocaleString("ja-JP")}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">

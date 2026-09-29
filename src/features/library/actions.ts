@@ -8,7 +8,7 @@ import {
   type BookFieldsInput,
 } from "@/lib/validation/book";
 import type { BookDetails } from "@/domain/library/openbd";
-import { fetchOpenBd } from "@/features/library/openbd";
+import { fetchBookDetails } from "@/features/library/bibliography";
 import type { ShelvedBook } from "@/domain/library/filter";
 import * as bookRepository from "@/repositories/book.repository";
 import type { ActionResult } from "@/types/action-result";
@@ -108,7 +108,8 @@ export async function deleteBookAction(
 }
 
 /**
- * Title, author, publisher, date and price for an ISBN, from openBD.
+ * Title, author, publisher, date, price and cover for an ISBN, from
+ * openBD with the NDL filling its gaps.
  *
  * Fetched here rather than from the browser so the page does not
  * depend on a third party's CORS headers, and so a slow openBD costs
@@ -127,7 +128,7 @@ export async function lookupIsbnAction(
 
   const isbn = parsed.data;
   try {
-    const details = await fetchOpenBd(isbn);
+    const details = await fetchBookDetails(isbn);
     if (!details) {
       return invalid(
         "この ISBN の書誌が見つかりませんでした。手で入力してください。",
@@ -144,7 +145,7 @@ function unreachable<T>(): ActionResult<T> {
     success: false,
     error: {
       code: ErrorCode.INTERNAL_ERROR,
-      message: "openBD に接続できませんでした。手で入力してください。",
+      message: "書誌データベースに接続できませんでした。手で入力してください。",
     },
   };
 }
@@ -190,7 +191,7 @@ export async function addBookByIsbnAction(
 
   let details: BookDetails | null;
   try {
-    details = await fetchOpenBd(isbn);
+    details = await fetchBookDetails(isbn);
   } catch {
     return unreachable();
   }
@@ -215,5 +216,68 @@ export async function addBookByIsbnAction(
       if (book) return { success: true, data: { status: "duplicate", book } };
     }
     return failed(error, "本を登録できませんでした。");
+  }
+}
+
+/**
+ * Looks a shelved book up again and fills in whatever it is missing —
+ * a price openBD did not have when it was scanned, a cover — without
+ * touching anything someone has already written. Returns the book as
+ * it now stands, changed or not.
+ */
+export async function refreshBookAction(
+  bookId: string,
+): Promise<ActionResult<{ book: ShelvedBook; filled: string[] }>> {
+  const { supabase, user } = await requireUser();
+  if (!user) return notLoggedIn();
+
+  let book: ShelvedBook | null;
+  try {
+    book = await bookRepository.findBook(supabase, bookId);
+  } catch (error) {
+    return failed(error, "本を読み込めませんでした。");
+  }
+  if (!book) return invalid("本が見つかりません。");
+  if (!book.isbn) return invalid("ISBN が無いため再取得できません。");
+
+  let details: BookDetails | null;
+  try {
+    details = await fetchBookDetails(book.isbn);
+  } catch {
+    return unreachable();
+  }
+  if (!details) return invalid("この ISBN の書誌が見つかりませんでした。");
+
+  const fillable = [
+    "authors",
+    "publisher",
+    "published",
+    "price",
+    "cover_url",
+  ] as const;
+  const filled = fillable.filter(
+    (key) => book[key] == null && details[key] != null,
+  );
+  if (filled.length === 0) {
+    return { success: true, data: { book, filled: [] } };
+  }
+
+  const fields = bookFieldsSchema.safeParse({
+    ...book,
+    ...Object.fromEntries(filled.map((key) => [key, details[key]])),
+  });
+  if (!fields.success) {
+    return invalid(fields.error.issues[0]?.message ?? "Invalid input");
+  }
+
+  try {
+    const updated = await bookRepository.updateBook(
+      supabase,
+      bookId,
+      fields.data,
+    );
+    return { success: true, data: { book: updated, filled } };
+  } catch (error) {
+    return failed(error, "書誌を保存できませんでした。");
   }
 }
