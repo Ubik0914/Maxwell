@@ -9,7 +9,7 @@ export default function NotFound() {
         have access to it.
       </p>
       <Link
-        href="/stories"
+        href="/maxwell/stories"
         className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse hover:bg-accent-hover"
       >
         Back to Stories

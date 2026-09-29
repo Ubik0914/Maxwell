@@ -74,7 +74,10 @@ export function StoryHeader({
       {/* Up here only where there is a pointer. On a phone the tab bar
           lives along the bottom edge, where the thumb is — see
           StoryShell. */}
-      <ViewSwitcher base={`/stories/${story.id}`} className="hidden sm:flex" />
+      <ViewSwitcher
+        base={`/maxwell/stories/${story.id}`}
+        className="hidden sm:flex"
+      />
 
       <StatMeters stats={stats} frontierCount={frontierCount} />
     </header>

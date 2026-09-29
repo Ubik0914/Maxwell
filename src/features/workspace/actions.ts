@@ -71,7 +71,7 @@ export async function createWorkspaceAction(
   const cookieStore = await cookies();
   cookieStore.set(WORKSPACE_COOKIE, workspaceId, WORKSPACE_COOKIE_OPTIONS);
 
-  redirect("/stories");
+  redirect("/maxwell/stories");
 }
 
 /**
@@ -167,5 +167,5 @@ export async function switchWorkspaceAction(
     cookieStore.set(WORKSPACE_COOKIE, workspaceId, WORKSPACE_COOKIE_OPTIONS);
   }
 
-  redirect("/stories");
+  redirect("/maxwell/stories");
 }

@@ -64,7 +64,7 @@ export function unblockedMessage(
   return {
     title: story.title,
     body,
-    url: `/stories/${story.id}`,
+    url: `/maxwell/stories/${story.id}`,
     // One tag per story, so five tasks unblocked one after another by an
     // agent working through a graph leave one notification about the
     // story rather than five to swipe away.
@@ -81,7 +81,7 @@ export function completedMessage(story: StorySummary): PushMessage {
   return {
     title: story.title,
     body: "Every task is done. The story is complete.",
-    url: `/stories/${story.id}`,
+    url: `/maxwell/stories/${story.id}`,
     tag: `story:${story.id}`,
   };
 }

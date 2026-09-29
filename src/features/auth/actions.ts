@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, signupSchema } from "@/lib/validation/auth";
 import { ErrorCode } from "@/lib/errors/codes";
+import { safeNextPath } from "@/lib/navigation/safe-next";
 import type { ActionResult } from "@/types/action-result";
 
 export async function loginAction(
@@ -26,9 +27,7 @@ export async function loginAction(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword(
-    parsed.data,
-  );
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
     if (error.code === "email_not_confirmed") {
@@ -55,12 +54,17 @@ export async function loginAction(
     };
   }
 
+  // The page that sent them here gets them back. Without one, it is
+  // Maxwell's old answer: your stories, or a workspace to make first.
+  const next = safeNextPath(formData.get("next"));
+  if (next) redirect(next);
+
   const { count } = await supabase
     .from("workspace_members")
     .select("workspace_id", { count: "exact", head: true })
     .eq("user_id", data.user.id);
 
-  redirect(count && count > 0 ? "/stories" : "/workspaces");
+  redirect(count && count > 0 ? "/maxwell/stories" : "/maxwell/workspaces");
 }
 
 export async function signupAction(
@@ -99,7 +103,7 @@ export async function signupAction(
   }
 
   if (data.session) {
-    redirect("/workspaces");
+    redirect("/maxwell/workspaces");
   }
 
   return { success: true, data: { requiresEmailConfirmation: true } };

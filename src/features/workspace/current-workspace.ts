@@ -51,7 +51,7 @@ export async function requireCurrentWorkspace() {
   const { user, workspace, supabase } = await getCurrentWorkspace();
 
   if (!workspace) {
-    redirect("/workspaces");
+    redirect("/maxwell/workspaces");
   }
 
   return { user, workspace, supabase };

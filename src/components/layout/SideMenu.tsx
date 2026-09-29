@@ -5,10 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { DrawerStories } from "@/features/story/actions";
-import {
-  STORY_FILTER_ORDER,
-  type StoryFilter,
-} from "@/features/story/filter";
+import { STORY_FILTER_ORDER, type StoryFilter } from "@/features/story/filter";
 import { Skeleton } from "@/components/Skeleton";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import type { StoryListItem } from "@/repositories/story.repository";
@@ -19,6 +16,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useDrawerDrag } from "@/components/layout/useDrawerDrag";
 import { storySwitchHref } from "@/features/story/switch-href";
 import {
+  BookIcon,
   CloseIcon,
   PlusIcon,
   RoutineIcon,
@@ -141,7 +139,9 @@ export function SideMenu({
   onReload?: () => void;
 }) {
   const pathname = usePathname();
-  const { panelRef, drag, handlers } = useDrawerDrag({ onSettle: onOpenChange });
+  const { panelRef, drag, handlers } = useDrawerDrag({
+    onSettle: onOpenChange,
+  });
   /*
    * Whether there is a document to portal into.
    *
@@ -183,9 +183,10 @@ export function SideMenu({
   // The aggregate is where you are, or it isn't: no story row is
   // current while every story is on screen at once.
   const isAllStories =
-    pathname === "/stories/all" || pathname.startsWith("/stories/all/");
+    pathname === "/maxwell/stories/all" ||
+    pathname.startsWith("/maxwell/stories/all/");
 
-  const isRoutines = pathname === "/routines";
+  const isRoutines = pathname === "/maxwell/routines";
 
   const shown =
     stories && filter !== "ALL"
@@ -269,9 +270,11 @@ export function SideMenu({
               <p className="px-1.5 py-2 text-sm text-text-faint">None yet.</p>
             ) : (
               <Link
-                href="/workspaces"
+                href="/maxwell/workspaces"
                 onClick={() => onOpenChange(false)}
-                aria-current={pathname === "/workspaces" ? "page" : undefined}
+                aria-current={
+                  pathname === "/maxwell/workspaces" ? "page" : undefined
+                }
                 className="-mx-1.5 flex items-center justify-between gap-2 rounded-lg px-1.5 py-2 transition-colors hover:bg-surface-hover"
               >
                 <span className="truncate text-sm text-text">
@@ -284,6 +287,19 @@ export function SideMenu({
             )}
           </div>
 
+          {/* The library at "/" shares the sign-in and nothing else, so
+              it is a way out of Maxwell rather than a part of it. */}
+          <div className="flex flex-col gap-1.5 px-1.5">
+            <Link
+              href="/"
+              onClick={() => onOpenChange(false)}
+              className="flex items-center gap-2.5 rounded-lg px-1.5 py-2 text-sm text-text transition-colors hover:bg-surface-hover"
+            >
+              <BookIcon />
+              Library
+            </Link>
+          </div>
+
           {/* Routines sit above the stories and outside them, because
               they are the other half of the workspace rather than a
               way of looking at this half: something that repeats has
@@ -293,7 +309,7 @@ export function SideMenu({
           {workspaceId && (
             <div className="flex flex-col gap-1.5 px-1.5">
               <Link
-                href="/routines"
+                href="/maxwell/routines"
                 onClick={() => onOpenChange(false)}
                 aria-current={isRoutines ? "page" : undefined}
                 className={`flex items-center gap-2.5 rounded-lg px-1.5 py-2 text-sm transition-colors hover:bg-surface-hover ${

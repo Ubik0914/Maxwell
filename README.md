@@ -2,7 +2,19 @@
 
 DAGベースのタスク管理システム。StoryのStartとGoalを先に定義し、その間をTask NodeとDependency Edgeによって分解する。
 
-使い方のガイドはアプリ自身の `/docs` にある（本文は [`src/content/docs/`](src/content/docs) の Markdown）。このREADMEは動かし方と繋ぎ方、`/docs` は使い方。
+## URL の構成
+
+| パス | 中身 |
+| --- | --- |
+| `/` | **蔵書管理**（書名・著者・出版社・発売日・価格・ISBN・場所・読書状況・貸出先）。ISBN を入れると openBD から書誌を補完する |
+| `/maxwell` | Maxwell 本体（`/maxwell/stories`・`/maxwell/workspaces`・`/maxwell/routines`・`/maxwell/docs`） |
+| `/login`・`/signup` | 両方で共通のサインイン。`?next=/path` でサインイン後の戻り先を指定できる |
+| `/api/*`・`/oauth/*` | Maxwell の REST API / MCP / OAuth。外部クライアントの接続先を変えないためルートのまま |
+
+旧パス（`/stories/...` など）は `next.config.ts` の redirects で `/maxwell/...` へ 308 で転送する。
+蔵書は `dag.books`（`supabase/migrations/20260929090000_create_dag_books.sql`）に持ち、RLS で本人の行だけが見える。
+
+使い方のガイドはアプリ自身の `/maxwell/docs` にある（本文は [`src/content/docs/`](src/content/docs) の Markdown）。このREADMEは動かし方と繋ぎ方、`/maxwell/docs` は使い方。
 
 ## 技術スタック
 
@@ -49,7 +61,9 @@ maxwell task status <task-id> DONE
 /api/v1/auth/token` で発行・更新）。どちらも user-scoped クライアントに
 なるため RLS の効き方は同じで、Service Role Key は使わない。
 
-MCPサーバーは同じAPIを12個のツールとして公開する。繋ぎ方は3つ:
+MCPサーバーは**蔵書の読み取りだけ**を3つのツール（`whoami` /
+`search_books` / `get_book`）として公開する。Maxwell のグラフ操作ツールは
+廃止した（グラフは引き続き REST API と CLI から操作できる）。繋ぎ方は3つ:
 
 ```bash
 # リモート — クローン不要。URLとトークンだけ
@@ -66,7 +80,7 @@ OAuth 2.1 (Dynamic Client Registration → ブラウザでログイン/確認 �
 トークン取得) を Maxwell 自身が認可サーバーとして受け持つ。詳しくは
 [`mcp/README.md`](mcp/README.md)。
 
-同じ12ツール・同じディスパッチで、違うのは「APIへの到達手段」だけ。
+どの繋ぎ方でも同じツール・同じディスパッチで、違うのは「APIへの到達手段」だけ。
 サインインはツールにしていない — パスワードはツール引数ではない。
 
 エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)、
@@ -95,7 +109,7 @@ Ship it,Build the API;Build the UI
 ## PWA と通知
 
 ホーム画面に入れられる。入れると、閉じていても手が空いたタスクを知らせに来る。
-使い方はアプリの [`/docs`](src/content/docs/10-notifications.md) にあり、ここには
+使い方はアプリの [`/maxwell/docs`](src/content/docs/10-notifications.md) にあり、ここには
 動かすために要るものだけ書く。
 
 - `src/app/manifest.ts` — マニフェスト（`/manifest.webmanifest`）

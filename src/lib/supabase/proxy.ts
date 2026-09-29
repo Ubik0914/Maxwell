@@ -33,13 +33,21 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const protectedPrefixes = ["/stories", "/workspaces", "/settings"];
+  const protectedPrefixes = [
+    "/maxwell/stories",
+    "/maxwell/workspaces",
+    "/maxwell/settings",
+  ];
   const isProtectedRoute = protectedPrefixes.some((prefix) =>
     request.nextUrl.pathname.startsWith(prefix),
   );
 
   if (!user && isProtectedRoute) {
     const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set(
+      "next",
+      request.nextUrl.pathname + request.nextUrl.search,
+    );
     const redirectResponse = NextResponse.redirect(loginUrl);
     supabaseResponse.cookies.getAll().forEach((cookie) => {
       redirectResponse.cookies.set(cookie);

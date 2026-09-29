@@ -36,7 +36,7 @@ export function StorySettingsButton({ story }: { story: EditableStory }) {
         <StorySettingsDialog
           story={story}
           onClose={() => setIsOpen(false)}
-          onDeleted={() => router.push("/stories")}
+          onDeleted={() => router.push("/maxwell/stories")}
         />
       )}
     </>

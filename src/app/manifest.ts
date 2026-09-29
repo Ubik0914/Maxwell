@@ -10,10 +10,12 @@ import type { MetadataRoute } from "next";
  * apps, a splash colour that matches the page instead of flashing white
  * on the way in.
  *
- * `start_url` is "/", which is the redirect that already knows whether
- * to send you to your stories or to sign in. An installed app opened
- * cold should land where the site would have put you, not on a page
- * that assumes a session it may not have.
+ * `start_url` is "/maxwell", which is the redirect that already knows
+ * whether to send you to your stories or to sign in. (It used to be "/",
+ * which is the library now; `scope` stays "/" so the library and the
+ * sign-in pages open inside the installed app rather than a browser.)
+ * An installed app opened cold should land where the site would have
+ * put you, not on a page that assumes a session it may not have.
  *
  * `id` is fixed and must stay that way. It is how a browser recognises
  * this as the app it already has installed; changing it later hands
@@ -24,9 +26,8 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "Maxwell — DAG Task Manager",
     short_name: "Maxwell",
-    description:
-      "Define a Start and a Goal, then build the path between them.",
-    start_url: "/",
+    description: "Define a Start and a Goal, then build the path between them.",
+    start_url: "/maxwell",
     scope: "/",
     display: "standalone",
     background_color: "#0a0d14",

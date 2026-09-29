@@ -4,7 +4,7 @@ import { apiSuccess, apiError } from "@/lib/api/response";
 import { ErrorCode } from "@/lib/errors/codes";
 import { createRoutineSchema } from "@/lib/validation/routine";
 import { parseIsoDate } from "@/lib/date/calendar";
-import { todayIso } from "@/app/stories/[storyId]/story-data";
+import { todayIso } from "@/app/maxwell/stories/[storyId]/story-data";
 import * as routineRepository from "@/repositories/routine.repository";
 
 export async function GET(request: NextRequest) {

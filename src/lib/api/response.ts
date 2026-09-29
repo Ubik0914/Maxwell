@@ -10,6 +10,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   [ErrorCode.NODE_NOT_FOUND]: 404,
   [ErrorCode.TASK_NOT_FOUND]: 404,
   [ErrorCode.EDGE_NOT_FOUND]: 404,
+  [ErrorCode.BOOK_NOT_FOUND]: 404,
   [ErrorCode.INVALID_NODE_TYPE]: 409,
   [ErrorCode.INVALID_START_EDGE]: 409,
   [ErrorCode.INVALID_GOAL_EDGE]: 409,

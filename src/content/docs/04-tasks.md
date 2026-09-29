@@ -8,7 +8,7 @@
 
 | チップ | 内容 |
 | --- | --- |
-| **Status** | Ready / In progress / Done / Cancelled から選ぶ。Blocked は選べない（[ステータス](/docs/status)を参照） |
+| **Status** | Ready / In progress / Done / Cancelled から選ぶ。Blocked は選べない（[ステータス](/maxwell/docs/status)を参照） |
 | **Priority** | Low / Medium / High / Urgent。未設定のままでもよい |
 | **Due** | 期日。カレンダーから選ぶ |
 | **Assignee** | 担当者。現状はユーザー ID をそのまま入れる欄になっている |
