@@ -208,6 +208,18 @@ export function ListIcon({ className }: { className?: string }) {
   );
 }
 
+/** Four tiles: a grid of covers. */
+export function GridIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <rect x="3" y="3" width="5.5" height="5.5" rx="1.2" />
+      <rect x="11.5" y="3" width="5.5" height="5.5" rx="1.2" />
+      <rect x="3" y="11.5" width="5.5" height="5.5" rx="1.2" />
+      <rect x="11.5" y="11.5" width="5.5" height="5.5" rx="1.2" />
+    </Icon>
+  );
+}
+
 /** Two columns of stacked cards: the board. */
 export function BoardIcon({ className }: { className?: string }) {
   return (

@@ -2,6 +2,8 @@ import {
   filterBooks,
   foldForSearch,
   libraryStats,
+  shelfOverview,
+  shelves,
   sortBooks,
   type ShelvedBook,
 } from "../filter";
@@ -102,5 +104,53 @@ describe("sortBooks", () => {
 describe("libraryStats", () => {
   it("counts the shelf", () => {
     expect(libraryStats(shelf)).toEqual({ total: 3, value: 1960 });
+  });
+});
+
+describe("filterBooks by location", () => {
+  it("keeps one shelf, or the books with none", () => {
+    expect(
+      filterBooks(shelf, { query: "", location: "会社" }).map((b) => b.title),
+    ).toEqual(["ちいかわ お友だちとのつき合いかた"]);
+    expect(filterBooks(shelf, { query: "", location: null })).toHaveLength(2);
+    expect(filterBooks(shelf, { query: "" })).toHaveLength(3);
+  });
+
+  it("combines with the search", () => {
+    expect(
+      filterBooks(shelf, { query: "orwell", location: "会社" }),
+    ).toHaveLength(0);
+  });
+
+  it("treats a blank location as none", () => {
+    const blank = [book({ title: "空白", location: "  " })];
+    expect(filterBooks(blank, { query: "", location: null })).toHaveLength(1);
+  });
+});
+
+describe("shelves", () => {
+  it("lists the fullest first and the unplaced last", () => {
+    const books = [
+      ...shelf,
+      book({ title: "a", location: "本棚" }),
+      book({ title: "b", location: "本棚" }),
+      book({ title: "c", location: "本棚" }),
+    ];
+    expect(shelves(books)).toEqual([
+      { name: "本棚", count: 3 },
+      { name: "会社", count: 1 },
+      { name: null, count: 2 },
+    ]);
+  });
+});
+
+describe("shelfOverview", () => {
+  it("counts value, distinct authors and the last thirty days", () => {
+    expect(
+      shelfOverview(
+        [...shelf, book({ title: "再", authors: " ナガノ " })],
+        new Date("2026-10-02T00:00:00Z"),
+      ),
+    ).toEqual({ total: 4, value: 1960, authors: 3, recent: 2 });
   });
 });

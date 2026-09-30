@@ -4,9 +4,11 @@ import { useState } from "react";
 import { coverCandidates, MIN_COVER_WIDTH } from "@/domain/library/cover";
 
 const SIZE = {
-  sm: "h-12 w-9 text-[10px]",
-  md: "h-20 w-14 text-xs",
-  lg: "h-36 w-24 text-sm",
+  sm: "h-12 w-9 rounded-sm p-1 text-[10px]",
+  md: "h-20 w-14 rounded-sm p-1 text-xs",
+  lg: "h-36 w-24 rounded-sm p-1 text-sm",
+  /** As wide as its container, at a book's proportions: the grid. */
+  fill: "aspect-[2/3] w-full rounded-lg p-3 text-sm",
 } as const;
 
 /**
@@ -52,7 +54,7 @@ export function BookCover({
   const attempt = failed.key === key ? failed.count : 0;
   const source = sources[attempt];
 
-  const frame = `${SIZE[size]} shrink-0 overflow-hidden rounded-sm border border-border`;
+  const frame = `${SIZE[size]} shrink-0 overflow-hidden border border-border`;
 
   // The title card is always drawn, and the picture fades in on top of
   // it once it has actually arrived. A cover that is slow, or never
@@ -72,7 +74,7 @@ export function BookCover({
             title: zoomable ? "表紙を拡大" : undefined,
           }
         : { "aria-hidden": true })}
-      className={`${frame} relative flex items-center justify-center bg-surface-hover p-1 text-center leading-tight text-text-faint ${
+      className={`${frame} relative flex items-center justify-center bg-surface-hover text-center leading-tight text-text-faint ${
         zoomable
           ? "cursor-zoom-in transition-transform active:scale-[0.97]"
           : ""
