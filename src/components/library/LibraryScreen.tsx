@@ -6,6 +6,7 @@ import {
   BarcodeIcon,
   BookIcon,
   CheckIcon,
+  ChevronDownIcon,
   CopyIcon,
   GridIcon,
   KeyIcon,
@@ -164,9 +165,11 @@ export function LibraryScreen({
   const [deleting, setDeleting] = useState(false);
   // ⌘K's panel, or — from the phone's tab bar — just its shelves.
   const [panel, setPanel] = useState<
-    "all" | "more" | "shelves" | "genres" | "sort" | null
+    "all" | "more" | "shelves" | "sort" | null
   >(null);
   const actionsOpen = panel !== null;
+  // その他's ジャンル row, unfolded or not; folded again each time it opens.
+  const [genresOpen, setGenresOpen] = useState(false);
   // Phones have no room for a detail pane; tapping a book opens it as a
   // sheet instead, and editing is one more tap from there.
   const [viewing, setViewing] = useState<ShelvedBook | null>(null);
@@ -647,17 +650,36 @@ export function LibraryScreen({
       : { previous: shown[index - 1], next: shown[index + 1] };
   };
 
-  // その他's way to the genres: one line naming what is chosen, that
-  // opens its own list rather than spilling every genre into this one.
+  // その他's genres: one line naming what is chosen, which unfolds the
+  // genres under it in place rather than listing them all up front.
   // (Places have their own tab.)
   const narrowing: Action[] = [
     {
       id: "to-genres",
       section: "絞り込み",
-      title: `ジャンル › ${genreName ?? "すべて"}`,
+      title: `ジャンル · ${genreName ?? "すべて"}`,
       icon: <BookIcon />,
-      run: () => setPanel("genres"),
+      keepOpen: true,
+      expanded: genresOpen,
+      trailing: (
+        <ChevronDownIcon
+          className={`text-text-faint transition-transform ${
+            genresOpen ? "rotate-180" : ""
+          }`}
+        />
+      ),
+      run: () => setGenresOpen((open) => !open),
     },
+    // Unfolded under it, one step in: every genre, the chosen one aside.
+    ...(genresOpen
+      ? actions
+          .filter((action) => action.section === "ジャンル")
+          .map((action) => ({
+            ...action,
+            section: "絞り込み",
+            nested: true,
+          }))
+      : []),
   ];
 
   // The tab bar and the search bar, both out of the way.
@@ -853,31 +875,28 @@ export function LibraryScreen({
                     ? actions.filter((action) => action.section === "場所")
                     : panel === "sort"
                       ? sortChoices
-                      : panel === "genres"
-                        ? actions.filter(
-                            (action) => action.section === "ジャンル",
-                          )
-                        : panel === "more"
-                          ? [
-                              ...narrowing,
-                              ...actions.filter(
-                                (action) => !ELSEWHERE_ON_PHONE.test(action.id),
-                              ),
-                            ]
-                          : actions
+                      : panel === "more"
+                        ? [
+                            ...narrowing,
+                            ...actions.filter(
+                              (action) => !ELSEWHERE_ON_PHONE.test(action.id),
+                            ),
+                          ]
+                        : actions
                 }
                 title={
                   panel === "shelves"
                     ? "場所"
                     : panel === "sort"
                       ? "並び順"
-                      : panel === "genres"
-                        ? "ジャンル"
-                        : panel === "more"
-                          ? "その他"
-                          : undefined
+                      : panel === "more"
+                        ? "その他"
+                        : undefined
                 }
-                onClose={() => setPanel(null)}
+                onClose={() => {
+                  setPanel(null);
+                  setGenresOpen(false);
+                }}
               />
             )}
             <TabBar
@@ -1079,7 +1098,7 @@ function TabBar({
   hidden: boolean;
   /** The shelf being shown, or null for all of them. */
   shelfName: string | null;
-  panel: "all" | "more" | "shelves" | "genres" | "sort" | null;
+  panel: "all" | "more" | "shelves" | "sort" | null;
   refreshProgress: { done: number; total: number } | null;
   /** The order the list is in now, for the tab's accessible name. */
   sortLabel: string;
