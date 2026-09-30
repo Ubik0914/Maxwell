@@ -70,6 +70,17 @@ const SORT_LABEL: Record<BookSort, string> = {
 
 const yen = new Intl.NumberFormat("ja-JP");
 
+/**
+ * What the phone's その他 leaves out of ⌘K's list, because the phone
+ * already has a clearer way to it: scanning and typing a book in are
+ * tabs, and so are the orders and the shelves; opening, editing,
+ * re-fetching and deleting a book are in its detail (delete by way of
+ * the edit form). The desktop's ⌘K keeps everything — it is the one
+ * place a keyboard can reach it all.
+ */
+const ELSEWHERE_ON_PHONE =
+  /^(open|edit|refresh|delete|scan|manual|sort-.+|shelf-.+)$/;
+
 /** Wide enough for the detail pane beside the sidebar and the shelf. */
 const DETAIL_PANE = "(min-width: 1280px)";
 
@@ -150,7 +161,9 @@ export function LibraryScreen({
   // showing, rather than a browser confirm() box over the page.
   const [deleting, setDeleting] = useState(false);
   // ⌘K's panel, or — from the phone's tab bar — just its shelves.
-  const [panel, setPanel] = useState<"all" | "shelves" | "sort" | null>(null);
+  const [panel, setPanel] = useState<
+    "all" | "more" | "shelves" | "sort" | null
+  >(null);
   const actionsOpen = panel !== null;
   // Phones have no room for a detail pane; tapping a book opens it as a
   // sheet instead, and editing is one more tap from there.
@@ -779,14 +792,20 @@ export function LibraryScreen({
                     ? actions.filter((action) => action.section === "場所")
                     : panel === "sort"
                       ? sortChoices
-                      : actions
+                      : panel === "more"
+                        ? actions.filter(
+                            (action) => !ELSEWHERE_ON_PHONE.test(action.id),
+                          )
+                        : actions
                 }
                 title={
                   panel === "shelves"
                     ? "場所"
                     : panel === "sort"
                       ? "並び順"
-                      : undefined
+                      : panel === "more"
+                        ? "その他"
+                        : undefined
                 }
                 onClose={() => setPanel(null)}
               />
@@ -801,7 +820,7 @@ export function LibraryScreen({
               onShelves={() => setPanel("shelves")}
               onScan={scan}
               onManual={() => setEditing("new")}
-              onMore={() => setPanel("all")}
+              onMore={() => setPanel("more")}
             />
           </div>
         </div>
@@ -983,7 +1002,7 @@ function TabBar({
   hidden: boolean;
   /** The shelf being shown, or null for all of them. */
   shelfName: string | null;
-  panel: "all" | "shelves" | "sort" | null;
+  panel: "all" | "more" | "shelves" | "sort" | null;
   refreshProgress: { done: number; total: number } | null;
   /** The order the list is in now, for the tab's accessible name. */
   sortLabel: string;
@@ -1057,7 +1076,11 @@ function TabBar({
           <PlusIcon className="h-6 w-6" />
           手入力
         </button>
-        <button type="button" onClick={onMore} className={tab(panel === "all")}>
+        <button
+          type="button"
+          onClick={onMore}
+          className={tab(panel === "more")}
+        >
           <MoreIcon className="h-6 w-6" />
           その他
         </button>
@@ -1190,7 +1213,13 @@ function BookDetail({
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
           <div className="flex items-start gap-2">
-            <h2 className="min-w-0 flex-1 text-base leading-snug font-semibold text-text">
+            {/* Always four lines tall (4 × 1.375em), however short the
+                title, so paging between books does not shift the rest of
+                the page; a longer title scrolls inside. */}
+            <h2
+              tabIndex={0}
+              className="h-[5.5em] min-w-0 flex-1 overflow-y-auto overscroll-contain text-base leading-snug font-semibold break-words text-text focus:outline-none"
+            >
               {book.title}
             </h2>
             {/* The desktop's ⌘K, beside what it acts on — there is no
@@ -1487,9 +1516,7 @@ function NeighbourLink({
         <span className="block text-[11px] text-text-faint">
           {forward ? "次の本" : "前の本"}
         </span>
-        <span className="block truncate text-sm text-text">
-          {book.title}
-        </span>
+        <span className="block truncate text-sm text-text">{book.title}</span>
       </span>
     </button>
   );
