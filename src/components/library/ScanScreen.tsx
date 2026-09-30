@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   ArrowLeftIcon,
   BarcodeIcon,
@@ -15,6 +14,8 @@ import {
   UndoIcon,
 } from "@/components/icons";
 import { useRouter } from "next/navigation";
+import { usePullToDismiss } from "@/hooks/usePullToDismiss";
+import { SCAN_FROM_LIBRARY } from "@/components/library/navigation";
 import {
   IconButton,
   Window,
@@ -82,6 +83,30 @@ const SCANNER_MESSAGE: Partial<Record<ScannerState, string>> = {
  */
 export function ScanScreen() {
   const router = useRouter();
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLElement>(null);
+
+  /**
+   * Back to the library. When the library is where we came from, that
+   * is a history step back rather than a new entry, so leaving scan
+   * after scan does not stack up copies of the library behind it; when
+   * /scan was opened directly, there is nothing to go back to and it
+   * replaces itself with the library instead.
+   */
+  const leave = useCallback(() => {
+    let fromLibrary = false;
+    try {
+      fromLibrary = sessionStorage.getItem(SCAN_FROM_LIBRARY) === "1";
+      sessionStorage.removeItem(SCAN_FROM_LIBRARY);
+    } catch {
+      // Storage refused (private mode): take the safe route below.
+    }
+    if (fromLibrary) router.back();
+    else router.replace("/");
+  }, [router]);
+
+  // On a phone the screen is a sheet, and pulled down it goes.
+  usePullToDismiss({ sheetRef, scrollRef, onDismiss: leave });
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const session = useRef(new ScanSession());
@@ -264,22 +289,26 @@ export function ScanScreen() {
   );
 
   return (
-    <Window>
+    <Window sheet sheetRef={sheetRef}>
       <WindowBar>
-        <Link
-          href="/"
+        <button
+          type="button"
+          onClick={leave}
           aria-label="蔵書に戻る"
           title="蔵書に戻る"
           className="-ml-1 flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text sm:h-auto sm:w-auto sm:p-1.5"
         >
           <ArrowLeftIcon />
-        </Link>
+        </button>
         <h1 className="min-w-0 flex-1 truncate text-base text-text sm:text-lg">
           連続スキャン
         </h1>
       </WindowBar>
 
-      <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3 sm:px-4">
+      <main
+        ref={scrollRef}
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4"
+      >
         <section className="flex flex-col gap-3 rounded-lg bg-bg/40 p-3">
           <div className="relative overflow-hidden rounded-md bg-black">
             {/* Kept mounted while off so the stream has somewhere to go
@@ -427,11 +456,7 @@ export function ScanScreen() {
           </>
         }
       >
-        <IconButton
-          label="完了して蔵書に戻る"
-          tone="primary"
-          onClick={() => router.push("/")}
-        >
+        <IconButton label="完了して蔵書に戻る" tone="primary" onClick={leave}>
           <CheckIcon className={ICON} />
         </IconButton>
       </WindowFooter>
