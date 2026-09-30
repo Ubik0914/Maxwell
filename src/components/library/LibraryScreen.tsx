@@ -738,12 +738,21 @@ export function LibraryScreen({
                           />
                         </li>
                       ))}
+                      {/* Half a book of room under the last row, so the shelf ends
+                          with space rather than at the edge: a cell of the
+                          next row, half as tall as a cover (2/3 × 3/4). */}
+                      <li
+                        aria-hidden="true"
+                        className="col-start-1 aspect-[4/3]"
+                      />
                     </ul>
                   ) : (
                     <ul
                       role="listbox"
                       aria-label="蔵書"
-                      className="px-2 pb-2 md:px-3"
+                      // pb-9: about half a row of room under the last
+                      // book, so the list ends with space, not at the edge.
+                      className="px-2 pb-9 md:px-3"
                     >
                       {shown.map((book, index) => (
                         <li
