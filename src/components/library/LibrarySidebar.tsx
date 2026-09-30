@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import {
   BarcodeIcon,
   BookIcon,
+  KeyIcon,
   LogoutIcon,
   PlusIcon,
   RefreshIcon,
@@ -31,6 +32,7 @@ export function LibrarySidebar({
   refreshProgress,
   userEmail,
   onLogout,
+  onRegisterPasskey,
 }: {
   total: number;
   shelves: Shelf[];
@@ -42,6 +44,7 @@ export function LibrarySidebar({
   refreshProgress: { done: number; total: number } | null;
   userEmail: string;
   onLogout: () => void;
+  onRegisterPasskey: () => void;
 }) {
   return (
     <nav
@@ -116,6 +119,15 @@ export function LibrarySidebar({
           <span className="min-w-0 flex-1 truncate text-xs text-text-faint">
             {userEmail}
           </span>
+          <button
+            type="button"
+            onClick={onRegisterPasskey}
+            aria-label="パスキーを登録"
+            title="パスキーを登録"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
+          >
+            <KeyIcon />
+          </button>
           <button
             type="button"
             onClick={onLogout}

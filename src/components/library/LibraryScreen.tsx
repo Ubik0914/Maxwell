@@ -7,6 +7,7 @@ import {
   BookIcon,
   CopyIcon,
   GridIcon,
+  KeyIcon,
   ListIcon,
   PinIcon,
   LogoutIcon,
@@ -20,6 +21,7 @@ import {
 } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { logoutAction } from "@/features/auth/actions";
+import { registerPasskey } from "@/features/auth/passkey";
 import {
   refreshBookAction,
   refreshBooksAction,
@@ -329,6 +331,19 @@ export function LibraryScreen({
     [showError, showSuccess],
   );
 
+  /** Registers this device's passkey for the person signed in, so the
+   *  next sign-in can skip the password. */
+  const addPasskey = useCallback(async () => {
+    const result = await registerPasskey();
+    if (result.ok) {
+      showSuccess(
+        `パスキーを登録しました${result.name ? `（${result.name}）` : ""}`,
+      );
+    } else if (result.message) {
+      showError(result.message);
+    }
+  }, [showError, showSuccess]);
+
   const actions = useMemo<Action[]>(() => {
     const list: Action[] = [];
     if (selected) {
@@ -435,6 +450,13 @@ export function LibraryScreen({
           run: () => setSort(option),
         })),
       {
+        id: "passkey",
+        section: "アカウント",
+        title: "この端末のパスキーを登録",
+        icon: <KeyIcon />,
+        run: () => void addPasskey(),
+      },
+      {
         id: "logout",
         section: "アカウント",
         title: `ログアウト（${userEmail}）`,
@@ -452,6 +474,7 @@ export function LibraryScreen({
     places,
     location,
     userEmail,
+    addPasskey,
     scan,
     refresh,
     refreshAll,
@@ -568,6 +591,7 @@ export function LibraryScreen({
           refreshProgress={refreshAllProgress}
           userEmail={userEmail}
           onLogout={() => void logoutAction()}
+          onRegisterPasskey={() => void addPasskey()}
         />
 
         <div className="relative flex min-w-0 flex-1 flex-col">
