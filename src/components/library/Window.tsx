@@ -13,6 +13,7 @@ export function Window({
   children,
   sheet = false,
   wide = false,
+  settled = false,
   sheetRef,
 }: {
   children: ReactNode;
@@ -21,6 +22,11 @@ export function Window({
    * for a layout with a sidebar, which wants the whole width.
    */
   wide?: boolean;
+  /**
+   * Already on screen — a loading shell showed this sheet first — so
+   * it appears in place rather than sliding up again.
+   */
+  settled?: boolean;
   /**
    * On a phone, present it as a sheet over black — inset from the top,
    * rounded, with a grabber — for a screen that is pulled down to leave
@@ -40,7 +46,7 @@ export function Window({
       <div
         ref={sheetRef}
         className={`lib-window flex h-full w-full max-w-5xl flex-col overflow-hidden bg-surface sm:rounded-xl sm:border sm:border-border sm:shadow-[0_30px_90px_rgba(0,0,0,0.7)] ${
-          sheet ? "modal-page rounded-t-2xl" : ""
+          sheet ? `rounded-t-2xl ${settled ? "lib-settled" : "modal-page"}` : ""
         } ${
           wide
             ? "lib-wide md:max-w-none md:rounded-none md:border-0 md:shadow-none"
