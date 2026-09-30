@@ -1211,15 +1211,7 @@ function BookDetail({
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
           <div className="flex items-start gap-2">
-            {/* Always four lines tall (4 × 1.375em), however short the
-                title, so paging between books does not shift the rest of
-                the page; a longer title scrolls inside. */}
-            <h2
-              tabIndex={0}
-              className="h-[5.5em] min-w-0 flex-1 overflow-y-auto overscroll-contain text-base leading-snug font-semibold break-words text-text focus:outline-none"
-            >
-              {book.title}
-            </h2>
+            <DetailTitle title={book.title} />
             {/* The desktop's ⌘K, beside what it acts on — there is no
                 footer to hold it. */}
             {onActions && (
@@ -1314,6 +1306,38 @@ function BookDetail({
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * The detail's title: always three and a half lines tall (3.5 ×
+ * 1.375em), however short, so paging between books does not shift the
+ * rest of the page. A longer title scrolls inside, and the half line
+ * showing at the bottom fades out to say so — until it has been
+ * scrolled to its end, where the fade would only hide the last words.
+ */
+function DetailTitle({ title }: { title: string }) {
+  const [more, setMore] = useState(false);
+  const measure = useCallback((element: HTMLElement | null) => {
+    if (!element) return;
+    setMore(
+      element.scrollTop + element.clientHeight < element.scrollHeight - 1,
+    );
+  }, []);
+  return (
+    <h2
+      key={title}
+      ref={measure}
+      tabIndex={0}
+      onScroll={(event) => measure(event.currentTarget)}
+      className={`h-[4.8125em] min-w-0 flex-1 overflow-y-auto overscroll-contain text-base leading-snug font-semibold break-words text-text focus:outline-none ${
+        more
+          ? "[mask-image:linear-gradient(to_bottom,black_calc(100%-1.5em),transparent)]"
+          : ""
+      }`}
+    >
+      {title}
+    </h2>
   );
 }
 
