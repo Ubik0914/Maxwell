@@ -15,6 +15,14 @@ export interface Action {
   icon?: ReactNode;
   keys?: string[];
   danger?: boolean;
+  /** Runs in place, leaving the panel open — a row that unfolds more. */
+  keepOpen?: boolean;
+  /** For a row that unfolds more: whether it is unfolded now. */
+  expanded?: boolean;
+  /** Drawn a step in: a row unfolded under the one above it. */
+  nested?: boolean;
+  /** Shown at the row's right edge, after any keys. */
+  trailing?: ReactNode;
   run: () => void;
 }
 
@@ -94,6 +102,10 @@ export function ActionPanel({
 
   function run(action: Action | undefined) {
     if (!action) return;
+    if (action.keepOpen) {
+      action.run();
+      return;
+    }
     dismiss(action.run);
     onClose();
   }
@@ -179,9 +191,12 @@ export function ActionPanel({
                   aria-selected={i === index}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => run(action)}
+                  aria-expanded={action.expanded}
                   className={`flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-base sm:min-h-0 sm:px-2 sm:py-1.5 sm:text-sm ${
                     i === index ? "bg-surface-hover" : ""
-                  } ${action.danger ? "text-danger" : "text-text"}`}
+                  } ${action.danger ? "text-danger" : "text-text"} ${
+                    action.nested ? "lib-row pl-9 sm:pl-8" : ""
+                  }`}
                 >
                   <span className="flex h-4 w-4 shrink-0 items-center justify-center text-text-muted">
                     {action.icon}
@@ -196,6 +211,7 @@ export function ActionPanel({
                       ))}
                     </span>
                   )}
+                  {action.trailing}
                 </button>
               </li>
             );
