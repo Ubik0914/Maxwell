@@ -265,6 +265,7 @@ const FILLABLE = [
   "published",
   "price",
   "cover_url",
+  "ndc",
 ] as const;
 
 type Refill =

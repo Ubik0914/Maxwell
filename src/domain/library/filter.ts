@@ -1,3 +1,5 @@
+import { ndcGenre } from "@/domain/library/ndc";
+
 /**
  * Finding a book on the shelf.
  *
@@ -19,6 +21,8 @@ export interface ShelvedBook {
   isbn: string | null;
   location: string | null;
   cover_url: string | null;
+  /** Nippon Decimal Classification number ("933.7"): the genre. */
+  ndc: string | null;
   note: string | null;
   created_at: string;
 }
@@ -50,6 +54,11 @@ function haystack(book: ShelvedBook): string {
       book.isbn,
       book.location,
       book.note,
+      // The genre by name, so "文学" or "マンガ" finds the books in it.
+      ...(() => {
+        const genre = ndcGenre(book.ndc);
+        return genre ? [genre.className, genre.name] : [];
+      })(),
     ]
       .filter(Boolean)
       .join("\n"),
@@ -61,6 +70,7 @@ export function filterBooks(
   {
     query,
     location,
+    genre,
   }: {
     query: string;
     /**
@@ -68,6 +78,11 @@ export function filterBooks(
      * written down, or left out for every shelf.
      */
     location?: string | null;
+    /**
+     * One NDC class, by its digit ("9" for 文学); `null` for the books
+     * with no NDC; left out for every genre.
+     */
+    genre?: string | null;
   },
 ): ShelvedBook[] {
   // Every word has to match somewhere, in any order: "orwell 早川" finds
@@ -79,6 +94,7 @@ export function filterBooks(
 
   return books.filter((book) => {
     if (location !== undefined && shelfOf(book) !== location) return false;
+    if (genre !== undefined && classOf(book) !== genre) return false;
     if (words.length === 0) return true;
     const text = haystack(book);
     return words.every((word) => text.includes(word));
@@ -187,4 +203,34 @@ export function shelfOverview(
     (book) => new Date(book.created_at).getTime() >= since,
   ).length;
   return { total, value, authors, recent };
+}
+
+/** A book's NDC class digit, or null when it has no NDC. */
+function classOf(book: ShelvedBook): string | null {
+  return ndcGenre(book.ndc)?.classCode ?? null;
+}
+
+export interface GenreCount {
+  /** The class digit, or `null` for the books with no NDC. */
+  code: string | null;
+  count: number;
+}
+
+/**
+ * The genres on the shelf, in the NDC's own order (総記 to 文学), with
+ * the books that have none at the end.
+ */
+export function genres(books: ShelvedBook[]): GenreCount[] {
+  const counts = new Map<string | null, number>();
+  for (const book of books) {
+    const code = classOf(book);
+    counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([code, count]) => ({ code, count }))
+    .sort(
+      (a, b) =>
+        Number(a.code === null) - Number(b.code === null) ||
+        (a.code ?? "").localeCompare(b.code ?? ""),
+    );
 }

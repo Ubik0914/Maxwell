@@ -83,6 +83,7 @@ describe("parseOpenBdRecord", () => {
       published: "2009-07",
       price: 860,
       cover_url: "https://cover.openbd.jp/9784151200533.jpg",
+      ndc: null,
     });
   });
 

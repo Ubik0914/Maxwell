@@ -53,6 +53,22 @@ export const bookFieldsSchema = z.object({
     .nullable()
     .optional()
     .transform((value) => (value ? value : null)),
+  ndc: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((value, ctx) => {
+      const ndc = value?.normalize("NFKC").trim() ?? "";
+      if (ndc === "") return null;
+      if (!/^[0-9]{3}(\.[0-9]+)?$/.test(ndc) || ndc.length > 20) {
+        ctx.addIssue({
+          code: "custom",
+          message: "NDC は「933.7」のような3桁の数字で入力してください",
+        });
+        return z.NEVER;
+      }
+      return ndc;
+    }),
   note: optionalText(5000, "メモ"),
 });
 

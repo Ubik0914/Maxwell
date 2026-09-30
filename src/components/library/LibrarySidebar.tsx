@@ -10,7 +10,8 @@ import {
   RefreshIcon,
 } from "@/components/icons";
 import { Spinner } from "@/components/Spinner";
-import type { Shelf } from "@/domain/library/filter";
+import type { GenreCount, Shelf } from "@/domain/library/filter";
+import { ndcClassName } from "@/domain/library/ndc";
 
 /** Which shelf the list shows: all of them (`undefined`), one, or none. */
 export type ShelfChoice = string | null | undefined;
@@ -26,6 +27,9 @@ export function LibrarySidebar({
   shelves,
   shelf,
   onShelf,
+  genres,
+  genre,
+  onGenre,
   onScan,
   onManual,
   onRefreshAll,
@@ -38,6 +42,10 @@ export function LibrarySidebar({
   shelves: Shelf[];
   shelf: ShelfChoice;
   onShelf: (shelf: ShelfChoice) => void;
+  genres: GenreCount[];
+  /** The NDC class shown, null for the unclassified, undefined for all. */
+  genre: string | null | undefined;
+  onGenre: (genre: string | null | undefined) => void;
   onScan: () => void;
   onManual: () => void;
   onRefreshAll: () => void;
@@ -71,8 +79,12 @@ export function LibrarySidebar({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         <SidebarItem
-          active={shelf === undefined}
-          onClick={() => onShelf(undefined)}
+          active={shelf === undefined && genre === undefined}
+          onClick={() => {
+            // Every book: no place and no genre chosen.
+            onShelf(undefined);
+            onGenre(undefined);
+          }}
           count={total}
         >
           すべての本
@@ -92,6 +104,27 @@ export function LibrarySidebar({
                 muted={name === null}
               >
                 {name ?? "場所未設定"}
+              </SidebarItem>
+            ))}
+          </>
+        )}
+
+        {/* The NDC's ten classes, as many as the shelf has books in;
+            choosing the one already chosen shows every genre again. */}
+        {genres.some(({ code }) => code !== null) && (
+          <>
+            <p className="px-2 pt-4 pb-1 text-[11px] font-semibold text-text-faint">
+              ジャンル
+            </p>
+            {genres.map(({ code, count }) => (
+              <SidebarItem
+                key={code ?? ""}
+                active={genre === code}
+                onClick={() => onGenre(genre === code ? undefined : code)}
+                count={count}
+                muted={code === null}
+              >
+                {code === null ? "ジャンル未設定" : ndcClassName(code)}
               </SidebarItem>
             ))}
           </>

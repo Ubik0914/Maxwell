@@ -8,6 +8,7 @@ import { IconButton } from "@/components/library/Window";
 import { BookCover } from "@/components/library/BookCover";
 import { PlaceSuggestions } from "@/components/library/PlaceSuggestions";
 import { normalizeIsbn } from "@/domain/library/isbn";
+import { ndcGenre } from "@/domain/library/ndc";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
   createBookAction,
@@ -34,6 +35,7 @@ interface Draft {
   price: string;
   location: string;
   cover_url: string | null;
+  ndc: string;
   note: string;
 }
 
@@ -47,6 +49,7 @@ function draftOf(book?: ShelvedBook, initialIsbn?: string): Draft {
     price: book?.price == null ? "" : String(book.price),
     location: book?.location ?? "",
     cover_url: book?.cover_url ?? null,
+    ndc: book?.ndc ?? "",
     note: book?.note ?? "",
   };
 }
@@ -122,6 +125,7 @@ export function BookDialog({
       published: found.published ?? current.published,
       price: found.price == null ? current.price : String(found.price),
       cover_url: found.cover_url ?? current.cover_url,
+      ndc: found.ndc ?? current.ndc,
     }));
     setNotice("openBD から書誌を読み込みました。");
   }
@@ -155,6 +159,7 @@ export function BookDialog({
       published: found.published ?? "",
       price: found.price == null ? "" : String(found.price),
       cover_url: found.cover_url,
+      ndc: found.ndc ?? "",
     }));
     setCandidates(null);
     setNotice("候補から書誌を読み込みました。");
@@ -394,6 +399,26 @@ export function BookDialog({
               value={draft.location}
               onPick={(place) => set("location", place)}
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="book-ndc" className={LABEL}>
+              ジャンル（NDC）
+            </label>
+            <input
+              id="book-ndc"
+              value={draft.ndc}
+              onChange={(event) => set("ndc", event.target.value)}
+              inputMode="decimal"
+              placeholder="913.6"
+              maxLength={20}
+              autoComplete="off"
+              className={INPUT}
+            />
+            {ndcGenre(draft.ndc) && (
+              <p className="text-xs text-text-faint">
+                {ndcGenre(draft.ndc)?.name || ndcGenre(draft.ndc)?.className}
+              </p>
+            )}
           </div>
         </div>
 
