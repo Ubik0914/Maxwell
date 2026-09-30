@@ -1,5 +1,6 @@
 import { parseOpenBdRecord, type BookDetails } from "@/domain/library/openbd";
 import { mergeDetails, parseNdlOpenSearch } from "@/domain/library/ndl";
+import { coverCandidates, MIN_COVER_BYTES } from "@/domain/library/cover";
 
 /*
  * Both sources are cached for a day: a book's colophon does not change,
@@ -46,8 +47,41 @@ export async function fetchBookDetails(
   if (openbd.status === "rejected" && ndl.status === "rejected") {
     throw openbd.reason;
   }
-  return mergeDetails(
+  const details = mergeDetails(
     openbd.status === "fulfilled" ? openbd.value : null,
     ndl.status === "fulfilled" ? ndl.value : null,
   );
+  // openBD's records rarely carry a cover now; look one up by ISBN.
+  if (details && !details.cover_url) {
+    details.cover_url = await findCover(isbn);
+  }
+  return details;
+}
+
+/**
+ * The first cover candidate that is a real picture, or null.
+ *
+ * Checked here, once, rather than left to the browser: both hosts answer
+ * a miss with a tiny placeholder instead of a 404, and a stored URL is
+ * only worth storing if it is a cover. Not cached — the image bodies
+ * are only weighed, never kept.
+ */
+export async function findCover(isbn: string): Promise<string | null> {
+  for (const url of coverCandidates(isbn)) {
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(6000),
+        cache: "no-store",
+      });
+      if (!response.ok) continue;
+      if (!response.headers.get("content-type")?.startsWith("image/")) {
+        continue;
+      }
+      const body = await response.arrayBuffer();
+      if (body.byteLength >= MIN_COVER_BYTES) return url;
+    } catch {
+      // One host being slow or down is a reason to try the next.
+    }
+  }
+  return null;
 }
