@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { KeyIcon } from "@/components/icons";
+import { passkeysSupported, signInWithPasskey } from "@/features/auth/passkey";
 import { loginAction } from "@/features/auth/actions";
 import { Spinner } from "@/components/Spinner";
 import type { ActionResult } from "@/types/action-result";
@@ -13,6 +16,31 @@ export function LoginForm({ next }: { next?: string }) {
     loginAction,
     initialState,
   );
+  const router = useRouter();
+  // Known only in the browser; the button appears once it is.
+  const [canUsePasskey, setCanUsePasskey] = useState(false);
+  const [passkeyPending, setPasskeyPending] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
+    setCanUsePasskey(passkeysSupported());
+  }, []);
+
+  async function passkey() {
+    setPasskeyPending(true);
+    setPasskeyError(null);
+    const result = await signInWithPasskey();
+    if (result.ok) {
+      // The session is in the cookies now; the server renders the
+      // destination as the person it has just met.
+      router.replace(next ?? "/");
+      router.refresh();
+      return;
+    }
+    setPasskeyPending(false);
+    setPasskeyError(result.message);
+  }
 
   return (
     <form action={formAction} className="flex w-full max-w-sm flex-col gap-4">
@@ -61,6 +89,30 @@ export function LoginForm({ next }: { next?: string }) {
         {isPending && <Spinner />}
         Log in
       </button>
+
+      {canUsePasskey && (
+        <>
+          <div className="flex items-center gap-3 text-xs text-text-faint">
+            <span className="h-px flex-1 bg-border" />
+            または
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <button
+            type="button"
+            onClick={() => void passkey()}
+            disabled={passkeyPending || isPending}
+            className="flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium text-text transition hover:bg-surface-hover disabled:opacity-50"
+          >
+            {passkeyPending ? <Spinner /> : <KeyIcon />}
+            パスキーでログイン
+          </button>
+          {passkeyError && (
+            <p role="alert" className="text-sm text-danger select-text">
+              {passkeyError}
+            </p>
+          )}
+        </>
+      )}
 
       <p className="text-center text-sm text-text-muted">
         Don&apos;t have an account?{" "}

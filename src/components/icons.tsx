@@ -208,6 +208,16 @@ export function ListIcon({ className }: { className?: string }) {
   );
 }
 
+/** A key: a passkey. */
+export function KeyIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <circle cx="7" cy="12.5" r="3.5" />
+      <path d="M9.5 10l6.5-6.5M13.5 6l2 2M11.5 8l1.5 1.5" />
+    </Icon>
+  );
+}
+
 /** A map pin: where something is. */
 export function PinIcon({ className }: { className?: string }) {
   return (
