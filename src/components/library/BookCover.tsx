@@ -28,7 +28,10 @@ export function BookCover({
   coverUrl,
   size = "md",
   className = "",
+  onZoom,
 }: {
+  /** Makes the cover a button that hands back the picture it shows. */
+  onZoom?: (source: string) => void;
   title: string;
   isbn: string | null;
   coverUrl: string | null;
@@ -54,10 +57,26 @@ export function BookCover({
   // The title card is always drawn, and the picture fades in on top of
   // it once it has actually arrived. A cover that is slow, or never
   // answers, leaves the card showing rather than an empty frame.
+  const shown = loaded === source ? source : null;
+  const zoomable = Boolean(onZoom && shown);
+  const Frame = onZoom ? "button" : "div";
+
   return (
-    <div
-      aria-hidden="true"
-      className={`${frame} relative flex items-center justify-center bg-surface-hover p-1 text-center leading-tight text-text-faint ${className}`}
+    <Frame
+      {...(onZoom
+        ? {
+            type: "button" as const,
+            onClick: () => shown && onZoom(shown),
+            disabled: !zoomable,
+            "aria-label": `「${title}」の表紙を拡大`,
+            title: zoomable ? "表紙を拡大" : undefined,
+          }
+        : { "aria-hidden": true })}
+      className={`${frame} relative flex items-center justify-center bg-surface-hover p-1 text-center leading-tight text-text-faint ${
+        zoomable
+          ? "cursor-zoom-in transition-transform active:scale-[0.97]"
+          : ""
+      } ${className}`}
     >
       <span className="line-clamp-4 break-all">{title}</span>
       {source && (
@@ -95,6 +114,6 @@ export function BookCover({
           className="lib-cover absolute inset-0 h-full w-full object-cover"
         />
       )}
-    </div>
+    </Frame>
   );
 }

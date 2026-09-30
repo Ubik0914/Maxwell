@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 /**
  * The library's frame, drawn after Raycast: one floating window with a
@@ -9,10 +9,38 @@ import type { ReactNode } from "react";
  * and a deep shadow; on a phone there is no room to float, so it simply
  * is the page.
  */
-export function Window({ children }: { children: ReactNode }) {
+export function Window({
+  children,
+  sheet = false,
+  sheetRef,
+}: {
+  children: ReactNode;
+  /**
+   * On a phone, present it as a sheet over black — inset from the top,
+   * rounded, with a grabber — for a screen that is pulled down to leave
+   * (see usePullToDismiss). No difference from `sm` up.
+   */
+  sheet?: boolean;
+  sheetRef?: Ref<HTMLDivElement>;
+}) {
   return (
-    <div className="flex h-dvh justify-center bg-bg sm:px-6 sm:py-8">
-      <div className="lib-window flex h-full w-full max-w-5xl flex-col overflow-hidden bg-surface sm:rounded-xl sm:border sm:border-border sm:shadow-[0_30px_90px_rgba(0,0,0,0.7)]">
+    <div
+      className={`flex h-dvh justify-center sm:bg-bg sm:px-6 sm:py-8 ${
+        sheet ? "bg-black pt-[calc(env(safe-area-inset-top)+0.75rem)]" : "bg-bg"
+      }`}
+    >
+      <div
+        ref={sheetRef}
+        className={`lib-window flex h-full w-full max-w-5xl flex-col overflow-hidden bg-surface sm:rounded-xl sm:border sm:border-border sm:shadow-[0_30px_90px_rgba(0,0,0,0.7)] ${
+          sheet ? "modal-page rounded-t-2xl" : ""
+        }`}
+      >
+        {sheet && (
+          <div
+            aria-hidden="true"
+            className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-border-strong sm:hidden"
+          />
+        )}
         {children}
       </div>
     </div>

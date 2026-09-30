@@ -852,3 +852,24 @@ html[data-motion="reduced"] {
     animation: reduced-appear 200ms ease-out both;
   }
 }
+
+/* The cover viewer: the picture grows out of the small one it was
+   opened from, near enough. */
+.lib-zoom {
+  animation: lib-zoom 300ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+}
+
+@keyframes lib-zoom {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+html[data-motion="reduced"] .lib-zoom {
+  animation: reduced-appear 200ms ease-out both;
+}

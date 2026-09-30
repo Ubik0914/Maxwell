@@ -25,7 +25,9 @@ import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { BookDialog } from "@/components/library/BookDialog";
+import { SCAN_FROM_LIBRARY } from "@/components/library/navigation";
 import { BookCover } from "@/components/library/BookCover";
+import { CoverLightbox } from "@/components/library/CoverLightbox";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
 import {
   IconButton,
@@ -129,7 +131,14 @@ export function LibraryScreen({
     [shown],
   );
 
-  const scan = useCallback(() => router.push("/scan"), [router]);
+  const scan = useCallback(() => {
+    try {
+      sessionStorage.setItem(SCAN_FROM_LIBRARY, "1");
+    } catch {
+      // Without storage the scan screen simply replaces itself on leave.
+    }
+    router.push("/scan");
+  }, [router]);
 
   // The shelf-wide re-fetch: progress while it runs, null when idle.
   const [refreshAllProgress, setRefreshAllProgress] = useState<{
@@ -657,12 +666,16 @@ function BookDetail({
   onEdit,
   onRefresh,
   compact = false,
+  onZoomChange,
 }: {
   book: ShelvedBook;
   refreshing: boolean;
   onEdit: () => void;
   onRefresh: () => void;
   compact?: boolean;
+  /** Told when the cover viewer opens and closes, so a sheet under it
+   *  can leave Escape to it. */
+  onZoomChange?: (open: boolean) => void;
 }) {
   const rows: [string, string | null][] = [
     ["著者", book.authors],
@@ -672,6 +685,9 @@ function BookDetail({
     ["ISBN", book.isbn ? formatIsbn(book.isbn) : null],
     ["場所", book.location],
   ];
+  // The cover, opened large: tap it to see it, tap anywhere to put it
+  // away.
+  const [zoomed, setZoomed] = useState<string | null>(null);
 
   return (
     <div className={`flex flex-col gap-4 ${compact ? "" : "p-5"}`}>
@@ -681,8 +697,22 @@ function BookDetail({
           isbn={book.isbn}
           coverUrl={book.cover_url}
           size="lg"
+          onZoom={(source) => {
+            setZoomed(source);
+            onZoomChange?.(true);
+          }}
           className="shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
         />
+        {zoomed && (
+          <CoverLightbox
+            source={zoomed}
+            title={book.title}
+            onClose={() => {
+              setZoomed(null);
+              onZoomChange?.(false);
+            }}
+          />
+        )}
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
           <h2 className="text-base leading-snug font-semibold text-text">
             {book.title}
@@ -762,7 +792,8 @@ function DetailSheet({
   onEdit: () => void;
   onRefresh: () => void;
 }) {
-  useEscapeKey(onClose, !covered, { exclusive: true });
+  const [zoomed, setZoomed] = useState(false);
+  useEscapeKey(onClose, !covered && !zoomed, { exclusive: true });
   return (
     <Modal
       title="本の詳細"
@@ -775,6 +806,7 @@ function DetailSheet({
         refreshing={refreshing}
         onEdit={onEdit}
         onRefresh={onRefresh}
+        onZoomChange={setZoomed}
         compact
       />
     </Modal>
