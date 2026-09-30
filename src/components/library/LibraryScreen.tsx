@@ -225,9 +225,17 @@ export function LibraryScreen({
       list.push({
         id: "open",
         section: selected.title,
-        title: "開いて編集",
+        title: "詳細を開く",
         icon: <BookIcon />,
         keys: ["↵"],
+        run: () => setViewing(selected),
+      });
+      list.push({
+        id: "edit",
+        section: selected.title,
+        title: "編集",
+        icon: <PencilIcon />,
+        keys: ["⌘", "E"],
         run: () => setEditing(selected),
       });
       if (selected.isbn && missingDetails(selected)) {
@@ -318,8 +326,9 @@ export function LibraryScreen({
   ]);
 
   // The list's keyboard. Typing goes to the search box wherever focus
-  // is, the way Raycast's does; ↑↓ move the selection, ↵ opens it,
-  // ⌘K opens the actions, and Escape clears the search.
+  // is, the way Raycast's does; ↑↓ move the selection, ↵ opens it
+  // (to read, not to edit — that is ⌘E), ⌘K opens the actions, and
+  // Escape clears the search.
   useEffect(() => {
     if (editing || actionsOpen || viewing) return;
 
@@ -330,6 +339,9 @@ export function LibraryScreen({
       if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setActionsOpen(true);
+      } else if (mod && event.key.toLowerCase() === "e" && selected) {
+        event.preventDefault();
+        setEditing(selected);
       } else if (event.key === "ArrowDown") {
         event.preventDefault();
         select(Math.min(selectedIndex + 1, shown.length - 1));
@@ -338,7 +350,7 @@ export function LibraryScreen({
         select(Math.max(selectedIndex - 1, 0));
       } else if (event.key === "Enter" && selected) {
         event.preventDefault();
-        setEditing(selected);
+        setViewing(selected);
       } else if (event.key === "Escape" && query) {
         event.preventDefault();
         setQuery("");
@@ -424,10 +436,6 @@ export function LibraryScreen({
                         book={book}
                         selected={index === selectedIndex}
                         onSelect={() => setSelectedId(book.id)}
-                        onOpen={() => {
-                          setSelectedId(book.id);
-                          setEditing(book);
-                        }}
                         onView={() => {
                           setSelectedId(book.id);
                           setViewing(book);
@@ -487,8 +495,8 @@ export function LibraryScreen({
           {selected && (
             <span className="hidden sm:contents">
               <IconButton
-                label="開いて編集"
-                keys={["↵"]}
+                label="編集"
+                keys={["⌘", "E"]}
                 onClick={() => setEditing(selected)}
               >
                 <PencilIcon className={ICON} />
@@ -581,13 +589,11 @@ function BookRow({
   book,
   selected,
   onSelect,
-  onOpen,
   onView,
 }: {
   book: ShelvedBook;
   selected: boolean;
   onSelect: () => void;
-  onOpen: () => void;
   onView: () => void;
 }) {
   const line = imprint(book);
@@ -600,7 +606,6 @@ function BookRow({
         if (window.matchMedia("(min-width: 768px)").matches) onSelect();
         else onView();
       }}
-      onDoubleClick={onOpen}
       className={`lib-select flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left ${
         selected ? "bg-surface-hover" : "hover:bg-surface-hover/60"
       }`}
@@ -767,7 +772,8 @@ function BookDetail({
 
       {!compact && (
         <p className="flex items-center gap-1.5 text-[11px] text-text-faint">
-          <Kbd>↵</Kbd> で編集 · <Kbd>⌘</Kbd>
+          <Kbd>⌘</Kbd>
+          <Kbd>E</Kbd> で編集 · <Kbd>⌘</Kbd>
           <Kbd>K</Kbd> でアクション
         </p>
       )}
