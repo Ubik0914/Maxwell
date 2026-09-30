@@ -119,8 +119,11 @@ export function LibraryScreen({
   // down, and comes back the moment it is scrolled up — or reaches the
   // top — the way a browser's toolbar does.
   const [barHidden, setBarHidden] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const lastScroll = useRef(0);
   const onListScroll = useCallback((event: React.UIEvent<HTMLElement>) => {
+    // Phones only: from md up nothing slides away.
+    if (window.matchMedia("(min-width: 768px)").matches) return;
     const top = event.currentTarget.scrollTop;
     const delta = top - lastScroll.current;
     // A few pixels either way is a hand resting, not a direction.
@@ -522,6 +525,9 @@ export function LibraryScreen({
     else rowRefs.current.delete(id);
   };
 
+  // The tab bar and the search bar, both out of the way.
+  const chromeHidden = barHidden && !panel && !searchFocused;
+
   return (
     <Window wide>
       <div className="flex min-h-0 flex-1">
@@ -539,21 +545,35 @@ export function LibraryScreen({
         />
 
         <div className="relative flex min-w-0 flex-1 flex-col">
-          <WindowBar>
-            <SearchIcon className="h-5 w-5 shrink-0 text-text-faint" />
-            <input
-              ref={searchRef}
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="本を検索…"
-              aria-label="蔵書を検索"
-              autoComplete="off"
-              className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:min-h-0 sm:text-lg"
-            />
-            <ShelfStats {...overview} />
-            <ViewToggle view={view} onChange={changeView} />
-          </WindowBar>
+          {/* On a phone the search bar goes with the tab bar while the
+              list is scrolled down (rows 1fr → 0fr animates its height),
+              unless it is being typed in. */}
+          <div
+            inert={chromeHidden}
+            className={`grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,0.9,0.28,1)] md:grid-rows-[1fr] ${
+              chromeHidden ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+            }`}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <WindowBar>
+                <SearchIcon className="h-5 w-5 shrink-0 text-text-faint" />
+                <input
+                  ref={searchRef}
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="本を検索…"
+                  aria-label="蔵書を検索"
+                  autoComplete="off"
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:min-h-0 sm:text-lg"
+                />
+                <ShelfStats {...overview} />
+                <ViewToggle view={view} onChange={changeView} />
+              </WindowBar>
+            </div>
+          </div>
 
           <div className="flex min-h-0 flex-1">
             <div
@@ -712,7 +732,7 @@ export function LibraryScreen({
               </WindowFooter>
             </div>
             <TabBar
-              hidden={barHidden && !panel}
+              hidden={chromeHidden}
               shelfName={location === undefined ? null : shelfName}
               panel={panel}
               refreshProgress={refreshAllProgress}
@@ -991,7 +1011,8 @@ function ViewToggle({
     <div
       role="radiogroup"
       aria-label="表示"
-      className="flex shrink-0 rounded-xl bg-bg/60 p-0.5 sm:rounded-lg"
+      // Desktop only: on a phone it is in その他.
+      className="hidden shrink-0 rounded-lg bg-bg/60 p-0.5 md:flex"
     >
       {options.map(([value, label, icon]) => (
         <button
