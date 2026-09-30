@@ -647,9 +647,9 @@ export function LibraryScreen({
       : { previous: shown[index - 1], next: shown[index + 1] };
   };
 
-  // その他's way to the two filters: one line each, naming what is
-  // chosen, that opens its own list rather than spilling every place
-  // and genre into this one.
+  // その他's way to the genres: one line naming what is chosen, that
+  // opens its own list rather than spilling every genre into this one.
+  // (Places have their own tab.)
   const narrowing: Action[] = [
     {
       id: "to-genres",
@@ -657,15 +657,6 @@ export function LibraryScreen({
       title: `ジャンル › ${genreName ?? "すべて"}`,
       icon: <BookIcon />,
       run: () => setPanel("genres"),
-    },
-    {
-      id: "to-shelves",
-      section: "絞り込み",
-      title: `場所 › ${
-        location === undefined ? "すべて" : (location ?? "場所未設定")
-      }`,
-      icon: <PinIcon />,
-      run: () => setPanel("shelves"),
     },
   ];
 
