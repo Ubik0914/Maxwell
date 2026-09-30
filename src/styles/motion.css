@@ -673,6 +673,12 @@ html[data-motion="reduced"] {
   }
 }
 
+/* A window that a loading shell already put on screen does not
+   arrive a second time. */
+.lib-window.lib-settled {
+  animation: none;
+}
+
 /* Rows cascade: each waits its index × 22ms, capped so a long shelf
    still finishes arriving in about a third of a second. */
 .lib-row {

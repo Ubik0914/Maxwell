@@ -200,6 +200,13 @@ export function LibraryScreen({
     router.push("/scan");
   }, [router]);
 
+  // Scanning is the button this screen is mostly opened for; have the
+  // scan screen's shell (app/scan/loading.tsx) ready before it is
+  // pressed, so the sheet opens on the tap and the camera starts in it.
+  useEffect(() => {
+    router.prefetch("/scan");
+  }, [router]);
+
   // The shelf-wide re-fetch: progress while it runs, null when idle.
   const [refreshAllProgress, setRefreshAllProgress] = useState<{
     done: number;

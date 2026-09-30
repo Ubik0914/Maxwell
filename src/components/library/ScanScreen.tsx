@@ -25,6 +25,8 @@ import {
 import { Spinner } from "@/components/Spinner";
 import { BookDialog } from "@/components/library/BookDialog";
 import { BookCover } from "@/components/library/BookCover";
+import { CameraLoading } from "@/components/library/CameraLoading";
+import { useOpenedFromShell } from "@/components/library/scanShell";
 import {
   useBarcodeScanner,
   type ScannerState,
@@ -224,6 +226,7 @@ export function ScanScreen() {
   }, [flash]);
 
   const scannerState = useBarcodeScanner(videoRef, offer, cameraOn);
+  const openedFromShell = useOpenedFromShell();
   const cameraFailed =
     scannerState === "denied" ||
     scannerState === "unavailable" ||
@@ -289,7 +292,7 @@ export function ScanScreen() {
   );
 
   return (
-    <Window sheet sheetRef={sheetRef}>
+    <Window sheet settled={openedFromShell} sheetRef={sheetRef}>
       <WindowBar>
         <button
           type="button"
@@ -321,6 +324,12 @@ export function ScanScreen() {
                 cameraOn ? "" : "hidden"
               }`}
             />
+            {/* "idle" too: the first frame, before the camera is asked for,
+                must not flash an empty box between the shell and this. */}
+            {cameraOn &&
+              (scannerState === "starting" || scannerState === "idle") && (
+                <CameraLoading className="absolute inset-0 !aspect-auto rounded-none" />
+              )}
             {cameraOn && scannerState === "running" && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="lib-scan-frame h-1/3 w-4/5 rounded-lg border-2 border-accent/80" />
@@ -336,16 +345,14 @@ export function ScanScreen() {
             )}
           </div>
 
-          {cameraOn && SCANNER_MESSAGE[scannerState] && (
-            <p
-              role="status"
-              className={`text-sm ${
-                scannerState === "starting" ? "text-text-muted" : "text-danger"
-              }`}
-            >
-              {SCANNER_MESSAGE[scannerState]}
-            </p>
-          )}
+          {/* Starting is said in the camera box itself. */}
+          {cameraOn &&
+            scannerState !== "starting" &&
+            SCANNER_MESSAGE[scannerState] && (
+              <p role="status" className="text-sm text-danger">
+                {SCANNER_MESSAGE[scannerState]}
+              </p>
+            )}
 
           <div className="flex items-center gap-2">
             <input
