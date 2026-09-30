@@ -1487,7 +1487,7 @@ function NeighbourLink({
         <span className="block text-[11px] text-text-faint">
           {forward ? "次の本" : "前の本"}
         </span>
-        <span className="line-clamp-2 text-sm leading-snug text-text">
+        <span className="block truncate text-sm text-text">
           {book.title}
         </span>
       </span>
