@@ -123,8 +123,8 @@ const TONE = {
  * printed on every button in the window.
  *
  * Thumb-sized (44px) on a phone, the compact 32px Raycast size from
- * `sm` up. `keys` is the keyboard shortcut, shown beside it where there
- * is a keyboard.
+ * `sm` up. `keys` is the keyboard shortcut, shown with the label in a
+ * small card when the button is hovered or focused from the keyboard.
  */
 export function IconButton({
   label,
@@ -135,6 +135,7 @@ export function IconButton({
   type = "button",
   disabled = false,
   className = "",
+  hintAlign = "right",
 }: {
   label: string;
   onClick?: () => void;
@@ -144,6 +145,9 @@ export function IconButton({
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
+  /** Which edge the shortcut card lines up with: the one away from the
+   *  screen edge the button is near. */
+  hintAlign?: "left" | "right";
 }) {
   return (
     <button
@@ -151,17 +155,27 @@ export function IconButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      title={keys ? `${label}（${keys.join("")}）` : label}
-      className={`flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl transition-[transform,background-color,color] active:scale-[0.92] disabled:opacity-50 sm:h-8 sm:min-w-8 sm:rounded-lg ${
-        keys ? "px-2.5 sm:px-1.5" : ""
-      } ${TONE[tone]} ${className}`}
+      aria-keyshortcuts={keys ? keys.join("+").replace("⌘", "Meta") : undefined}
+      // A button with a shortcut says so in its own hover card below;
+      // the browser's tooltip would say it a second time.
+      title={keys ? undefined : label}
+      className={`group relative flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl transition-[transform,background-color,color] active:scale-[0.92] disabled:opacity-50 sm:h-8 sm:min-w-8 sm:rounded-lg ${TONE[tone]} ${className}`}
     >
       {children}
       {keys && (
-        <span className="hidden items-center gap-0.5 sm:flex">
-          {keys.map((key) => (
-            <Kbd key={key}>{key}</Kbd>
-          ))}
+        // The shortcut, shown only on hover or keyboard focus — a hint
+        // for whoever is at a keyboard, not a label on every button.
+        // Pointer devices only: a phone has no hover and no ⌘.
+        <span
+          role="tooltip"
+          className={`pointer-events-none absolute top-full ${hintAlign === "left" ? "left-0" : "right-0"} z-40 mt-1.5 hidden items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2 py-1 text-xs whitespace-nowrap text-text-muted opacity-0 shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:hover)]:flex`}
+        >
+          {label}
+          <span className="flex items-center gap-0.5">
+            {keys.map((key) => (
+              <Kbd key={key}>{key}</Kbd>
+            ))}
+          </span>
         </span>
       )}
     </button>

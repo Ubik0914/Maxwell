@@ -43,12 +43,7 @@ import {
   ShelfStats,
   type ShelfChoice,
 } from "@/components/library/LibrarySidebar";
-import {
-  IconButton,
-  Kbd,
-  Window,
-  WindowBar,
-} from "@/components/library/Window";
+import { IconButton, Window, WindowBar } from "@/components/library/Window";
 import {
   filterBooks,
   libraryStats,
@@ -585,7 +580,7 @@ export function LibraryScreen({
               chromeHidden ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
             }`}
           >
-            <div className="min-h-0 overflow-hidden">
+            <div className="min-h-0 overflow-hidden md:overflow-visible">
               <WindowBar>
                 <SearchIcon className="h-5 w-5 shrink-0 text-text-faint" />
                 <input
@@ -1155,7 +1150,13 @@ function BookDetail({
 
       {/* What can be done with the book, right under its picture. */}
       <div className="flex flex-wrap gap-2">
-        <IconButton label="編集" tone="outline" onClick={onEdit}>
+        <IconButton
+          label="編集"
+          tone="outline"
+          keys={["⌘", "E"]}
+          hintAlign="left"
+          onClick={onEdit}
+        >
           <PencilIcon className={ICON} />
         </IconButton>
         {book.isbn && missingDetails(book) && (
@@ -1221,14 +1222,6 @@ function BookDetail({
           </button>
         )}
       </section>
-
-      {!compact && (
-        <p className="flex items-center gap-1.5 text-[11px] text-text-faint">
-          <Kbd>⌘</Kbd>
-          <Kbd>E</Kbd> で編集 · <Kbd>⌘</Kbd>
-          <Kbd>K</Kbd> でアクション
-        </p>
-      )}
     </div>
   );
 }
