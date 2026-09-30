@@ -9,7 +9,7 @@ import {
   type BookFieldsInput,
 } from "@/lib/validation/book";
 import type { BookDetails } from "@/domain/library/openbd";
-import { fetchBookDetails, findCover } from "@/features/library/bibliography";
+import { fetchBookDetails } from "@/features/library/bibliography";
 import type { ShelvedBook } from "@/domain/library/filter";
 import * as bookRepository from "@/repositories/book.repository";
 import type { ActionResult } from "@/types/action-result";
@@ -220,12 +220,65 @@ export async function addBookByIsbnAction(
   }
 }
 
+type Client = Awaited<ReturnType<typeof requireUser>>["supabase"];
+
+/** The fields a re-fetch may fill — every one the catalogues can supply. */
+const FILLABLE = [
+  "authors",
+  "publisher",
+  "published",
+  "price",
+  "cover_url",
+] as const;
+
+type Refill =
+  | { ok: true; book: ShelvedBook; filled: string[] }
+  | { ok: false; reason: "no_isbn" | "not_found" | "unreachable" | "invalid" };
+
 /**
- * Looks a shelved book up again and fills in whatever it is missing —
- * a price openBD did not have when it was scanned, a cover — without
- * touching anything someone has already written. Returns the book as
- * it now stands, changed or not.
+ * Looks one book up again and fills whatever it is missing — a price
+ * openBD did not have, a cover (see findCover, which fetchBookDetails
+ * consults when openBD has none) — without touching anything someone
+ * has already written. The one re-fetch, used for a single book and
+ * for the whole shelf alike.
  */
+async function refill(supabase: Client, book: ShelvedBook): Promise<Refill> {
+  if (!book.isbn) return { ok: false, reason: "no_isbn" };
+
+  let details: BookDetails | null;
+  try {
+    details = await fetchBookDetails(book.isbn);
+  } catch {
+    return { ok: false, reason: "unreachable" };
+  }
+  if (!details) return { ok: false, reason: "not_found" };
+
+  const found = details;
+  const filled = FILLABLE.filter(
+    (key) => book[key] == null && found[key] != null,
+  );
+  if (filled.length === 0) return { ok: true, book, filled: [] };
+
+  const fields = bookFieldsSchema.safeParse({
+    ...book,
+    ...Object.fromEntries(filled.map((key) => [key, found[key]])),
+  });
+  if (!fields.success) return { ok: false, reason: "invalid" };
+
+  const updated = await bookRepository.updateBook(
+    supabase,
+    book.id,
+    fields.data,
+  );
+  return { ok: true, book: updated, filled };
+}
+
+/** Whether a re-fetch could still add something to this book. */
+function incomplete(book: ShelvedBook): boolean {
+  return FILLABLE.some((key) => book[key] == null);
+}
+
+/** A single book's 書誌を再取得. */
 export async function refreshBookAction(
   bookId: string,
 ): Promise<ActionResult<{ book: ShelvedBook; filled: string[] }>> {
@@ -239,93 +292,74 @@ export async function refreshBookAction(
     return failed(error, "本を読み込めませんでした。");
   }
   if (!book) return invalid("本が見つかりません。");
-  if (!book.isbn) return invalid("ISBN が無いため再取得できません。");
-
-  let details: BookDetails | null;
-  try {
-    details = await fetchBookDetails(book.isbn);
-  } catch {
-    return unreachable();
-  }
-  if (!details) return invalid("この ISBN の書誌が見つかりませんでした。");
-
-  const fillable = [
-    "authors",
-    "publisher",
-    "published",
-    "price",
-    "cover_url",
-  ] as const;
-  const filled = fillable.filter(
-    (key) => book[key] == null && details[key] != null,
-  );
-  if (filled.length === 0) {
-    return { success: true, data: { book, filled: [] } };
-  }
-
-  const fields = bookFieldsSchema.safeParse({
-    ...book,
-    ...Object.fromEntries(filled.map((key) => [key, details[key]])),
-  });
-  if (!fields.success) {
-    return invalid(fields.error.issues[0]?.message ?? "Invalid input");
-  }
 
   try {
-    const updated = await bookRepository.updateBook(
-      supabase,
-      bookId,
-      fields.data,
-    );
-    return { success: true, data: { book: updated, filled } };
+    const result = await refill(supabase, book);
+    if (result.ok) {
+      return {
+        success: true,
+        data: { book: result.book, filled: result.filled },
+      };
+    }
+    switch (result.reason) {
+      case "no_isbn":
+        return invalid("ISBN が無いため再取得できません。");
+      case "not_found":
+        return invalid("この ISBN の書誌が見つかりませんでした。");
+      case "unreachable":
+        return unreachable();
+      default:
+        return invalid("取得した書誌を保存できませんでした。");
+    }
   } catch (error) {
     return failed(error, "書誌を保存できませんでした。");
   }
 }
 
-/** How many books one bulk-cover call handles; the page calls again. */
-const COVER_BATCH = 8;
+/** How many books one bulk call handles; the page calls again. */
+const REFRESH_BATCH = 8;
 
 /**
- * Looks covers up for a handful of books and saves the ones found.
+ * The whole shelf's 書誌を再取得, a handful of books per call.
  *
- * The page sends the shelf through this a few books at a time, so a
- * long shelf never has to fit inside one server function's time limit,
- * and the progress it shows is real. Only books that have an ISBN and
- * no cover are touched; a cover someone already has is left alone.
+ * The page sends every book with an ISBN and a blank field through
+ * this a few at a time, so a long shelf never has to fit inside one
+ * server function's time limit and the progress it shows is real.
+ * Books that are already complete are skipped here too, in case the
+ * page's copy was stale.
  */
-export async function updateCoversAction(
+export async function refreshBooksAction(
   bookIds: string[],
-): Promise<ActionResult<{ updated: ShelvedBook[]; missing: number }>> {
-  const ids = z.array(z.string().uuid()).max(COVER_BATCH).safeParse(bookIds);
+): Promise<
+  ActionResult<{ updated: ShelvedBook[]; unchanged: number; failed: number }>
+> {
+  const ids = z.array(z.string().uuid()).max(REFRESH_BATCH).safeParse(bookIds);
   if (!ids.success) return invalid("Invalid book ids");
 
   const { supabase, user } = await requireUser();
   if (!user) return notLoggedIn();
 
   const updated: ShelvedBook[] = [];
-  let missing = 0;
+  let unchanged = 0;
+  let failedCount = 0;
 
   await Promise.all(
     ids.data.map(async (bookId) => {
-      const book = await bookRepository
-        .findBook(supabase, bookId)
-        .catch(() => null);
-      if (!book?.isbn || book.cover_url) return;
-
-      const cover = await findCover(book.isbn);
-      if (!cover) {
-        missing += 1;
-        return;
+      try {
+        const book = await bookRepository.findBook(supabase, bookId);
+        if (!book?.isbn || !incomplete(book)) return;
+        const result = await refill(supabase, book);
+        if (!result.ok) failedCount += 1;
+        else if (result.filled.length > 0) updated.push(result.book);
+        else unchanged += 1;
+      } catch {
+        failedCount += 1;
       }
-      const fields = bookFieldsSchema.safeParse({ ...book, cover_url: cover });
-      if (!fields.success) return;
-      const saved = await bookRepository
-        .updateBook(supabase, bookId, fields.data)
-        .catch(() => null);
-      if (saved) updated.push(saved);
     }),
   );
 
-  return { success: true, data: { updated, missing } };
+  return {
+    success: true,
+    data: { updated, unchanged, failed: failedCount },
+  };
 }

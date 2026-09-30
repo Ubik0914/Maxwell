@@ -6,7 +6,6 @@ import {
   BarcodeIcon,
   BookIcon,
   CopyIcon,
-  ImageIcon,
   LogoutIcon,
   MoreIcon,
   PencilIcon,
@@ -20,7 +19,7 @@ import { useToast } from "@/components/Toast";
 import { logoutAction } from "@/features/auth/actions";
 import {
   refreshBookAction,
-  updateCoversAction,
+  refreshBooksAction,
 } from "@/features/library/actions";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
@@ -132,33 +131,35 @@ export function LibraryScreen({
 
   const scan = useCallback(() => router.push("/scan"), [router]);
 
-  // Bulk cover lookup: progress while it runs, null when idle.
-  const [coverProgress, setCoverProgress] = useState<{
+  // The shelf-wide re-fetch: progress while it runs, null when idle.
+  const [refreshAllProgress, setRefreshAllProgress] = useState<{
     done: number;
     total: number;
   } | null>(null);
 
   /**
-   * Finds covers for every book that has an ISBN and no cover yet, a
-   * few at a time so the footer can count them off and no single
+   * 書誌を一括再取得: the same re-fetch a single book has, for every
+   * book with an ISBN and a blank field — price, publisher, date,
+   * author and cover alike (a missing cover is just another blank). A
+   * few books per call, so the footer can count them off and no single
    * server call has to fit the whole shelf.
    */
-  const updateCovers = useCallback(async () => {
+  const refreshAll = useCallback(async () => {
     const targets = books
-      .filter((book) => book.isbn && !book.cover_url)
+      .filter((book) => book.isbn && missingDetails(book))
       .map((book) => book.id);
     if (targets.length === 0) {
-      showSuccess("表紙が未取得の本はありません");
+      showSuccess("補完が必要な本はありません");
       return;
     }
 
     const BATCH = 8;
-    let found = 0;
-    let missing = 0;
-    setCoverProgress({ done: 0, total: targets.length });
+    let updatedCount = 0;
+    let failedCount = 0;
+    setRefreshAllProgress({ done: 0, total: targets.length });
 
     for (let start = 0; start < targets.length; start += BATCH) {
-      const result = await updateCoversAction(
+      const result = await refreshBooksAction(
         targets.slice(start, start + BATCH),
       );
       if (!result.success) {
@@ -166,23 +167,23 @@ export function LibraryScreen({
         break;
       }
       const { updated } = result.data;
-      found += updated.length;
-      missing += result.data.missing;
+      updatedCount += updated.length;
+      failedCount += result.data.failed;
       setBooks((current) =>
         current.map(
           (book) => updated.find((fresh) => fresh.id === book.id) ?? book,
         ),
       );
-      setCoverProgress({
+      setRefreshAllProgress({
         done: Math.min(start + BATCH, targets.length),
         total: targets.length,
       });
     }
 
-    setCoverProgress(null);
+    setRefreshAllProgress(null);
     showSuccess(
-      `${found}冊の表紙を取得しました` +
-        (missing > 0 ? `（${missing}冊は見つかりませんでした）` : ""),
+      `${updatedCount}冊の書誌を補完しました` +
+        (failedCount > 0 ? `（${failedCount}冊は取得できませんでした）` : ""),
     );
   }, [books, showError, showSuccess]);
 
@@ -272,11 +273,11 @@ export function LibraryScreen({
         run: () => setEditing("new"),
       },
       {
-        id: "covers",
+        id: "refresh-all",
         section: "表示",
-        title: "表紙を一括更新",
-        icon: <ImageIcon />,
-        run: () => void updateCovers(),
+        title: "書誌を一括再取得（価格・表紙などを補完）",
+        icon: <RefreshIcon />,
+        run: () => void refreshAll(),
       },
       ...(Object.keys(SORT_LABEL) as BookSort[])
         .filter((option) => option !== sort)
@@ -302,7 +303,7 @@ export function LibraryScreen({
     userEmail,
     scan,
     refresh,
-    updateCovers,
+    refreshAll,
     showError,
     showSuccess,
   ]);
@@ -457,11 +458,12 @@ export function LibraryScreen({
         <WindowFooter
           left={
             <>
-              {coverProgress ? (
+              {refreshAllProgress ? (
                 <>
                   <Spinner />
                   <span className="truncate" aria-live="polite">
-                    表紙を更新中 {coverProgress.done}/{coverProgress.total}
+                    書誌を再取得中 {refreshAllProgress.done}/
+                    {refreshAllProgress.total}
                   </span>
                 </>
               ) : (
@@ -485,11 +487,15 @@ export function LibraryScreen({
             </span>
           )}
           <IconButton
-            label="表紙を一括更新"
-            onClick={() => void updateCovers()}
-            disabled={coverProgress !== null}
+            label="書誌を一括再取得（価格・表紙などを補完）"
+            onClick={() => void refreshAll()}
+            disabled={refreshAllProgress !== null}
           >
-            {coverProgress ? <Spinner /> : <ImageIcon className={ICON} />}
+            {refreshAllProgress ? (
+              <Spinner />
+            ) : (
+              <RefreshIcon className={ICON} />
+            )}
           </IconButton>
           <IconButton
             label="アクション"
