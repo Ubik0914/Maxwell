@@ -8,7 +8,7 @@ const SIZE = {
   md: "h-20 w-14 rounded-sm p-1 text-xs",
   lg: "h-36 w-24 rounded-sm p-1 text-sm",
   /** As wide as its container, at a book's proportions: the grid. */
-  fill: "aspect-[2/3] w-full rounded-lg p-3 text-sm",
+  fill: "aspect-[2/3] w-full rounded-lg p-2 text-xs md:p-3 md:text-sm",
 } as const;
 
 /**

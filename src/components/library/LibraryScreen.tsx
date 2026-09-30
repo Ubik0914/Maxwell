@@ -831,7 +831,9 @@ export function LibraryScreen({
                       ref={gridRef}
                       role="listbox"
                       aria-label="蔵書"
-                      className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-x-3 gap-y-5 px-4 pt-1 pb-4 md:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] md:gap-x-4"
+                      // Three across on a phone, however narrow; from md up as
+                      // many 9rem covers as fit.
+                      className="grid grid-cols-3 gap-x-2.5 gap-y-4 px-3 pt-1 pb-4 md:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] md:gap-x-4 md:gap-y-5 md:px-4"
                     >
                       {shown.map((book, index) => (
                         <li
@@ -1084,7 +1086,7 @@ function BookCard({
       role="option"
       aria-selected={selected}
       onClick={onClick}
-      className="lib-select group flex w-full flex-col gap-2 text-left"
+      className="lib-select group flex w-full min-w-0 flex-col gap-1.5 text-left md:gap-2"
     >
       <BookCover
         title={book.title}
@@ -1096,11 +1098,11 @@ function BookCard({
         }`}
       />
       <span className="min-w-0 px-0.5">
-        <span className="line-clamp-2 text-sm leading-snug text-text">
+        <span className="line-clamp-2 text-xs leading-snug text-text md:text-sm">
           {book.title}
         </span>
         {book.authors && (
-          <span className="mt-0.5 block truncate text-xs text-text-muted">
+          <span className="mt-0.5 block truncate text-[11px] text-text-muted md:text-xs">
             {book.authors}
           </span>
         )}
