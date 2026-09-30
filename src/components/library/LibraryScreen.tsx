@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   BarcodeIcon,
   BookIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CopyIcon,
   GridIcon,
   KeyIcon,
@@ -574,6 +576,14 @@ export function LibraryScreen({
     else rowRefs.current.delete(id);
   };
 
+  /** The books either side of this one, in the list as it is shown. */
+  const neighboursOf = (book: ShelvedBook) => {
+    const index = shown.findIndex((b) => b.id === book.id);
+    return index === -1
+      ? {}
+      : { previous: shown[index - 1], next: shown[index + 1] };
+  };
+
   // The tab bar and the search bar, both out of the way.
   const chromeHidden = barHidden && !panel && !searchFocused;
 
@@ -790,6 +800,11 @@ export function LibraryScreen({
           onClose={() => setViewing(null)}
           onEdit={() => setEditing(viewing)}
           onRefresh={() => void refresh(viewing)}
+          {...neighboursOf(viewing)}
+          onGo={(book) => {
+            setSelectedId(book.id);
+            setViewing(book);
+          }}
         />
       )}
 
@@ -1258,6 +1273,9 @@ function DetailSheet({
   onClose,
   onEdit,
   onRefresh,
+  previous,
+  next,
+  onGo,
 }: {
   book: ShelvedBook;
   /** Another page is on top of it; Escape belongs to that one. */
@@ -1266,9 +1284,24 @@ function DetailSheet({
   onClose: () => void;
   onEdit: () => void;
   onRefresh: () => void;
+  /** The books either side in the list, to page through without going
+   *  back to it. */
+  previous?: ShelvedBook;
+  next?: ShelvedBook;
+  onGo: (book: ShelvedBook) => void;
 }) {
   const [zoomed, setZoomed] = useState(false);
   useEscapeKey(onClose, !covered && !zoomed, { exclusive: true });
+  const topRef = useRef<HTMLDivElement>(null);
+
+  // A different book starts at its top, not wherever the last one was
+  // scrolled to.
+  useEffect(() => {
+    topRef.current
+      ?.closest(".overflow-y-auto")
+      ?.scrollTo({ top: 0, behavior: "instant" });
+  }, [book.id]);
+
   return (
     <Modal
       title="本の詳細"
@@ -1276,15 +1309,63 @@ function DetailSheet({
       width="max-w-md"
       fullScreenOnMobile
     >
-      <BookDetail
-        book={book}
-        refreshing={refreshing}
-        onEdit={onEdit}
-        onRefresh={onRefresh}
-        onZoomChange={setZoomed}
-        compact
-      />
+      <div ref={topRef} key={book.id} className="lib-detail">
+        <BookDetail
+          book={book}
+          refreshing={refreshing}
+          onEdit={onEdit}
+          onRefresh={onRefresh}
+          onZoomChange={setZoomed}
+          compact
+        />
+      </div>
+      {(previous || next) && (
+        <nav
+          aria-label="前後の本"
+          className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4"
+        >
+          <NeighbourLink book={previous} direction="previous" onGo={onGo} />
+          <NeighbourLink book={next} direction="next" onGo={onGo} />
+        </nav>
+      )}
     </Modal>
+  );
+}
+
+/** One of the two buttons under the detail: which way, and to what. */
+function NeighbourLink({
+  book,
+  direction,
+  onGo,
+}: {
+  book?: ShelvedBook;
+  direction: "previous" | "next";
+  onGo: (book: ShelvedBook) => void;
+}) {
+  if (!book) return <span />;
+  const forward = direction === "next";
+  return (
+    <button
+      type="button"
+      onClick={() => onGo(book)}
+      className={`flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-border px-3 py-2 text-left transition-[transform,background-color] hover:bg-surface-hover active:scale-[0.97] ${
+        forward ? "flex-row-reverse text-right" : ""
+      }`}
+    >
+      {forward ? (
+        <ChevronRightIcon className="h-5 w-5 shrink-0 text-text-faint" />
+      ) : (
+        <ChevronLeftIcon className="h-5 w-5 shrink-0 text-text-faint" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] text-text-faint">
+          {forward ? "次の本" : "前の本"}
+        </span>
+        <span className="line-clamp-2 text-sm leading-snug text-text">
+          {book.title}
+        </span>
+      </span>
+    </button>
   );
 }
 
