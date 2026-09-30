@@ -54,22 +54,6 @@ export function CloseIcon({ className }: { className?: string }) {
   );
 }
 
-export function ChevronLeftIcon({ className }: { className?: string }) {
-  return (
-    <Icon className={className}>
-      <path d="M12.5 4.5L7 10l5.5 5.5" />
-    </Icon>
-  );
-}
-
-export function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <Icon className={className}>
-      <path d="M7.5 4.5L13 10l-5.5 5.5" />
-    </Icon>
-  );
-}
-
 export function ArrowLeftIcon({ className }: { className?: string }) {
   return (
     <Icon className={className}>

@@ -6,8 +6,6 @@ import {
   BarcodeIcon,
   BookIcon,
   CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CopyIcon,
   GridIcon,
   KeyIcon,
@@ -1338,7 +1336,7 @@ function DetailSheet({
   onClose: () => void;
   onEdit: () => void;
   onRefresh: () => void;
-  /** The books either side in the list, to page through without going
+  /** The books either side in the list, to swipe to without going
    *  back to it. */
   previous?: ShelvedBook;
   next?: ShelvedBook;
@@ -1387,15 +1385,6 @@ function DetailSheet({
           compact
         />
       </div>
-      {(previous || next) && (
-        <nav
-          aria-label="前後の本"
-          className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4"
-        >
-          <NeighbourLink book={previous} direction="previous" onGo={onGo} />
-          <NeighbourLink book={next} direction="next" onGo={onGo} />
-        </nav>
-      )}
     </Modal>
   );
 }
@@ -1485,41 +1474,6 @@ function useSwipeBetween({
       place(0, true);
     },
   };
-}
-
-/** One of the two buttons under the detail: which way, and to what. */
-function NeighbourLink({
-  book,
-  direction,
-  onGo,
-}: {
-  book?: ShelvedBook;
-  direction: "previous" | "next";
-  onGo: (book: ShelvedBook) => void;
-}) {
-  if (!book) return <span />;
-  const forward = direction === "next";
-  return (
-    <button
-      type="button"
-      onClick={() => onGo(book)}
-      className={`flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-border px-3 py-2 text-left transition-[transform,background-color] hover:bg-surface-hover active:scale-[0.97] ${
-        forward ? "flex-row-reverse text-right" : ""
-      }`}
-    >
-      {forward ? (
-        <ChevronRightIcon className="h-5 w-5 shrink-0 text-text-faint" />
-      ) : (
-        <ChevronLeftIcon className="h-5 w-5 shrink-0 text-text-faint" />
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block text-[11px] text-text-faint">
-          {forward ? "次の本" : "前の本"}
-        </span>
-        <span className="block truncate text-sm text-text">{book.title}</span>
-      </span>
-    </button>
-  );
 }
 
 function ShelfSummary({ total, value }: { total: number; value: number }) {
