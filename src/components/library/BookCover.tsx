@@ -1,15 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-/**
- * The National Diet Library's thumbnail for an ISBN. Covers far more
- * Japanese books than openBD's cover field does, so it is the fallback
- * for every book that has an ISBN and no stored cover.
- */
-export function ndlThumbnail(isbn: string): string {
-  return `https://ndlsearch.ndl.go.jp/thumbnail/${isbn}.jpg`;
-}
+import { coverCandidates, MIN_COVER_WIDTH } from "@/domain/library/cover";
 
 const SIZE = {
   sm: "h-12 w-9 text-[10px]",
@@ -20,7 +12,8 @@ const SIZE = {
 /**
  * A book's cover, or the nearest thing to one.
  *
- * Tries openBD's cover, then the NDL thumbnail by ISBN, then gives up
+ * Tries the stored cover, then the cover hosts by ISBN (see
+ * domain/library/cover), then gives up
  * and draws a plain spine-coloured card with the title on it — a row
  * with a hole where the picture should be reads as broken, and a card
  * reads as "no picture", which is the truth.
@@ -42,9 +35,11 @@ export function BookCover({
   size?: keyof typeof SIZE;
   className?: string;
 }) {
-  const sources = [coverUrl, isbn ? ndlThumbnail(isbn) : null].filter(
-    (source): source is string => Boolean(source),
-  );
+  // The stored cover first; then the same hosts the server checks, for
+  // a book whose cover has not been looked up yet.
+  const sources = [
+    ...new Set([coverUrl, ...(isbn ? coverCandidates(isbn) : [])]),
+  ].filter((source): source is string => Boolean(source));
   // Keyed on the sources so a book that gains a cover (an edit, a
   // lookup) starts again from the first one instead of staying on
   // whichever failed before.
@@ -75,7 +70,7 @@ export function BookCover({
           ref={(image) => {
             if (
               image?.complete &&
-              image.naturalWidth > 1 &&
+              image.naturalWidth >= MIN_COVER_WIDTH &&
               loaded !== source
             ) {
               setLoaded(source);
@@ -89,9 +84,9 @@ export function BookCover({
           referrerPolicy="no-referrer"
           onError={() => setFailed({ key, count: attempt + 1 })}
           onLoad={(event) => {
-            // The NDL answers some unknown ISBNs with a 1×1 placeholder
-            // rather than a 404; treat that as the miss it is.
-            if (event.currentTarget.naturalWidth <= 1) {
+            // The hosts answer a miss with a tiny placeholder rather than
+            // a 404; treat that as the miss it is.
+            if (event.currentTarget.naturalWidth < MIN_COVER_WIDTH) {
               setFailed({ key, count: attempt + 1 });
             } else {
               setLoaded(source);

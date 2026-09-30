@@ -6,6 +6,7 @@ import {
   BarcodeIcon,
   BookIcon,
   CopyIcon,
+  ImageIcon,
   LogoutIcon,
   MoreIcon,
   PencilIcon,
@@ -17,7 +18,10 @@ import {
 } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { logoutAction } from "@/features/auth/actions";
-import { refreshBookAction } from "@/features/library/actions";
+import {
+  refreshBookAction,
+  updateCoversAction,
+} from "@/features/library/actions";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -128,6 +132,60 @@ export function LibraryScreen({
 
   const scan = useCallback(() => router.push("/scan"), [router]);
 
+  // Bulk cover lookup: progress while it runs, null when idle.
+  const [coverProgress, setCoverProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+
+  /**
+   * Finds covers for every book that has an ISBN and no cover yet, a
+   * few at a time so the footer can count them off and no single
+   * server call has to fit the whole shelf.
+   */
+  const updateCovers = useCallback(async () => {
+    const targets = books
+      .filter((book) => book.isbn && !book.cover_url)
+      .map((book) => book.id);
+    if (targets.length === 0) {
+      showSuccess("表紙が未取得の本はありません");
+      return;
+    }
+
+    const BATCH = 8;
+    let found = 0;
+    let missing = 0;
+    setCoverProgress({ done: 0, total: targets.length });
+
+    for (let start = 0; start < targets.length; start += BATCH) {
+      const result = await updateCoversAction(
+        targets.slice(start, start + BATCH),
+      );
+      if (!result.success) {
+        showError(result.error.message);
+        break;
+      }
+      const { updated } = result.data;
+      found += updated.length;
+      missing += result.data.missing;
+      setBooks((current) =>
+        current.map(
+          (book) => updated.find((fresh) => fresh.id === book.id) ?? book,
+        ),
+      );
+      setCoverProgress({
+        done: Math.min(start + BATCH, targets.length),
+        total: targets.length,
+      });
+    }
+
+    setCoverProgress(null);
+    showSuccess(
+      `${found}冊の表紙を取得しました` +
+        (missing > 0 ? `（${missing}冊は見つかりませんでした）` : ""),
+    );
+  }, [books, showError, showSuccess]);
+
   const refresh = useCallback(
     async (book: ShelvedBook) => {
       setRefreshing(book.id);
@@ -213,6 +271,13 @@ export function LibraryScreen({
         icon: <PlusIcon />,
         run: () => setEditing("new"),
       },
+      {
+        id: "covers",
+        section: "表示",
+        title: "表紙を一括更新",
+        icon: <ImageIcon />,
+        run: () => void updateCovers(),
+      },
       ...(Object.keys(SORT_LABEL) as BookSort[])
         .filter((option) => option !== sort)
         .map((option) => ({
@@ -231,7 +296,16 @@ export function LibraryScreen({
       },
     );
     return list;
-  }, [selected, sort, userEmail, scan, refresh, showError, showSuccess]);
+  }, [
+    selected,
+    sort,
+    userEmail,
+    scan,
+    refresh,
+    updateCovers,
+    showError,
+    showSuccess,
+  ]);
 
   // The list's keyboard. Typing goes to the search box wherever focus
   // is, the way Raycast's does; ↑↓ move the selection, ↵ opens it,
@@ -383,8 +457,19 @@ export function LibraryScreen({
         <WindowFooter
           left={
             <>
-              <BookIcon className="text-accent" />
-              <span className="truncate">蔵書 · {stats.total}冊</span>
+              {coverProgress ? (
+                <>
+                  <Spinner />
+                  <span className="truncate" aria-live="polite">
+                    表紙を更新中 {coverProgress.done}/{coverProgress.total}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <BookIcon className="text-accent" />
+                  <span className="truncate">蔵書 · {stats.total}冊</span>
+                </>
+              )}
             </>
           }
         >
@@ -399,6 +484,13 @@ export function LibraryScreen({
               </IconButton>
             </span>
           )}
+          <IconButton
+            label="表紙を一括更新"
+            onClick={() => void updateCovers()}
+            disabled={coverProgress !== null}
+          >
+            {coverProgress ? <Spinner /> : <ImageIcon className={ICON} />}
+          </IconButton>
           <IconButton
             label="アクション"
             keys={["⌘", "K"]}

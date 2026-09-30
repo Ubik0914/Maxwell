@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { ErrorCode } from "@/lib/errors/codes";
 import {
@@ -8,7 +9,7 @@ import {
   type BookFieldsInput,
 } from "@/lib/validation/book";
 import type { BookDetails } from "@/domain/library/openbd";
-import { fetchBookDetails } from "@/features/library/bibliography";
+import { fetchBookDetails, findCover } from "@/features/library/bibliography";
 import type { ShelvedBook } from "@/domain/library/filter";
 import * as bookRepository from "@/repositories/book.repository";
 import type { ActionResult } from "@/types/action-result";
@@ -280,4 +281,51 @@ export async function refreshBookAction(
   } catch (error) {
     return failed(error, "書誌を保存できませんでした。");
   }
+}
+
+/** How many books one bulk-cover call handles; the page calls again. */
+const COVER_BATCH = 8;
+
+/**
+ * Looks covers up for a handful of books and saves the ones found.
+ *
+ * The page sends the shelf through this a few books at a time, so a
+ * long shelf never has to fit inside one server function's time limit,
+ * and the progress it shows is real. Only books that have an ISBN and
+ * no cover are touched; a cover someone already has is left alone.
+ */
+export async function updateCoversAction(
+  bookIds: string[],
+): Promise<ActionResult<{ updated: ShelvedBook[]; missing: number }>> {
+  const ids = z.array(z.string().uuid()).max(COVER_BATCH).safeParse(bookIds);
+  if (!ids.success) return invalid("Invalid book ids");
+
+  const { supabase, user } = await requireUser();
+  if (!user) return notLoggedIn();
+
+  const updated: ShelvedBook[] = [];
+  let missing = 0;
+
+  await Promise.all(
+    ids.data.map(async (bookId) => {
+      const book = await bookRepository
+        .findBook(supabase, bookId)
+        .catch(() => null);
+      if (!book?.isbn || book.cover_url) return;
+
+      const cover = await findCover(book.isbn);
+      if (!cover) {
+        missing += 1;
+        return;
+      }
+      const fields = bookFieldsSchema.safeParse({ ...book, cover_url: cover });
+      if (!fields.success) return;
+      const saved = await bookRepository
+        .updateBook(supabase, bookId, fields.data)
+        .catch(() => null);
+      if (saved) updated.push(saved);
+    }),
+  );
+
+  return { success: true, data: { updated, missing } };
 }

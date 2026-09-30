@@ -46,3 +46,13 @@ function isbn10CheckDigit(first9: string): string {
 export function formatIsbn(isbn13: string): string {
   return `${isbn13.slice(0, 3)}-${isbn13.slice(3)}`;
 }
+
+/**
+ * The 10-digit form of a 978 ISBN, or null for a 979 one (which has no
+ * 10-digit form). Some image hosts still file covers under it.
+ */
+export function toIsbn10(isbn13: string): string | null {
+  if (!/^978\d{10}$/.test(isbn13)) return null;
+  const body = isbn13.slice(3, 12);
+  return body + isbn10CheckDigit(body);
+}
