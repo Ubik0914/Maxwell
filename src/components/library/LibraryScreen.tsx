@@ -115,6 +115,20 @@ export function LibraryScreen({
   const gridRef = useRef<HTMLUListElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // The phone's tab bar gets out of the way while the list is scrolled
+  // down, and comes back the moment it is scrolled up — or reaches the
+  // top — the way a browser's toolbar does.
+  const [barHidden, setBarHidden] = useState(false);
+  const lastScroll = useRef(0);
+  const onListScroll = useCallback((event: React.UIEvent<HTMLElement>) => {
+    const top = event.currentTarget.scrollTop;
+    const delta = top - lastScroll.current;
+    // A few pixels either way is a hand resting, not a direction.
+    if (Math.abs(delta) < 8) return;
+    lastScroll.current = top;
+    setBarHidden(delta > 0 && top > 48);
+  }, []);
+
   const [books, setBooks] = useState(initialBooks);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<BookSort>("recent");
@@ -524,7 +538,7 @@ export function LibraryScreen({
           onLogout={() => void logoutAction()}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="relative flex min-w-0 flex-1 flex-col">
           <WindowBar>
             <SearchIcon className="h-5 w-5 shrink-0 text-text-faint" />
             <input
@@ -544,7 +558,10 @@ export function LibraryScreen({
           <div className="flex min-h-0 flex-1">
             <div
               ref={listRef}
-              className="flex min-w-0 flex-1 flex-col overflow-y-auto"
+              onScroll={onListScroll}
+              // Room under the last book for the phone's tab bar, which
+              // floats over the list so it can slide away.
+              className="flex min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0"
             >
               {books.length === 0 ? (
                 <EmptyShelf onScan={scan} />
@@ -695,6 +712,7 @@ export function LibraryScreen({
               </WindowFooter>
             </div>
             <TabBar
+              hidden={barHidden && !panel}
               shelfName={location === undefined ? null : shelfName}
               panel={panel}
               refreshProgress={refreshAllProgress}
@@ -865,6 +883,7 @@ function BookCard({
  * its name under it; the one in use is lit in the accent.
  */
 function TabBar({
+  hidden,
   shelfName,
   panel,
   refreshProgress,
@@ -874,6 +893,8 @@ function TabBar({
   onManual,
   onMore,
 }: {
+  /** Slid below the screen edge while the list is scrolled down. */
+  hidden: boolean;
   /** The shelf being shown, or null for all of them. */
   shelfName: string | null;
   panel: "all" | "shelves" | null;
@@ -891,7 +912,12 @@ function TabBar({
   return (
     <nav
       aria-label="メニュー"
-      className="relative shrink-0 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+      aria-hidden={hidden || undefined}
+      inert={hidden}
+      className={`absolute inset-x-0 bottom-0 z-20 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] transition-transform duration-300 ease-[cubic-bezier(0.16,0.9,0.28,1)] md:hidden ${
+        // Far enough to take the raised スキャン button with it.
+        hidden ? "translate-y-[calc(100%+2rem)]" : ""
+      }`}
     >
       {refreshProgress && (
         <p
