@@ -53,6 +53,7 @@ import {
   type ShelvedBook,
 } from "@/domain/library/filter";
 import { formatIsbn } from "@/domain/library/isbn";
+import { googleSearchUrl } from "@/domain/library/search";
 
 const SORT_LABEL: Record<BookSort, string> = {
   recent: "登録が新しい順",
@@ -1024,6 +1025,19 @@ function BookDetail({
             {refreshing ? <Spinner /> : <RefreshIcon className={ICON} />}
           </IconButton>
         )}
+        {/* A link, not a button: it goes somewhere, and a middle click
+            or a long press should offer what they do for any link. */}
+        <a
+          href={googleSearchUrl(book)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Googleで検索"
+          title="Googleで検索"
+          className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-border px-3 text-sm text-text-muted transition-[transform,background-color,color] hover:bg-surface-hover hover:text-text active:scale-[0.92] sm:h-8 sm:rounded-lg sm:px-2.5 sm:text-xs"
+        >
+          <SearchIcon className={ICON} />
+          Google
+        </a>
       </div>
 
       {!compact && (
