@@ -6,6 +6,7 @@ import { Spinner } from "@/components/Spinner";
 import { SearchIcon, TrashIcon } from "@/components/icons";
 import { IconButton } from "@/components/library/Window";
 import { BookCover } from "@/components/library/BookCover";
+import { PlaceSuggestions } from "@/components/library/PlaceSuggestions";
 import { normalizeIsbn } from "@/domain/library/isbn";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
@@ -65,6 +66,7 @@ export function BookDialog({
   onClose,
   onSaved,
   onDeleted,
+  places = [],
 }: {
   /** The book being edited, or undefined when adding one. */
   book?: ShelvedBook;
@@ -75,6 +77,8 @@ export function BookDialog({
   onClose: () => void;
   onSaved: (book: ShelvedBook) => void;
   onDeleted?: (bookId: string) => void;
+  /** Places already in use, offered for 場所. */
+  places?: string[];
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(book, initialIsbn));
   const [error, setError] = useState<string | null>(null);
@@ -376,11 +380,19 @@ export function BookDialog({
             </label>
             <input
               id="book-location"
+              list="book-location-places"
               value={draft.location}
               onChange={(event) => set("location", event.target.value)}
               placeholder="自宅 / 会社 / 本棚A"
               maxLength={100}
+              autoComplete="off"
               className={INPUT}
+            />
+            <PlaceSuggestions
+              listId="book-location-places"
+              places={places}
+              value={draft.location}
+              onPick={(place) => set("location", place)}
             />
           </div>
         </div>

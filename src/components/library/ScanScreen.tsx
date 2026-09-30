@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
   BarcodeIcon,
@@ -26,7 +26,12 @@ import { Spinner } from "@/components/Spinner";
 import { BookDialog } from "@/components/library/BookDialog";
 import { BookCover } from "@/components/library/BookCover";
 import { CameraLoading } from "@/components/library/CameraLoading";
-import { refreshShelf } from "@/features/library/shelfStore";
+import {
+  knownShelf,
+  refreshShelf,
+  subscribeShelf,
+} from "@/features/library/shelfStore";
+import { PlaceSuggestions } from "@/components/library/PlaceSuggestions";
 import { useOpenedFromShell } from "@/components/library/scanShell";
 import {
   useBarcodeScanner,
@@ -38,7 +43,7 @@ import {
 } from "@/features/library/actions";
 import { formatIsbn } from "@/domain/library/isbn";
 import { isbnFromBarcode, ScanSession } from "@/domain/library/scan";
-import type { ShelvedBook } from "@/domain/library/filter";
+import { shelves, type ShelvedBook } from "@/domain/library/filter";
 
 /** Icon size inside an IconButton: larger under a thumb, 16px with a mouse. */
 const ICON = "h-5 w-5 sm:h-4 sm:w-4";
@@ -124,6 +129,25 @@ export function ScanScreen() {
   const [manual, setManual] = useState("");
   const [manualError, setManualError] = useState<string | null>(null);
   const [location, setLocation] = useState("");
+
+  // The places books are already kept, to offer for 登録先の場所: from
+  // the shelf the library last fetched, or fetched here if there is none
+  // (the scan screen opened directly), and kept fresh as adds land.
+  const [shelfBooks, setShelfBooks] = useState<ShelvedBook[]>(
+    () => knownShelf() ?? [],
+  );
+  useEffect(() => {
+    const unsubscribe = subscribeShelf(setShelfBooks);
+    if (!knownShelf()) void refreshShelf();
+    return unsubscribe;
+  }, []);
+  const places = useMemo(
+    () =>
+      shelves(shelfBooks)
+        .map((place) => place.name)
+        .filter((name): name is string => name !== null),
+    [shelfBooks],
+  );
   const [rows, setRows] = useState<Row[]>([]);
   const [flash, setFlash] = useState<number | null>(null);
   const [manualEntry, setManualEntry] = useState<Row | null>(null);
@@ -362,6 +386,8 @@ export function ScanScreen() {
           <div className="flex items-center gap-2">
             <input
               id="scan-location"
+              list="scan-location-places"
+              autoComplete="off"
               aria-label="登録先の場所"
               value={location}
               onChange={(event) => setLocation(event.target.value)}
@@ -381,6 +407,12 @@ export function ScanScreen() {
               )}
             </IconButton>
           </div>
+          <PlaceSuggestions
+            listId="scan-location-places"
+            places={places}
+            value={location}
+            onPick={setLocation}
+          />
         </section>
 
         {/* The secondary ways in. Folded away while the camera works;
@@ -475,6 +507,7 @@ export function ScanScreen() {
 
       {typingBook && (
         <BookDialog
+          places={places}
           onClose={() => setTypingBook(false)}
           onSaved={(book) => {
             const id = nextId.current++;
@@ -493,6 +526,7 @@ export function ScanScreen() {
 
       {manualEntry && (
         <BookDialog
+          places={places}
           initialIsbn={manualEntry.isbn}
           onClose={() => setManualEntry(null)}
           onSaved={(book) => {
