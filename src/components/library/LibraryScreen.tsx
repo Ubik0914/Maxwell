@@ -1190,7 +1190,13 @@ function BookDetail({
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
           <div className="flex items-start gap-2">
-            <h2 className="min-w-0 flex-1 text-base leading-snug font-semibold text-text">
+            {/* Always four lines tall (4 × 1.375em), however short the
+                title, so paging between books does not shift the rest of
+                the page; a longer title scrolls inside. */}
+            <h2
+              tabIndex={0}
+              className="h-[5.5em] min-w-0 flex-1 overflow-y-auto overscroll-contain text-base leading-snug font-semibold break-words text-text focus:outline-none"
+            >
               {book.title}
             </h2>
             {/* The desktop's ⌘K, beside what it acts on — there is no
@@ -1487,9 +1493,7 @@ function NeighbourLink({
         <span className="block text-[11px] text-text-faint">
           {forward ? "次の本" : "前の本"}
         </span>
-        <span className="block truncate text-sm text-text">
-          {book.title}
-        </span>
+        <span className="block truncate text-sm text-text">{book.title}</span>
       </span>
     </button>
   );

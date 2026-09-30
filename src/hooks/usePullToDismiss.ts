@@ -67,6 +67,19 @@ export function usePullToDismiss({
     const phone = () => !window.matchMedia("(min-width: 640px)").matches;
     const atTop = () => (scrollRef?.current?.scrollTop ?? 0) <= 0;
 
+    /** Whether the touch began in something of its own that has been
+     *  scrolled (a long title, say): pulling down there scrolls it back. */
+    function insideScrolled(target: EventTarget | null) {
+      for (
+        let node = target instanceof Element ? target : null;
+        node && node !== sheet;
+        node = node.parentElement
+      ) {
+        if (node.scrollTop > 0) return true;
+      }
+      return false;
+    }
+
     function place(offset: number, transition: string) {
       if (!sheet) return;
       sheet.style.transition = transition;
@@ -85,7 +98,7 @@ export function usePullToDismiss({
       // the content is already at its top; one on the header always
       // does, since the header does not scroll.
       const inScroll = scrollRef?.current?.contains(event.target as Node);
-      tracking = !inScroll || atTop();
+      tracking = (!inScroll || atTop()) && !insideScrolled(event.target);
       pulling = false;
       distance = 0;
       startY = event.touches[0].clientY;
