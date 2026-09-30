@@ -58,6 +58,7 @@ export function usePullToDismiss({
     if (!enabled || !sheet) return;
 
     let startY = 0;
+    let startX = 0;
     let startedAt = 0;
     let tracking = false;
     let pulling = false;
@@ -88,6 +89,7 @@ export function usePullToDismiss({
       pulling = false;
       distance = 0;
       startY = event.touches[0].clientY;
+      startX = event.touches[0].clientX;
       startedAt = performance.now();
     }
 
@@ -95,6 +97,13 @@ export function usePullToDismiss({
       if (!tracking) return;
       const dy = event.touches[0].clientY - startY;
       if (!pulling) {
+        // Mostly sideways is a swipe for something else (paging between
+        // books), not a pull — however little it also drifts down.
+        const dx = event.touches[0].clientX - startX;
+        if (Math.abs(dx) > SLOP_PX && Math.abs(dx) > Math.abs(dy)) {
+          tracking = false;
+          return;
+        }
         if (dy < -SLOP_PX) {
           // Going up: that is a scroll, and it is not ours.
           tracking = false;
