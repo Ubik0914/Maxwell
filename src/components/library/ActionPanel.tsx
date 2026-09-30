@@ -34,9 +34,12 @@ export interface Action {
 export function ActionPanel({
   actions,
   onClose,
+  title = "アクション",
 }: {
   actions: Action[];
   onClose: () => void;
+  /** The phone sheet's heading, for a panel of one kind of action. */
+  title?: string;
 }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -106,7 +109,7 @@ export function ActionPanel({
       <div
         ref={panelRef}
         role="dialog"
-        aria-label="アクション"
+        aria-label={title}
         aria-modal="true"
         className="lib-pop fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] bottom-0 z-[70] flex flex-col overflow-hidden rounded-t-2xl bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_40px_rgba(0,0,0,0.5)] sm:absolute sm:top-auto sm:inset-auto sm:right-3 sm:bottom-12 sm:z-30 sm:max-h-[min(24rem,70dvh)] sm:w-[22rem] sm:rounded-lg sm:border sm:border-border-strong sm:p-0 sm:shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
         onKeyDown={(event) => {
@@ -138,7 +141,7 @@ export function ActionPanel({
           className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-border-strong sm:hidden"
         />
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 pt-1 pb-2 sm:hidden">
-          <h2 className="text-lg font-semibold text-text">アクション</h2>
+          <h2 className="text-lg font-semibold text-text">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -204,8 +207,8 @@ export function ActionPanel({
             setQuery(event.target.value);
             setActive(0);
           }}
-          placeholder="アクションを検索…"
-          aria-label="アクションを検索"
+          placeholder={`${title}を検索…`}
+          aria-label={`${title}を検索`}
           className="order-1 m-3 shrink-0 rounded-md border border-border bg-bg px-3 py-2.5 text-base text-text placeholder:text-text-faint focus:border-accent focus:outline-none sm:order-none sm:m-0 sm:rounded-none sm:border-0 sm:border-t sm:bg-transparent sm:py-2 sm:text-sm"
         />
       </div>

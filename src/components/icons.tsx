@@ -208,6 +208,16 @@ export function ListIcon({ className }: { className?: string }) {
   );
 }
 
+/** A map pin: where something is. */
+export function PinIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M10 17.5s-5.5-5-5.5-9a5.5 5.5 0 0 1 11 0c0 4-5.5 9-5.5 9z" />
+      <circle cx="10" cy="8.5" r="2" />
+    </Icon>
+  );
+}
+
 /** Four tiles: a grid of covers. */
 export function GridIcon({ className }: { className?: string }) {
   return (

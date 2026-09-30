@@ -8,6 +8,7 @@ import {
   CopyIcon,
   GridIcon,
   ListIcon,
+  PinIcon,
   LogoutIcon,
   MoreIcon,
   PencilIcon,
@@ -112,6 +113,7 @@ export function LibraryScreen({
   const searchRef = useRef<HTMLInputElement>(null);
   const rowRefs = useRef(new Map<string, HTMLLIElement>());
   const gridRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const [books, setBooks] = useState(initialBooks);
   const [query, setQuery] = useState("");
@@ -123,7 +125,9 @@ export function LibraryScreen({
   // ⌘K's 削除 opens the book with its own delete confirmation already
   // showing, rather than a browser confirm() box over the page.
   const [deleting, setDeleting] = useState(false);
-  const [actionsOpen, setActionsOpen] = useState(false);
+  // ⌘K's panel, or — from the phone's tab bar — just its shelves.
+  const [panel, setPanel] = useState<"all" | "shelves" | null>(null);
+  const actionsOpen = panel !== null;
   // Phones have no room for a detail pane; tapping a book opens it as a
   // sheet instead, and editing is one more tap from there.
   const [viewing, setViewing] = useState<ShelvedBook | null>(null);
@@ -361,7 +365,7 @@ export function LibraryScreen({
             place.name === undefined
               ? `すべての本（${place.count}）`
               : `${place.name ?? "場所未設定"}（${place.count}）`,
-          icon: <BookIcon />,
+          icon: place.name === undefined ? <BookIcon /> : <PinIcon />,
           run: () => setShelf(place.name),
         })),
       {
@@ -418,7 +422,7 @@ export function LibraryScreen({
 
       if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setActionsOpen(true);
+        setPanel("all");
       } else if (mod && event.key.toLowerCase() === "e" && selected) {
         event.preventDefault();
         setEditing(selected);
@@ -531,7 +535,10 @@ export function LibraryScreen({
           </WindowBar>
 
           <div className="flex min-h-0 flex-1">
-            <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+            <div
+              ref={listRef}
+              className="flex min-w-0 flex-1 flex-col overflow-y-auto"
+            >
               {books.length === 0 ? (
                 <EmptyShelf onScan={scan} />
               ) : (
@@ -636,16 +643,22 @@ export function LibraryScreen({
           </div>
 
           <div className="relative">
-            {actionsOpen && (
+            {panel && (
               <ActionPanel
-                actions={actions}
-                onClose={() => setActionsOpen(false)}
+                actions={
+                  panel === "shelves"
+                    ? actions.filter((action) => action.section === "場所")
+                    : actions
+                }
+                title={panel === "shelves" ? "場所" : undefined}
+                onClose={() => setPanel(null)}
               />
             )}
-            <WindowFooter
-              left={
-                <>
-                  {refreshAllProgress ? (
+            {/* The desktop's status bar; a phone has the tab bar below. */}
+            <div className="hidden md:block">
+              <WindowFooter
+                left={
+                  refreshAllProgress && (
                     <>
                       <Spinner />
                       <span className="truncate" aria-live="polite">
@@ -653,20 +666,10 @@ export function LibraryScreen({
                         {refreshAllProgress.total}
                       </span>
                     </>
-                  ) : (
-                    <>
-                      {/* The header has the figures from md up. */}
-                      <BookIcon className="text-accent md:hidden" />
-                      <span className="truncate md:hidden">
-                        蔵書 · {shelfName} · {onShelf.length}冊
-                      </span>
-                    </>
-                  )}
-                </>
-              }
-            >
-              {selected && (
-                <span className="hidden sm:contents">
+                  )
+                }
+              >
+                {selected && (
                   <IconButton
                     label="編集"
                     keys={["⌘", "E"]}
@@ -674,39 +677,30 @@ export function LibraryScreen({
                   >
                     <PencilIcon className={ICON} />
                   </IconButton>
-                </span>
-              )}
-              {/* The sidebar has these from md up. */}
-              <span className="contents md:hidden">
+                )}
                 <IconButton
-                  label="書誌を一括再取得（価格・表紙などを補完）"
-                  onClick={() => void refreshAll()}
-                  disabled={refreshAllProgress !== null}
+                  label="アクション"
+                  keys={["⌘", "K"]}
+                  onClick={() => setPanel((open) => (open ? null : "all"))}
                 >
-                  {refreshAllProgress ? (
-                    <Spinner />
-                  ) : (
-                    <RefreshIcon className={ICON} />
-                  )}
+                  <MoreIcon className={ICON} />
                 </IconButton>
-              </span>
-              <IconButton
-                label="アクション"
-                keys={["⌘", "K"]}
-                onClick={() => setActionsOpen((open) => !open)}
-              >
-                <MoreIcon className={ICON} />
-              </IconButton>
-              <span className="contents md:hidden">
-                <IconButton
-                  label="スキャンして追加"
-                  tone="primary"
-                  onClick={scan}
-                >
-                  <BarcodeIcon className={ICON} />
-                </IconButton>
-              </span>
-            </WindowFooter>
+              </WindowFooter>
+            </div>
+            <TabBar
+              shelfName={location === undefined ? null : shelfName}
+              panel={panel}
+              refreshProgress={refreshAllProgress}
+              onHome={() => {
+                setShelf(undefined);
+                setQuery("");
+                listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              onShelves={() => setPanel("shelves")}
+              onScan={scan}
+              onManual={() => setEditing("new")}
+              onMore={() => setPanel("all")}
+            />
           </div>
         </div>
       </div>
@@ -854,6 +848,97 @@ function BookCard({
         )}
       </span>
     </button>
+  );
+}
+
+/**
+ * The phone's tab bar, laid out like a wallet app's: two tabs either
+ * side of one large round button that stands above the bar — scanning,
+ * the thing this app is mostly opened to do. Each tab is an icon with
+ * its name under it; the one in use is lit in the accent.
+ */
+function TabBar({
+  shelfName,
+  panel,
+  refreshProgress,
+  onHome,
+  onShelves,
+  onScan,
+  onManual,
+  onMore,
+}: {
+  /** The shelf being shown, or null for all of them. */
+  shelfName: string | null;
+  panel: "all" | "shelves" | null;
+  refreshProgress: { done: number; total: number } | null;
+  onHome: () => void;
+  onShelves: () => void;
+  onScan: () => void;
+  onManual: () => void;
+  onMore: () => void;
+}) {
+  const tab = (active: boolean) =>
+    `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 pt-2 pb-1 text-[11px] transition-colors active:scale-[0.94] ${
+      active ? "text-accent" : "text-text-muted"
+    }`;
+  return (
+    <nav
+      aria-label="メニュー"
+      className="relative shrink-0 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+    >
+      {refreshProgress && (
+        <p
+          aria-live="polite"
+          className="flex items-center justify-center gap-2 border-b border-border py-1.5 text-xs text-text-muted"
+        >
+          <Spinner />
+          書誌を再取得中 {refreshProgress.done}/{refreshProgress.total}
+        </p>
+      )}
+      <div className="flex h-16 items-stretch">
+        <button
+          type="button"
+          onClick={onHome}
+          aria-current={shelfName === null && !panel ? "page" : undefined}
+          className={tab(shelfName === null && !panel)}
+        >
+          <BookIcon className="h-6 w-6" />
+          本棚
+        </button>
+        <button
+          type="button"
+          onClick={onShelves}
+          className={tab(shelfName !== null || panel === "shelves")}
+        >
+          <PinIcon className="h-6 w-6" />
+          <span className="max-w-full truncate px-1">
+            {shelfName ?? "場所"}
+          </span>
+        </button>
+
+        {/* The room the round button stands in. */}
+        <div className="relative w-[5.5rem] shrink-0">
+          <button
+            type="button"
+            onClick={onScan}
+            aria-label="スキャンして追加"
+            className="absolute -top-6 left-1/2 flex h-[4.75rem] w-[4.75rem] -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-accent text-[11px] font-semibold text-inverse shadow-[0_8px_24px_var(--accent-soft),0_0_0_4px_var(--surface)] transition-transform active:scale-[0.94]"
+          >
+            <BarcodeIcon className="h-7 w-7" />
+            スキャン
+          </button>
+        </div>
+
+        <button type="button" onClick={onManual} className={tab(false)}>
+          <PlusIcon className="h-6 w-6" />
+          手入力
+        </button>
+        <button type="button" onClick={onMore} className={tab(panel === "all")}>
+          <MoreIcon className="h-6 w-6" />
+          その他
+        </button>
+      </div>
+    </nav>
   );
 }
 
