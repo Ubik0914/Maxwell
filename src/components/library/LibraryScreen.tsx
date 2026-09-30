@@ -6,6 +6,8 @@ import {
   BarcodeIcon,
   BookIcon,
   CopyIcon,
+  GridIcon,
+  ListIcon,
   LogoutIcon,
   MoreIcon,
   PencilIcon,
@@ -30,6 +32,11 @@ import { BookCover } from "@/components/library/BookCover";
 import { CoverLightbox } from "@/components/library/CoverLightbox";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
 import {
+  LibrarySidebar,
+  ShelfTiles,
+  type ShelfChoice,
+} from "@/components/library/LibrarySidebar";
+import {
   IconButton,
   Kbd,
   Window,
@@ -39,6 +46,8 @@ import {
 import {
   filterBooks,
   libraryStats,
+  shelfOverview,
+  shelves,
   sortBooks,
   type BookSort,
   type ShelvedBook,
@@ -54,6 +63,12 @@ const SORT_LABEL: Record<BookSort, string> = {
 
 const yen = new Intl.NumberFormat("ja-JP");
 
+/** Wide enough for the detail pane beside the sidebar and the shelf. */
+const DETAIL_PANE = "(min-width: 1280px)";
+
+type View = "list" | "grid";
+const VIEW_KEY = "library:view";
+
 /** Icon size inside an IconButton: larger under a thumb, 16px with a mouse. */
 const ICON = "h-5 w-5 sm:h-4 sm:w-4";
 
@@ -68,9 +83,12 @@ function typingElsewhere(target: EventTarget | null, search: Element | null) {
 }
 
 /**
- * The library, laid out like a Raycast command: search on top, the
- * shelf as a list you walk with ↑↓, the selected book's details on the
- * right, and the footer naming what ↵ and ⌘K do.
+ * The library. On a desktop it is a dashboard: a sidebar of shelves on
+ * the left, the figures across the top, the books as a list or a grid
+ * of covers, and — where the screen is wide enough — the selected
+ * book's details on the right. On a phone it is Raycast's single
+ * column: search on top, the shelf, and the footer naming what ↵ and
+ * ⌘K do, with the sidebar's contents in ⌘K.
  *
  * Adding is still scan-first — the footer's first button, the empty
  * shelf's only button, and the top of ⌘K's 追加 section all go to
@@ -92,10 +110,13 @@ export function LibraryScreen({
   const { showError, showSuccess } = useToast();
   const searchRef = useRef<HTMLInputElement>(null);
   const rowRefs = useRef(new Map<string, HTMLLIElement>());
+  const gridRef = useRef<HTMLUListElement>(null);
 
   const [books, setBooks] = useState(initialBooks);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<BookSort>("recent");
+  const [shelf, setShelf] = useState<ShelfChoice>(undefined);
+  const [view, setView] = useState<View>("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
   // ⌘K's 削除 opens the book with its own delete confirmation already
@@ -108,10 +129,44 @@ export function LibraryScreen({
   const [refreshing, setRefreshing] = useState<string | null>(null);
 
   const stats = useMemo(() => libraryStats(books), [books]);
-  const shown = useMemo(
-    () => sortBooks(filterBooks(books, { query }), sort),
-    [books, query, sort],
+  const places = useMemo(() => shelves(books), [books]);
+  // A shelf that has been emptied (its last book moved or deleted)
+  // falls back to every shelf rather than showing nothing.
+  const location =
+    shelf !== undefined && places.some((place) => place.name === shelf)
+      ? shelf
+      : undefined;
+  const onShelf = useMemo(
+    () => filterBooks(books, { query: "", location }),
+    [books, location],
   );
+  const overview = useMemo(() => shelfOverview(onShelf), [onShelf]);
+  const shown = useMemo(
+    () => sortBooks(filterBooks(onShelf, { query }), sort),
+    [onShelf, query, sort],
+  );
+
+  // List or grid is a per-person habit, so it is remembered in this
+  // browser. Read after mounting: the server has no storage to render
+  // it from, and the two renders have to agree.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
+      if (saved === "grid" || saved === "list") setView(saved);
+    } catch {
+      // No storage: the list it is.
+    }
+  }, []);
+
+  const changeView = useCallback((next: View) => {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Only this visit, then.
+    }
+  }, []);
 
   // The selection follows the list: if the selected book is filtered
   // out, the first one that is left is selected instead.
@@ -290,6 +345,25 @@ export function LibraryScreen({
         run: () => setEditing("new"),
       },
       {
+        id: "view",
+        section: "表示",
+        title: view === "list" ? "グリッド表示" : "リスト表示",
+        icon: view === "list" ? <GridIcon /> : <ListIcon />,
+        run: () => changeView(view === "list" ? "grid" : "list"),
+      },
+      ...[{ name: undefined as ShelfChoice, count: books.length }, ...places]
+        .filter((place) => place.name !== location)
+        .map((place) => ({
+          id: `shelf-${place.name === undefined ? "all" : (place.name ?? "none")}`,
+          section: "場所",
+          title:
+            place.name === undefined
+              ? `すべての本（${place.count}）`
+              : `${place.name ?? "場所未設定"}（${place.count}）`,
+          icon: <BookIcon />,
+          run: () => setShelf(place.name),
+        })),
+      {
         id: "refresh-all",
         section: "表示",
         title: "書誌を一括再取得（価格・表紙などを補完）",
@@ -317,6 +391,11 @@ export function LibraryScreen({
   }, [
     selected,
     sort,
+    view,
+    changeView,
+    books.length,
+    places,
+    location,
     userEmail,
     scan,
     refresh,
@@ -342,12 +421,30 @@ export function LibraryScreen({
       } else if (mod && event.key.toLowerCase() === "e" && selected) {
         event.preventDefault();
         setEditing(selected);
-      } else if (event.key === "ArrowDown") {
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        // In the grid, up and down are a row of covers apart.
+        const step =
+          view === "grid" && gridRef.current
+            ? getComputedStyle(gridRef.current).gridTemplateColumns.split(" ")
+                .length
+            : 1;
         event.preventDefault();
-        select(Math.min(selectedIndex + 1, shown.length - 1));
-      } else if (event.key === "ArrowUp") {
+        select(
+          event.key === "ArrowDown"
+            ? Math.min(selectedIndex + step, shown.length - 1)
+            : Math.max(selectedIndex - step, 0),
+        );
+      } else if (
+        view === "grid" &&
+        (event.key === "ArrowRight" || event.key === "ArrowLeft") &&
+        document.activeElement !== searchRef.current
+      ) {
         event.preventDefault();
-        select(Math.max(selectedIndex - 1, 0));
+        select(
+          event.key === "ArrowRight"
+            ? Math.min(selectedIndex + 1, shown.length - 1)
+            : Math.max(selectedIndex - 1, 0),
+        );
       } else if (event.key === "Enter" && selected) {
         event.preventDefault();
         setViewing(selected);
@@ -375,6 +472,7 @@ export function LibraryScreen({
     shown.length,
     selected,
     query,
+    view,
   ]);
 
   function saved(book: ShelvedBook) {
@@ -386,145 +484,230 @@ export function LibraryScreen({
     setSelectedId(book.id);
   }
 
+  const shelfName =
+    location === undefined ? "すべての本" : (location ?? "場所未設定");
+  const open = (book: ShelvedBook) => {
+    setSelectedId(book.id);
+    // The pane shows it where there is one; elsewhere it opens.
+    if (!window.matchMedia(DETAIL_PANE).matches) setViewing(book);
+  };
+  const rowRef = (id: string) => (element: HTMLLIElement | null) => {
+    if (element) rowRefs.current.set(id, element);
+    else rowRefs.current.delete(id);
+  };
+
   return (
-    <Window>
-      <WindowBar>
-        <SearchIcon className="h-5 w-5 shrink-0 text-text-faint" />
-        <input
-          ref={searchRef}
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="本を検索…"
-          aria-label="蔵書を検索"
-          autoComplete="off"
-          className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:min-h-0 sm:text-lg"
-        />
-      </WindowBar>
-
+    <Window wide>
       <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto md:max-w-[55%] md:border-r md:border-border">
-          {books.length === 0 ? (
-            <EmptyShelf onScan={scan} />
-          ) : (
-            <>
-              <p className="sticky top-0 z-10 flex items-center justify-between bg-surface/95 px-4 pt-3 pb-1.5 text-[11px] font-semibold text-text-faint backdrop-blur">
-                <span>本 · {SORT_LABEL[sort]}</span>
-                <span className="font-normal tabular-nums">
-                  {shown.length === books.length
-                    ? `${books.length}冊`
-                    : `${shown.length} / ${books.length}冊`}
-                </span>
-              </p>
-              {shown.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-text-muted">
-                  該当する本はありません
-                </p>
+        <LibrarySidebar
+          total={books.length}
+          shelves={places}
+          shelf={location}
+          onShelf={setShelf}
+          onScan={scan}
+          onManual={() => setEditing("new")}
+          onRefreshAll={() => void refreshAll()}
+          refreshProgress={refreshAllProgress}
+          userEmail={userEmail}
+          onLogout={() => void logoutAction()}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <WindowBar>
+            <SearchIcon className="h-5 w-5 shrink-0 text-text-faint" />
+            <input
+              ref={searchRef}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="本を検索…"
+              aria-label="蔵書を検索"
+              autoComplete="off"
+              className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:min-h-0 sm:text-lg"
+            />
+            <ViewToggle view={view} onChange={changeView} />
+          </WindowBar>
+
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+              {books.length === 0 ? (
+                <EmptyShelf onScan={scan} />
               ) : (
-                <ul role="listbox" aria-label="蔵書" className="px-2 pb-2">
-                  {shown.map((book, index) => (
-                    <li
-                      key={book.id}
-                      className="lib-row"
-                      style={{ "--i": index } as React.CSSProperties}
-                      ref={(element) => {
-                        if (element) rowRefs.current.set(book.id, element);
-                        else rowRefs.current.delete(book.id);
-                      }}
+                <>
+                  <ShelfTiles {...overview} />
+                  <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-surface/95 px-4 pt-3 pb-1.5 text-[11px] font-semibold text-text-faint backdrop-blur md:pt-4 md:pb-2">
+                    <span className="flex min-w-0 items-center gap-1">
+                      <span className="truncate md:text-sm md:text-text">
+                        {shelfName}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <label className="relative shrink-0">
+                        <span className="sr-only">並び順</span>
+                        <select
+                          value={sort}
+                          onChange={(event) =>
+                            setSort(event.target.value as BookSort)
+                          }
+                          className="cursor-pointer appearance-none bg-transparent pr-1 font-semibold text-text-faint hover:text-text focus:outline-none"
+                        >
+                          {(Object.keys(SORT_LABEL) as BookSort[]).map(
+                            (option) => (
+                              <option key={option} value={option}>
+                                {SORT_LABEL[option]}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </label>
+                    </span>
+                    <span className="shrink-0 font-normal tabular-nums">
+                      {shown.length === onShelf.length
+                        ? `${onShelf.length}冊`
+                        : `${shown.length} / ${onShelf.length}冊`}
+                    </span>
+                  </div>
+                  {shown.length === 0 ? (
+                    <p className="px-4 py-12 text-center text-sm text-text-muted">
+                      該当する本はありません
+                    </p>
+                  ) : view === "grid" ? (
+                    <ul
+                      ref={gridRef}
+                      role="listbox"
+                      aria-label="蔵書"
+                      className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-x-3 gap-y-5 px-4 pt-1 pb-4 md:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] md:gap-x-4"
                     >
-                      <BookRow
-                        book={book}
-                        selected={index === selectedIndex}
-                        onSelect={() => setSelectedId(book.id)}
-                        onView={() => {
-                          setSelectedId(book.id);
-                          setViewing(book);
-                        }}
-                      />
-                    </li>
-                  ))}
-                </ul>
+                      {shown.map((book, index) => (
+                        <li
+                          key={book.id}
+                          className="lib-row"
+                          style={{ "--i": index } as React.CSSProperties}
+                          ref={rowRef(book.id)}
+                        >
+                          <BookCard
+                            book={book}
+                            selected={index === selectedIndex}
+                            onClick={() => open(book)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <ul
+                      role="listbox"
+                      aria-label="蔵書"
+                      className="px-2 pb-2 md:px-3"
+                    >
+                      {shown.map((book, index) => (
+                        <li
+                          key={book.id}
+                          className="lib-row"
+                          style={{ "--i": index } as React.CSSProperties}
+                          ref={rowRef(book.id)}
+                        >
+                          <BookRow
+                            book={book}
+                            selected={index === selectedIndex}
+                            onClick={() => open(book)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
-
-        <aside className="hidden min-w-0 flex-1 overflow-y-auto md:block">
-          {selected ? (
-            <div key={selected.id} className="lib-detail">
-              <BookDetail
-                book={selected}
-                refreshing={refreshing === selected.id}
-                onEdit={() => setEditing(selected)}
-                onRefresh={() => void refresh(selected)}
-              />
             </div>
-          ) : (
-            <ShelfSummary total={stats.total} value={stats.value} />
-          )}
-        </aside>
-      </div>
 
-      <div className="relative">
-        {actionsOpen && (
-          <ActionPanel
-            actions={actions}
-            onClose={() => setActionsOpen(false)}
-          />
-        )}
-        <WindowFooter
-          left={
-            <>
-              {refreshAllProgress ? (
-                <>
-                  <Spinner />
-                  <span className="truncate" aria-live="polite">
-                    書誌を再取得中 {refreshAllProgress.done}/
-                    {refreshAllProgress.total}
-                  </span>
-                </>
+            <aside className="hidden w-[22rem] shrink-0 overflow-y-auto border-l border-border xl:block">
+              {selected ? (
+                <div key={selected.id} className="lib-detail">
+                  <BookDetail
+                    book={selected}
+                    refreshing={refreshing === selected.id}
+                    onEdit={() => setEditing(selected)}
+                    onRefresh={() => void refresh(selected)}
+                  />
+                </div>
               ) : (
-                <>
-                  <BookIcon className="text-accent" />
-                  <span className="truncate">蔵書 · {stats.total}冊</span>
-                </>
+                <ShelfSummary total={stats.total} value={stats.value} />
               )}
-            </>
-          }
-        >
-          {selected && (
-            <span className="hidden sm:contents">
-              <IconButton
-                label="編集"
-                keys={["⌘", "E"]}
-                onClick={() => setEditing(selected)}
-              >
-                <PencilIcon className={ICON} />
-              </IconButton>
-            </span>
-          )}
-          <IconButton
-            label="書誌を一括再取得（価格・表紙などを補完）"
-            onClick={() => void refreshAll()}
-            disabled={refreshAllProgress !== null}
-          >
-            {refreshAllProgress ? (
-              <Spinner />
-            ) : (
-              <RefreshIcon className={ICON} />
+            </aside>
+          </div>
+
+          <div className="relative">
+            {actionsOpen && (
+              <ActionPanel
+                actions={actions}
+                onClose={() => setActionsOpen(false)}
+              />
             )}
-          </IconButton>
-          <IconButton
-            label="アクション"
-            keys={["⌘", "K"]}
-            onClick={() => setActionsOpen((open) => !open)}
-          >
-            <MoreIcon className={ICON} />
-          </IconButton>
-          <IconButton label="スキャンして追加" tone="primary" onClick={scan}>
-            <BarcodeIcon className={ICON} />
-          </IconButton>
-        </WindowFooter>
+            <WindowFooter
+              left={
+                <>
+                  {refreshAllProgress ? (
+                    <>
+                      <Spinner />
+                      <span className="truncate" aria-live="polite">
+                        書誌を再取得中 {refreshAllProgress.done}/
+                        {refreshAllProgress.total}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <BookIcon className="text-accent md:hidden" />
+                      <span className="truncate">
+                        <span className="md:hidden">蔵書 · </span>
+                        {shelfName} · {onShelf.length}冊
+                      </span>
+                    </>
+                  )}
+                </>
+              }
+            >
+              {selected && (
+                <span className="hidden sm:contents">
+                  <IconButton
+                    label="編集"
+                    keys={["⌘", "E"]}
+                    onClick={() => setEditing(selected)}
+                  >
+                    <PencilIcon className={ICON} />
+                  </IconButton>
+                </span>
+              )}
+              {/* The sidebar has these from md up. */}
+              <span className="contents md:hidden">
+                <IconButton
+                  label="書誌を一括再取得（価格・表紙などを補完）"
+                  onClick={() => void refreshAll()}
+                  disabled={refreshAllProgress !== null}
+                >
+                  {refreshAllProgress ? (
+                    <Spinner />
+                  ) : (
+                    <RefreshIcon className={ICON} />
+                  )}
+                </IconButton>
+              </span>
+              <IconButton
+                label="アクション"
+                keys={["⌘", "K"]}
+                onClick={() => setActionsOpen((open) => !open)}
+              >
+                <MoreIcon className={ICON} />
+              </IconButton>
+              <span className="contents md:hidden">
+                <IconButton
+                  label="スキャンして追加"
+                  tone="primary"
+                  onClick={scan}
+                >
+                  <BarcodeIcon className={ICON} />
+                </IconButton>
+              </span>
+            </WindowFooter>
+          </div>
+        </div>
       </div>
 
       {/* The detail stays mounted under the edit page rather than
@@ -581,20 +764,15 @@ function imprint(book: ShelvedBook): string {
  * title, author, then publisher · date · price — so the imprint is not
  * run together with the author the way one long line did. Raycast's
  * "accessory" sits on the right: where it is.
- *
- * Clicking selects on a desktop, where the detail pane shows it; on a
- * phone, where there is no pane, it opens the detail sheet.
  */
 function BookRow({
   book,
   selected,
-  onSelect,
-  onView,
+  onClick,
 }: {
   book: ShelvedBook;
   selected: boolean;
-  onSelect: () => void;
-  onView: () => void;
+  onClick: () => void;
 }) {
   const line = imprint(book);
   return (
@@ -602,10 +780,7 @@ function BookRow({
       type="button"
       role="option"
       aria-selected={selected}
-      onClick={() => {
-        if (window.matchMedia("(min-width: 768px)").matches) onSelect();
-        else onView();
-      }}
+      onClick={onClick}
       className={`lib-select flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left ${
         selected ? "bg-surface-hover" : "hover:bg-surface-hover/60"
       }`}
@@ -637,6 +812,87 @@ function BookRow({
         )}
       </span>
     </button>
+  );
+}
+
+/** One grid item: the cover large, the title and author under it. */
+function BookCard({
+  book,
+  selected,
+  onClick,
+}: {
+  book: ShelvedBook;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      onClick={onClick}
+      className="lib-select group flex w-full flex-col gap-2 text-left"
+    >
+      <BookCover
+        title={book.title}
+        isbn={book.isbn}
+        coverUrl={book.cover_url}
+        size="fill"
+        className={`shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-[transform,box-shadow] group-hover:-translate-y-0.5 ${
+          selected ? "ring-2 ring-accent ring-offset-2 ring-offset-surface" : ""
+        }`}
+      />
+      <span className="min-w-0 px-0.5">
+        <span className="line-clamp-2 text-sm leading-snug text-text">
+          {book.title}
+        </span>
+        {book.authors && (
+          <span className="mt-0.5 block truncate text-xs text-text-muted">
+            {book.authors}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+/** List or grid: two icons side by side, the current one lit. */
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: View;
+  onChange: (view: View) => void;
+}) {
+  const options: [View, string, React.ReactNode][] = [
+    ["list", "リスト表示", <ListIcon key="list" className={ICON} />],
+    ["grid", "グリッド表示", <GridIcon key="grid" className={ICON} />],
+  ];
+  return (
+    <div
+      role="radiogroup"
+      aria-label="表示"
+      className="flex shrink-0 rounded-xl bg-bg/60 p-0.5 sm:rounded-lg"
+    >
+      {options.map(([value, label, icon]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={view === value}
+          aria-label={label}
+          title={label}
+          onClick={() => onChange(value)}
+          className={`flex h-10 w-10 items-center justify-center rounded-[10px] transition-colors sm:h-7 sm:w-7 sm:rounded-md ${
+            view === value
+              ? "bg-surface-hover text-text"
+              : "text-text-faint hover:text-text"
+          }`}
+        >
+          {icon}
+        </button>
+      ))}
+    </div>
   );
 }
 

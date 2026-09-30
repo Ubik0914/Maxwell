@@ -58,7 +58,17 @@ function haystack(book: ShelvedBook): string {
 
 export function filterBooks(
   books: ShelvedBook[],
-  { query }: { query: string },
+  {
+    query,
+    location,
+  }: {
+    query: string;
+    /**
+     * One shelf: a location's name, `null` for the books with none
+     * written down, or left out for every shelf.
+     */
+    location?: string | null;
+  },
 ): ShelvedBook[] {
   // Every word has to match somewhere, in any order: "orwell 早川" finds
   // the book whether the words are in the title, author or publisher.
@@ -68,6 +78,7 @@ export function filterBooks(
     .filter((word) => word !== "");
 
   return books.filter((book) => {
+    if (location !== undefined && shelfOf(book) !== location) return false;
     if (words.length === 0) return true;
     const text = haystack(book);
     return words.every((word) => text.includes(word));
@@ -117,4 +128,63 @@ export function libraryStats(books: ShelvedBook[]): LibraryStats {
     }),
     { total: 0, value: 0 },
   );
+}
+
+/** Where a book is, with a blank or all-space location counted as none. */
+function shelfOf(book: ShelvedBook): string | null {
+  return book.location?.trim() || null;
+}
+
+export interface Shelf {
+  /** `null` gathers the books with no location written down. */
+  name: string | null;
+  count: number;
+}
+
+/**
+ * The places the books are, for the sidebar: fullest first, then by
+ * name, with the books that have no place at the end.
+ */
+export function shelves(books: ShelvedBook[]): Shelf[] {
+  const counts = new Map<string | null, number>();
+  for (const book of books) {
+    const name = shelfOf(book);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([name, count]) => ({ name, count }))
+    .sort(
+      (a, b) =>
+        Number(a.name === null) - Number(b.name === null) ||
+        b.count - a.count ||
+        collator.compare(a.name ?? "", b.name ?? ""),
+    );
+}
+
+export interface ShelfOverview {
+  total: number;
+  value: number;
+  authors: number;
+  /** Added in the thirty days before `now`. */
+  recent: number;
+}
+
+const RECENT_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** The dashboard's numbers. */
+export function shelfOverview(
+  books: ShelvedBook[],
+  now: Date = new Date(),
+): ShelfOverview {
+  const { total, value } = libraryStats(books);
+  const authors = new Set(
+    books
+      .map((book) => book.authors?.trim())
+      .filter((name): name is string => Boolean(name)),
+  ).size;
+  const since = now.getTime() - RECENT_MS;
+  const recent = books.filter(
+    (book) => new Date(book.created_at).getTime() >= since,
+  ).length;
+  return { total, value, authors, recent };
 }

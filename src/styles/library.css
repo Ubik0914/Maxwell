@@ -81,3 +81,11 @@
     0 0 0 1px rgba(255, 255, 255, 0.06) inset,
     0 30px 90px rgba(0, 0, 0, 0.7);
 }
+
+/* Filling the screen with a sidebar, the window is the page: no edge
+   to draw. */
+@media (min-width: 768px) {
+  .theme-raycast .lib-window.lib-wide {
+    box-shadow: none;
+  }
+}

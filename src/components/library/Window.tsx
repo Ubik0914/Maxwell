@@ -12,9 +12,15 @@ import type { ReactNode, Ref } from "react";
 export function Window({
   children,
   sheet = false,
+  wide = false,
   sheetRef,
 }: {
   children: ReactNode;
+  /**
+   * From `md` up, fill the screen edge to edge instead of floating —
+   * for a layout with a sidebar, which wants the whole width.
+   */
+  wide?: boolean;
   /**
    * On a phone, present it as a sheet over black — inset from the top,
    * rounded, with a grabber — for a screen that is pulled down to leave
@@ -27,7 +33,7 @@ export function Window({
     <div
       // theme-raycast switches the whole document to the library's
       // palette while this is on the page (see styles/library.css).
-      className={`theme-raycast lib-desktop flex h-dvh justify-center sm:bg-bg sm:px-6 sm:py-8 ${
+      className={`theme-raycast lib-desktop flex h-dvh justify-center sm:bg-bg sm:px-6 sm:py-8 ${wide ? "md:p-0" : ""} ${
         sheet ? "bg-black pt-[calc(env(safe-area-inset-top)+0.75rem)]" : "bg-bg"
       }`}
     >
@@ -35,6 +41,10 @@ export function Window({
         ref={sheetRef}
         className={`lib-window flex h-full w-full max-w-5xl flex-col overflow-hidden bg-surface sm:rounded-xl sm:border sm:border-border sm:shadow-[0_30px_90px_rgba(0,0,0,0.7)] ${
           sheet ? "modal-page rounded-t-2xl" : ""
+        } ${
+          wide
+            ? "lib-wide md:max-w-none md:rounded-none md:border-0 md:shadow-none"
+            : ""
         }`}
       >
         {sheet && (
