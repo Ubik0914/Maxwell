@@ -138,15 +138,48 @@ export function LibraryScreen({
   const [barHidden, setBarHidden] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const lastScroll = useRef(0);
+  // Until when to take no notice of scrolling: the bars sliding in or
+  // out resize the list (the search bar collapses with the tab bar), and
+  // at the foot of the list the browser answers that by moving scrollTop
+  // itself — which read as the person scrolling back up, brought the
+  // bars back, resized the list again, and shook.
+  const settleUntil = useRef(0);
   const onListScroll = useCallback((event: React.UIEvent<HTMLElement>) => {
     // Phones only: from md up nothing slides away.
     if (window.matchMedia("(min-width: 768px)").matches) return;
-    const top = event.currentTarget.scrollTop;
+    const list = event.currentTarget;
+    const top = list.scrollTop;
+    const bottom = list.scrollHeight - list.clientHeight;
+
+    // At the top — or pulled past it — the bars belong on screen.
+    if (top <= 0) {
+      lastScroll.current = 0;
+      setBarHidden(false);
+      return;
+    }
+    // At the foot, iOS's rubber band runs past the end and springs
+    // back: that return is not the person scrolling up. Leave the bars
+    // as they are until the list is clear of the end.
+    if (top >= bottom - 2) {
+      lastScroll.current = Math.min(top, bottom);
+      return;
+    }
+    if (performance.now() < settleUntil.current) {
+      lastScroll.current = top;
+      return;
+    }
+
     const delta = top - lastScroll.current;
     // A few pixels either way is a hand resting, not a direction.
     if (Math.abs(delta) < 8) return;
     lastScroll.current = top;
-    setBarHidden(delta > 0 && top > 48);
+    const hide = delta > 0 && top > 48;
+    setBarHidden((hidden) => {
+      // A change starts the bars moving; let them land (their
+      // transition is 300ms) before reading the scroll again.
+      if (hidden !== hide) settleUntil.current = performance.now() + 350;
+      return hide;
+    });
   }, []);
 
   // What this tab last knew beats the page as the router cached it:
