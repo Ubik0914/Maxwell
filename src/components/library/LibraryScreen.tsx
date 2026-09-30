@@ -33,7 +33,7 @@ import { CoverLightbox } from "@/components/library/CoverLightbox";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
 import {
   LibrarySidebar,
-  ShelfTiles,
+  ShelfStats,
   type ShelfChoice,
 } from "@/components/library/LibrarySidebar";
 import {
@@ -525,6 +525,7 @@ export function LibraryScreen({
               autoComplete="off"
               className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-text placeholder:text-text-faint focus:outline-none sm:min-h-0 sm:text-lg"
             />
+            <ShelfStats {...overview} />
             <ViewToggle view={view} onChange={changeView} />
           </WindowBar>
 
@@ -534,7 +535,6 @@ export function LibraryScreen({
                 <EmptyShelf onScan={scan} />
               ) : (
                 <>
-                  <ShelfTiles {...overview} />
                   <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-surface/95 px-4 pt-3 pb-1.5 text-[11px] font-semibold text-text-faint backdrop-blur md:pt-4 md:pb-2">
                     <span className="flex min-w-0 items-center gap-1">
                       <span className="truncate md:text-sm md:text-text">
@@ -654,10 +654,10 @@ export function LibraryScreen({
                     </>
                   ) : (
                     <>
+                      {/* The header has the figures from md up. */}
                       <BookIcon className="text-accent md:hidden" />
-                      <span className="truncate">
-                        <span className="md:hidden">蔵書 · </span>
-                        {shelfName} · {onShelf.length}冊
+                      <span className="truncate md:hidden">
+                        蔵書 · {shelfName} · {onShelf.length}冊
                       </span>
                     </>
                   )}

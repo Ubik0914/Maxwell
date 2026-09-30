@@ -188,10 +188,11 @@ function SidebarButton({
 const yen = new Intl.NumberFormat("ja-JP");
 
 /**
- * The dashboard's figures across the top of the shelf: four plain
- * numbers, no charts — a count reads faster as a count.
+ * The shelf's figures, as a quiet line in the header: useful to glance
+ * at, never what the screen is for, so they get no more room than a
+ * caption. Desktop only; a phone's footer already counts the books.
  */
-export function ShelfTiles({
+export function ShelfStats({
   total,
   value,
   authors,
@@ -202,26 +203,24 @@ export function ShelfTiles({
   authors: number;
   recent: number;
 }) {
-  const tiles: [string, string, string][] = [
-    ["蔵書", String(total), "冊"],
-    ["総額", `¥${yen.format(value)}`, ""],
-    ["著者", String(authors), "人"],
-    ["30日間の追加", String(recent), "冊"],
+  const figures: [string, string][] = [
+    ["蔵書", `${total}冊`],
+    ["総額", `¥${yen.format(value)}`],
+    ["著者", `${authors}人`],
+    ["30日間の追加", `${recent}冊`],
   ];
   return (
-    <dl className="hidden grid-cols-2 gap-3 px-4 pt-4 md:grid lg:grid-cols-4">
-      {tiles.map(([label, figure, unit]) => (
+    <dl className="hidden shrink-0 items-center gap-4 text-xs md:flex">
+      {figures.map(([label, figure], index) => (
         <div
           key={label}
-          className="rounded-xl border border-border bg-bg/40 px-4 py-3"
+          className={`flex items-baseline gap-1.5 ${
+            // The last two give way first when the header is narrow.
+            index >= 2 ? "hidden lg:flex" : ""
+          }`}
         >
-          <dt className="text-xs text-text-faint">{label}</dt>
-          <dd className="mt-1 flex items-baseline gap-1">
-            <span className="text-2xl font-semibold text-text tabular-nums">
-              {figure}
-            </span>
-            {unit && <span className="text-xs text-text-muted">{unit}</span>}
-          </dd>
+          <dt className="text-text-faint">{label}</dt>
+          <dd className="text-text-muted tabular-nums">{figure}</dd>
         </div>
       ))}
     </dl>
