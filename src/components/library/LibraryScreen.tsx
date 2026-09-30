@@ -6,8 +6,6 @@ import {
   BarcodeIcon,
   BookIcon,
   CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CopyIcon,
   GridIcon,
   KeyIcon,
@@ -1213,15 +1211,7 @@ function BookDetail({
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
           <div className="flex items-start gap-2">
-            {/* Always four lines tall (4 × 1.375em), however short the
-                title, so paging between books does not shift the rest of
-                the page; a longer title scrolls inside. */}
-            <h2
-              tabIndex={0}
-              className="h-[5.5em] min-w-0 flex-1 overflow-y-auto overscroll-contain text-base leading-snug font-semibold break-words text-text focus:outline-none"
-            >
-              {book.title}
-            </h2>
+            <DetailTitle title={book.title} />
             {/* The desktop's ⌘K, beside what it acts on — there is no
                 footer to hold it. */}
             {onActions && (
@@ -1319,6 +1309,38 @@ function BookDetail({
   );
 }
 
+/**
+ * The detail's title: always three and a half lines tall (3.5 ×
+ * 1.375em), however short, so paging between books does not shift the
+ * rest of the page. A longer title scrolls inside, and the half line
+ * showing at the bottom fades out to say so — until it has been
+ * scrolled to its end, where the fade would only hide the last words.
+ */
+function DetailTitle({ title }: { title: string }) {
+  const [more, setMore] = useState(false);
+  const measure = useCallback((element: HTMLElement | null) => {
+    if (!element) return;
+    setMore(
+      element.scrollTop + element.clientHeight < element.scrollHeight - 1,
+    );
+  }, []);
+  return (
+    <h2
+      key={title}
+      ref={measure}
+      tabIndex={0}
+      onScroll={(event) => measure(event.currentTarget)}
+      className={`h-[4.8125em] min-w-0 flex-1 overflow-y-auto overscroll-contain text-base leading-snug font-semibold break-words text-text focus:outline-none ${
+        more
+          ? "[mask-image:linear-gradient(to_bottom,black_calc(100%-1.5em),transparent)]"
+          : ""
+      }`}
+    >
+      {title}
+    </h2>
+  );
+}
+
 /** The detail pane, as a sheet, for screens too narrow to show it. */
 function DetailSheet({
   book,
@@ -1338,7 +1360,7 @@ function DetailSheet({
   onClose: () => void;
   onEdit: () => void;
   onRefresh: () => void;
-  /** The books either side in the list, to page through without going
+  /** The books either side in the list, to swipe to without going
    *  back to it. */
   previous?: ShelvedBook;
   next?: ShelvedBook;
@@ -1387,15 +1409,6 @@ function DetailSheet({
           compact
         />
       </div>
-      {(previous || next) && (
-        <nav
-          aria-label="前後の本"
-          className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4"
-        >
-          <NeighbourLink book={previous} direction="previous" onGo={onGo} />
-          <NeighbourLink book={next} direction="next" onGo={onGo} />
-        </nav>
-      )}
     </Modal>
   );
 }
@@ -1485,41 +1498,6 @@ function useSwipeBetween({
       place(0, true);
     },
   };
-}
-
-/** One of the two buttons under the detail: which way, and to what. */
-function NeighbourLink({
-  book,
-  direction,
-  onGo,
-}: {
-  book?: ShelvedBook;
-  direction: "previous" | "next";
-  onGo: (book: ShelvedBook) => void;
-}) {
-  if (!book) return <span />;
-  const forward = direction === "next";
-  return (
-    <button
-      type="button"
-      onClick={() => onGo(book)}
-      className={`flex min-h-14 min-w-0 items-center gap-2 rounded-xl border border-border px-3 py-2 text-left transition-[transform,background-color] hover:bg-surface-hover active:scale-[0.97] ${
-        forward ? "flex-row-reverse text-right" : ""
-      }`}
-    >
-      {forward ? (
-        <ChevronRightIcon className="h-5 w-5 shrink-0 text-text-faint" />
-      ) : (
-        <ChevronLeftIcon className="h-5 w-5 shrink-0 text-text-faint" />
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block text-[11px] text-text-faint">
-          {forward ? "次の本" : "前の本"}
-        </span>
-        <span className="block truncate text-sm text-text">{book.title}</span>
-      </span>
-    </button>
-  );
 }
 
 function ShelfSummary({ total, value }: { total: number; value: number }) {
