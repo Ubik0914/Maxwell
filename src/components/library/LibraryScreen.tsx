@@ -175,6 +175,13 @@ export function LibraryScreen({
 
   const stats = useMemo(() => libraryStats(books), [books]);
   const places = useMemo(() => shelves(books), [books]);
+  const placeNames = useMemo(
+    () =>
+      places
+        .map((place) => place.name)
+        .filter((name): name is string => name !== null),
+    [places],
+  );
   // A shelf that has been emptied (its last book moved or deleted)
   // falls back to every shelf rather than showing nothing.
   const location =
@@ -770,6 +777,7 @@ export function LibraryScreen({
       {editing && (
         <BookDialog
           book={editing === "new" ? undefined : editing}
+          places={placeNames}
           confirmingDelete={deleting}
           onClose={() => {
             setEditing(null);
