@@ -1,5 +1,11 @@
 import { parseOpenBdRecord, type BookDetails } from "@/domain/library/openbd";
-import { mergeDetails, parseNdlOpenSearch } from "@/domain/library/ndl";
+import {
+  mergeDetails,
+  parseNdlCandidates,
+  parseNdlOpenSearch,
+  rankCandidates,
+  type BookCandidate,
+} from "@/domain/library/ndl";
 import { coverCandidates, MIN_COVER_BYTES } from "@/domain/library/cover";
 
 /*
@@ -84,4 +90,65 @@ export async function findCover(isbn: string): Promise<string | null> {
     }
   }
   return null;
+}
+
+/** The NDL refused for now: too many searches in a row. */
+export class CatalogueBusyError extends Error {
+  constructor() {
+    super("NDL 429");
+  }
+}
+
+/** How many books a title search offers: enough to find the edition. */
+const CANDIDATES = 10;
+
+/**
+ * Books whose title matches, for picking one when there is no barcode
+ * to scan.
+ *
+ * openBD answers only by ISBN — it has no title search — so the NDL
+ * finds the ISBNs, and openBD is then asked for all of them in one
+ * request. Its records win where it has one (the publisher's own
+ * title, authors and price); the NDL's fill the rest, and stand alone
+ * for a book openBD does not carry.
+ *
+ * Throws when the NDL cannot be reached: without it there is nothing
+ * to search. openBD being down only costs its polish.
+ */
+export async function searchByTitle(title: string): Promise<BookCandidate[]> {
+  const response = await fetch(
+    `https://ndlsearch.ndl.go.jp/api/opensearch?title=${encodeURIComponent(
+      title,
+    )}&cnt=50`,
+    { ...FETCH, signal: AbortSignal.timeout(10000) },
+  );
+  // The NDL rate-limits bursts; say so rather than "unreachable".
+  if (response.status === 429) throw new CatalogueBusyError();
+  if (!response.ok) throw new Error(`NDL ${response.status}`);
+  // Fifty records for ten books: many are articles and maps with no
+  // ISBN, which the parser drops.
+  const found = rankCandidates(
+    parseNdlCandidates(await response.text()),
+    title,
+  ).slice(0, CANDIDATES);
+  if (found.length === 0) return [];
+
+  let records: unknown[] = [];
+  try {
+    const openbd = await fetch(
+      `https://api.openbd.jp/v1/get?isbn=${found.map((book) => book.isbn).join(",")}`,
+      { ...FETCH, signal: AbortSignal.timeout(8000) },
+    );
+    if (openbd.ok) {
+      const body: unknown = await openbd.json();
+      if (Array.isArray(body)) records = body;
+    }
+  } catch {
+    // The NDL's records are enough to choose from.
+  }
+
+  return found.map((ndl, index) => {
+    const merged = mergeDetails(parseOpenBdRecord(records[index]), ndl);
+    return { ...ndl, ...merged, isbn: ndl.isbn };
+  });
 }

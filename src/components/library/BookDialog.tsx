@@ -12,9 +12,13 @@ import {
   createBookAction,
   deleteBookAction,
   lookupIsbnAction,
+  searchTitleAction,
   updateBookAction,
 } from "@/features/library/actions";
 import type { ShelvedBook } from "@/domain/library/filter";
+import type { BookCandidate } from "@/domain/library/ndl";
+
+const yen = new Intl.NumberFormat("ja-JP");
 
 const INPUT =
   "w-full rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm";
@@ -78,6 +82,9 @@ export function BookDialog({
   const [isPending, setIsPending] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(confirmingDelete);
+  // A title search's answer: null before one, [] when it found nothing.
+  const [candidates, setCandidates] = useState<BookCandidate[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEscapeKey(onClose, true, { exclusive: true });
 
@@ -113,6 +120,40 @@ export function BookDialog({
       cover_url: found.cover_url ?? current.cover_url,
     }));
     setNotice("openBD から書誌を読み込みました。");
+  }
+
+  /** Books that go by the title typed, to pick the right edition from. */
+  async function searchTitle() {
+    if (isSearching || draft.title.trim() === "") return;
+    setIsSearching(true);
+    setError(null);
+    setNotice(null);
+
+    const result = await searchTitleAction(draft.title);
+    setIsSearching(false);
+
+    if (!result.success) {
+      setError(result.error.message);
+      return;
+    }
+    setCandidates(result.data);
+  }
+
+  /** Picking a candidate is picking a book: everything it knew replaces
+   *  what was typed, except the fields only a person can know. */
+  function pick(found: BookCandidate) {
+    setDraft((current) => ({
+      ...current,
+      isbn: found.isbn,
+      title: found.title,
+      authors: found.authors ?? "",
+      publisher: found.publisher ?? "",
+      published: found.published ?? "",
+      price: found.price == null ? "" : String(found.price),
+      cover_url: found.cover_url,
+    }));
+    setCandidates(null);
+    setNotice("候補から書誌を読み込みました。");
   }
 
   async function save(event: React.FormEvent) {
@@ -168,7 +209,7 @@ export function BookDialog({
       subtitle={
         book
           ? undefined
-          : "バーコードの無い本はここから。ISBN があれば検索ボタンで書誌が埋まります"
+          : "バーコードの無い本はここから。ISBN か書名で検索すると書誌が埋まります"
       }
       onClose={onClose}
       width="max-w-lg"
@@ -235,18 +276,48 @@ export function BookDialog({
               <label htmlFor="book-title" className={LABEL}>
                 書名 <span className="text-danger">*</span>
               </label>
-              <input
-                id="book-title"
-                value={draft.title}
-                onChange={(event) => set("title", event.target.value)}
-                autoFocus={Boolean(initialIsbn)}
-                required
-                maxLength={500}
-                className={INPUT}
-              />
+              <div className="flex gap-2">
+                <input
+                  id="book-title"
+                  value={draft.title}
+                  onChange={(event) => set("title", event.target.value)}
+                  onKeyDown={(event) => {
+                    // Adding a book, Enter here asks for candidates: the
+                    // title alone is seldom the whole of what to save.
+                    if (event.key === "Enter" && !book) {
+                      event.preventDefault();
+                      void searchTitle();
+                    }
+                  }}
+                  autoFocus={Boolean(initialIsbn)}
+                  required
+                  maxLength={500}
+                  className={INPUT}
+                />
+                <IconButton
+                  label="書名から候補を探す"
+                  tone="outline"
+                  onClick={() => void searchTitle()}
+                  disabled={isSearching || draft.title.trim() === ""}
+                >
+                  {isSearching ? (
+                    <Spinner />
+                  ) : (
+                    <SearchIcon className="h-5 w-5 sm:h-4 sm:w-4" />
+                  )}
+                </IconButton>
+              </div>
             </div>
           </div>
         </div>
+
+        {candidates && (
+          <Candidates
+            candidates={candidates}
+            onPick={pick}
+            onDismiss={() => setCandidates(null)}
+          />
+        )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
@@ -395,5 +466,84 @@ export function BookDialog({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** The title search's answer: one row per edition, in the NDL's order. */
+function Candidates({
+  candidates,
+  onPick,
+  onDismiss,
+}: {
+  candidates: BookCandidate[];
+  onPick: (candidate: BookCandidate) => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <section
+      aria-label="書名の候補"
+      className="lib-detail rounded-lg border border-border bg-bg/40"
+    >
+      <div className="flex items-center justify-between px-3 pt-2 pb-1 text-xs text-text-faint">
+        <span>
+          {candidates.length === 0
+            ? "候補が見つかりませんでした"
+            : `候補 ${candidates.length}件 · タップで入力`}
+        </span>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded px-1.5 py-1 hover:bg-surface-hover hover:text-text"
+        >
+          閉じる
+        </button>
+      </div>
+      {candidates.length > 0 && (
+        <ul className="max-h-72 overflow-y-auto overscroll-contain p-1">
+          {candidates.map((candidate) => {
+            const line = [
+              candidate.publisher,
+              candidate.published,
+              candidate.price == null
+                ? null
+                : `¥${yen.format(candidate.price)}`,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <li key={candidate.isbn}>
+                <button
+                  type="button"
+                  onClick={() => onPick(candidate)}
+                  className="lib-select flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-surface-hover"
+                >
+                  <BookCover
+                    title={candidate.title}
+                    isbn={candidate.isbn}
+                    coverUrl={candidate.cover_url}
+                    size="sm"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2 text-sm text-text">
+                      {candidate.title}
+                    </span>
+                    {candidate.authors && (
+                      <span className="block truncate text-xs text-text-muted">
+                        {candidate.authors}
+                      </span>
+                    )}
+                    {line && (
+                      <span className="block truncate text-[11px] text-text-faint">
+                        {line}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

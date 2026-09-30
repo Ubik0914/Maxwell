@@ -1,4 +1,6 @@
 import type { BookDetails } from "@/domain/library/openbd";
+import { normalizeIsbn } from "@/domain/library/isbn";
+import { foldForSearch } from "@/domain/library/filter";
 
 /**
  * Reading a book out of the National Diet Library's OpenSearch feed.
@@ -110,6 +112,71 @@ export function parseNdlOpenSearch(xml: string): BookDetails | null {
     // BookCover asks for them directly when there is no stored cover.
     cover_url: null,
   };
+}
+
+/** One book a title search turned up, by its ISBN. */
+export interface BookCandidate extends BookDetails {
+  isbn: string;
+}
+
+/** The record's ISBN as 13 digits, from its identifier or, failing that,
+ *  the description the NDL prints it in. */
+function isbnOf(item: string): string | null {
+  const tagged = [
+    ...item.matchAll(
+      /<dc:identifier[^>]*dcndl:ISBN[^>]*>([^<]*)<\/dc:identifier>/g,
+    ),
+  ].map((match) => match[1]);
+  const printed =
+    item.match(/97[89][\d-]{10,14}|\b\d[\d-]{8,11}[\dX]\b/g) ?? [];
+  for (const raw of [...tagged, ...printed]) {
+    const isbn = normalizeIsbn(decode(raw));
+    if (isbn) return isbn;
+  }
+  return null;
+}
+
+/**
+ * Every book in a title search's feed that has an ISBN, once each, in
+ * the NDL's order. A record without one — a magazine, a thesis, a
+ * pre-ISBN book — can be neither looked up nor stored as a copy of
+ * something, so it is left out.
+ */
+export function parseNdlCandidates(xml: string): BookCandidate[] {
+  const seen = new Set<string>();
+  const candidates: BookCandidate[] = [];
+  for (const [, item] of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const isbn = isbnOf(item);
+    if (!isbn || seen.has(isbn)) continue;
+    const details = parseNdlOpenSearch(`<item>${item}</item>`);
+    if (!details) continue;
+    seen.add(isbn);
+    candidates.push({ ...details, isbn });
+  }
+  return candidates;
+}
+
+/**
+ * The NDL's title search is loose — "ちいかわ" also turns up a survey
+ * of 秋田県's folk songs — so the books whose title actually holds
+ * every word typed come first, in the NDL's order, and the rest after.
+ */
+export function rankCandidates(
+  candidates: BookCandidate[],
+  query: string,
+): BookCandidate[] {
+  const words = query
+    .split(/[\s　]+/)
+    .map(foldForSearch)
+    .filter((word) => word !== "");
+  const matches = (candidate: BookCandidate) => {
+    const title = foldForSearch(candidate.title);
+    return words.every((word) => title.includes(word));
+  };
+  return [
+    ...candidates.filter(matches),
+    ...candidates.filter((candidate) => !matches(candidate)),
+  ];
 }
 
 /**
