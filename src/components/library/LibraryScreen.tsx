@@ -88,6 +88,17 @@ const DETAIL_PANE = "(min-width: 1280px)";
 type View = "list" | "grid";
 const VIEW_KEY = "library:view";
 
+/** Covers across the phone's grid: the person's choice, 2 to 4. */
+type Columns = 2 | 3 | 4;
+const COLUMNS_KEY = "library:grid-columns";
+// Whole class names, so Tailwind sees them; from md up the grid fits as
+// many covers as the width allows instead.
+const COLUMN_CLASS: Record<Columns, string> = {
+  2: "grid-cols-2 gap-x-3",
+  3: "grid-cols-3 gap-x-2.5",
+  4: "grid-cols-4 gap-x-2",
+};
+
 /** Icon size inside an IconButton: larger under a thumb, 16px with a mouse. */
 const ICON = "h-5 w-5 sm:h-4 sm:w-4";
 
@@ -191,6 +202,7 @@ export function LibraryScreen({
   // An NDC class digit, null for the unclassified, undefined for all.
   const [genre, setGenre] = useState<string | null | undefined>(undefined);
   const [view, setView] = useState<View>("list");
+  const [columns, setColumns] = useState<Columns>(3);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
   // ⌘K's 削除 opens the book with its own delete confirmation already
@@ -263,8 +275,19 @@ export function LibraryScreen({
       const saved = localStorage.getItem(VIEW_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
       if (saved === "grid" || saved === "list") setView(saved);
+      const across = Number(localStorage.getItem(COLUMNS_KEY));
+      if (across === 2 || across === 3 || across === 4) setColumns(across);
     } catch {
       // No storage: the list it is.
+    }
+  }, []);
+
+  const changeColumns = useCallback((next: Columns) => {
+    setColumns(next);
+    try {
+      localStorage.setItem(COLUMNS_KEY, String(next));
+    } catch {
+      // Only this visit, then.
     }
   }, []);
 
@@ -715,6 +738,36 @@ export function LibraryScreen({
       : []),
   ];
 
+  // その他's 表示: the list, or the grid two, three or four across — the
+  // one in use ticked.
+  const viewChoices: Action[] = [
+    { id: "view-list", title: "リスト", next: "list" as View, across: null },
+    ...([2, 3, 4] as const).map((across) => ({
+      id: `view-grid-${across}`,
+      title: `グリッド ${across}列`,
+      next: "grid" as View,
+      across,
+    })),
+  ].map(({ id, title, next, across }) => {
+    const current = view === next && (across === null || across === columns);
+    return {
+      id,
+      section: "表示",
+      title,
+      icon: current ? (
+        <CheckIcon />
+      ) : next === "list" ? (
+        <ListIcon />
+      ) : (
+        <GridIcon />
+      ),
+      run: () => {
+        changeView(next);
+        if (across) changeColumns(across);
+      },
+    };
+  });
+
   // The tab bar and the search bar, both out of the way.
   const chromeHidden = barHidden && !panel && !searchFocused;
 
@@ -833,7 +886,7 @@ export function LibraryScreen({
                       aria-label="蔵書"
                       // Three across on a phone, however narrow; from md up as
                       // many 9rem covers as fit.
-                      className="grid grid-cols-3 gap-x-2.5 gap-y-4 px-3 pt-1 pb-4 md:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] md:gap-x-4 md:gap-y-5 md:px-4"
+                      className={`grid ${COLUMN_CLASS[columns]} gap-y-4 px-3 pt-1 pb-4 md:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] md:gap-x-4 md:gap-y-5 md:px-4`}
                     >
                       {shown.map((book, index) => (
                         <li
@@ -913,8 +966,11 @@ export function LibraryScreen({
                       : panel === "more"
                         ? [
                             ...narrowing,
+                            ...viewChoices,
                             ...actions.filter(
-                              (action) => !ELSEWHERE_ON_PHONE.test(action.id),
+                              (action) =>
+                                !ELSEWHERE_ON_PHONE.test(action.id) &&
+                                action.id !== "view",
                             ),
                           ]
                         : actions
