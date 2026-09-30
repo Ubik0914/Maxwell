@@ -765,16 +765,16 @@ html[data-motion="reduced"] {
 @keyframes lib-scan-frame {
   0%,
   100% {
-    border-color: rgba(34, 211, 238, 0.85);
+    border-color: color-mix(in srgb, var(--accent) 90%, transparent);
     box-shadow:
       0 0 0 9999px rgba(0, 0, 0, 0.35),
-      0 0 0 rgba(34, 211, 238, 0);
+      0 0 0 transparent;
   }
   50% {
-    border-color: rgba(34, 211, 238, 0.45);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
     box-shadow:
       0 0 0 9999px rgba(0, 0, 0, 0.35),
-      0 0 22px rgba(34, 211, 238, 0.35);
+      0 0 22px color-mix(in srgb, var(--accent) 40%, transparent);
   }
 }
 

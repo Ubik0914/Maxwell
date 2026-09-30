@@ -11,6 +11,7 @@
  *                 decides what happens under reduced motion
  *   markdown.css  what a rendered description looks like
  *   docs.css      the same prose, sized for a page instead of a panel
+ *   library.css   the library's own palette (Raycast's), scoped to it
  *
  * Imports have to precede rules, so these load before the tokens they
  * use. That is fine: custom properties resolve where they are used,
@@ -20,6 +21,7 @@
 @import "../styles/motion.css";
 @import "../styles/markdown.css";
 @import "../styles/docs.css";
+@import "../styles/library.css";
 
 /*
  * Dark is the default (and only) theme. Tokens live as plain custom

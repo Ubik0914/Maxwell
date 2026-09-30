@@ -22,8 +22,9 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#0a0d14",
-    theme_color: "#0a0d14",
+    // The library's palette (styles/library.css), not Maxwell's.
+    background_color: "#0d0d0e",
+    theme_color: "#0d0d0e",
     // Both ways up: a shelf reads fine either way, and the scanner
     // should not argue about which way the phone is being held.
     orientation: "any",

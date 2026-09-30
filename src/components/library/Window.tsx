@@ -25,7 +25,9 @@ export function Window({
 }) {
   return (
     <div
-      className={`flex h-dvh justify-center sm:bg-bg sm:px-6 sm:py-8 ${
+      // theme-raycast switches the whole document to the library's
+      // palette while this is on the page (see styles/library.css).
+      className={`theme-raycast lib-desktop flex h-dvh justify-center sm:bg-bg sm:px-6 sm:py-8 ${
         sheet ? "bg-black pt-[calc(env(safe-area-inset-top)+0.75rem)]" : "bg-bg"
       }`}
     >
@@ -82,7 +84,8 @@ export function WindowFooter({
 /** A key, the way a keyboard shortcut is written on a menu. */
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-surface-hover px-1 font-sans text-[10px] text-text-muted">
+    // Raycast's key caps: a lighter tile, no outline.
+    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] bg-white/10 px-1 font-sans text-[11px] leading-none text-text-muted">
       {children}
     </kbd>
   );
@@ -90,7 +93,7 @@ export function Kbd({ children }: { children: ReactNode }) {
 
 const TONE = {
   primary:
-    "bg-accent text-inverse hover:bg-accent-hover shadow-[0_6px_20px_rgba(34,211,238,0.25)]",
+    "bg-accent text-inverse hover:bg-accent-hover shadow-[0_6px_20px_var(--accent-soft)]",
   ghost: "text-text-muted hover:bg-surface-hover hover:text-text",
   outline:
     "border border-border text-text-muted hover:bg-surface-hover hover:text-text",

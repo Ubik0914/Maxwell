@@ -1,0 +1,83 @@
+/*
+ * The library, dressed as Raycast.
+ *
+ * Maxwell's palette is a night-blue circuit board: navy surfaces, a
+ * cyan current. The library wears Raycast's instead — graphite neutrals
+ * with no hue in them at all, hairline borders, a selection that is
+ * just a lighter grey, and one warm accent (Raycast's coral red) kept
+ * for the few things that are the point of the screen.
+ *
+ * Scoped with :root:has(.theme-raycast) rather than on the library's
+ * own wrapper, because its sheets, dialogs and the cover viewer are
+ * portalled to the end of <body>, outside that wrapper; while a library
+ * screen is on the page the whole document takes the palette, and
+ * Maxwell's pages, which never carry the class, keep theirs.
+ *
+ * The inks keep the rule globals.css set for them: the faintest is
+ * still above 4.5:1 on the window.
+ */
+:root:has(.theme-raycast) {
+  --bg: #0d0d0e;
+  --surface: #1c1c1e;
+  --surface-hover: #2c2c2e;
+  --border: #2c2c2e;
+  --border-strong: #3a3a3c;
+  --text: #ececec;
+  --text-muted: #a1a1a6;
+  --text-faint: #8e8e93;
+  --inverse: #ffffff;
+
+  --accent: #ff6363;
+  --accent-hover: #ff7b7b;
+  --accent-soft: rgba(255, 99, 99, 0.15);
+
+  --danger: #ff453a;
+  --danger-hover: #ff6961;
+  --danger-soft: rgba(255, 69, 58, 0.14);
+
+  --success: #32d74b;
+  --success-soft: rgba(50, 215, 75, 0.14);
+
+  --warning: #ffd60a;
+  --warning-soft: rgba(255, 214, 10, 0.14);
+}
+
+/* Raycast is set in the system face (SF Pro on a Mac, the platform's
+   own elsewhere), not a web font; Japanese falls to the OS's gothic. */
+:root:has(.theme-raycast) body,
+.theme-raycast {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+    "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
+}
+
+/* What the window floats over on a desktop: not a flat page but a dim
+   backdrop with a faint warm glow, the way Raycast sits over a
+   wallpaper. */
+@media (min-width: 640px) {
+  .theme-raycast.lib-desktop {
+    background:
+      radial-gradient(
+        60rem 40rem at 50% -10%,
+        rgba(255, 99, 99, 0.08),
+        transparent 70%
+      ),
+      radial-gradient(
+        50rem 30rem at 100% 110%,
+        rgba(120, 120, 140, 0.08),
+        transparent 70%
+      ),
+      var(--bg);
+  }
+}
+
+/* Raycast's window edge: a hairline of light around a dark glass. */
+.theme-raycast .lib-window {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 30px 90px rgba(0, 0, 0, 0.7);
+}
