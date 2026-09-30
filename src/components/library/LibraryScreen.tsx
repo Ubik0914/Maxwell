@@ -1153,6 +1153,36 @@ function BookDetail({
         </div>
       </div>
 
+      {/* What can be done with the book, right under its picture. */}
+      <div className="flex flex-wrap gap-2">
+        <IconButton label="編集" tone="outline" onClick={onEdit}>
+          <PencilIcon className={ICON} />
+        </IconButton>
+        {book.isbn && missingDetails(book) && (
+          <IconButton
+            label="書誌を再取得（価格・表紙などを補完）"
+            tone="outline"
+            onClick={onRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? <Spinner /> : <RefreshIcon className={ICON} />}
+          </IconButton>
+        )}
+        {/* A link, not a button: it goes somewhere, and a middle click
+            or a long press should offer what they do for any link. */}
+        <a
+          href={googleSearchUrl(book)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Googleで検索"
+          title="Googleで検索"
+          className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-border px-3 text-sm text-text-muted transition-[transform,background-color,color] hover:bg-surface-hover hover:text-text active:scale-[0.92] sm:h-8 sm:rounded-lg sm:px-2.5 sm:text-xs"
+        >
+          <SearchIcon className={ICON} />
+          Google
+        </a>
+      </div>
+
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 text-sm">
         {rows.map(([label, value]) => (
           <div
@@ -1191,35 +1221,6 @@ function BookDetail({
           </button>
         )}
       </section>
-
-      <div className="flex flex-wrap gap-2">
-        <IconButton label="編集" tone="outline" onClick={onEdit}>
-          <PencilIcon className={ICON} />
-        </IconButton>
-        {book.isbn && missingDetails(book) && (
-          <IconButton
-            label="書誌を再取得（価格・表紙などを補完）"
-            tone="outline"
-            onClick={onRefresh}
-            disabled={refreshing}
-          >
-            {refreshing ? <Spinner /> : <RefreshIcon className={ICON} />}
-          </IconButton>
-        )}
-        {/* A link, not a button: it goes somewhere, and a middle click
-            or a long press should offer what they do for any link. */}
-        <a
-          href={googleSearchUrl(book)}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Googleで検索"
-          title="Googleで検索"
-          className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-border px-3 text-sm text-text-muted transition-[transform,background-color,color] hover:bg-surface-hover hover:text-text active:scale-[0.92] sm:h-8 sm:rounded-lg sm:px-2.5 sm:text-xs"
-        >
-          <SearchIcon className={ICON} />
-          Google
-        </a>
-      </div>
 
       {!compact && (
         <p className="flex items-center gap-1.5 text-[11px] text-text-faint">
