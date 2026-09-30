@@ -399,6 +399,7 @@ export type Database = {
           isbn: string | null;
           location: string | null;
           cover_url: string | null;
+          ndc: string | null;
           note: string | null;
           created_at: string;
           updated_at: string;
@@ -414,6 +415,7 @@ export type Database = {
           isbn?: string | null;
           location?: string | null;
           cover_url?: string | null;
+          ndc?: string | null;
           note?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -429,6 +431,7 @@ export type Database = {
           isbn?: string | null;
           location?: string | null;
           cover_url?: string | null;
+          ndc?: string | null;
           note?: string | null;
           created_at?: string;
           updated_at?: string;

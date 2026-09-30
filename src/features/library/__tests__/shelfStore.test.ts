@@ -11,6 +11,7 @@ function book(id: string): ShelvedBook {
     isbn: null,
     location: null,
     cover_url: null,
+    ndc: null,
     note: null,
     created_at: "2026-09-30T00:00:00Z",
   };

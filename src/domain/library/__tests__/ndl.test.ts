@@ -1,6 +1,7 @@
 import {
   mergeDetails,
   parseIssued,
+  ndcOf,
   parseNdlCandidates,
   parseNdlOpenSearch,
   rankCandidates,
@@ -37,6 +38,7 @@ describe("parseNdlOpenSearch", () => {
       published: "2011-06",
       price: 1080,
       cover_url: null,
+      ndc: null,
     });
   });
 
@@ -88,6 +90,7 @@ describe("mergeDetails", () => {
     published: "2011-06",
     price: null,
     cover_url: null,
+    ndc: null,
   };
   const ndl = { ...openbd, authors: "ディック", price: 1080 };
 
@@ -139,6 +142,7 @@ describe("parseNdlCandidates", () => {
         published: "2024",
         price: 2000,
         cover_url: null,
+        ndc: null,
       },
       {
         isbn: "9784862760852",
@@ -148,6 +152,7 @@ describe("parseNdlCandidates", () => {
         published: "2010-11",
         price: null,
         cover_url: null,
+        ndc: null,
       },
     ]);
   });
@@ -166,6 +171,7 @@ describe("rankCandidates", () => {
     published: null,
     price: null,
     cover_url: null,
+    ndc: null,
   });
 
   it("puts the titles holding every word first, keeping the order", () => {
@@ -184,5 +190,26 @@ describe("rankCandidates", () => {
       "秋田県民謡緊急調査事業",
       "おえかきぱふぇ",
     ]);
+  });
+});
+
+describe("ndcOf", () => {
+  it("prefers NDC10, then an older edition", () => {
+    expect(
+      ndcOf(
+        '<dc:subject xsi:type="dcndl:NDC9">336</dc:subject><dc:subject xsi:type="dcndl:NDC10">336.1</dc:subject>',
+      ),
+    ).toBe("336.1");
+    expect(ndcOf('<dc:subject xsi:type="dcndl:NDC9">933</dc:subject>')).toBe(
+      "933",
+    );
+  });
+
+  it("ignores subject headings and other schemes", () => {
+    expect(
+      ndcOf(
+        '<dc:subject>問題解決</dc:subject><dc:subject xsi:type="dcndl:NDLC">DH22</dc:subject>',
+      ),
+    ).toBeNull();
   });
 });

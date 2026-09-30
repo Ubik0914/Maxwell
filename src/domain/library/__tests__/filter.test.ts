@@ -1,6 +1,7 @@
 import {
   filterBooks,
   foldForSearch,
+  genres,
   libraryStats,
   shelfOverview,
   shelves,
@@ -19,6 +20,7 @@ function book(overrides: Partial<ShelvedBook>): ShelvedBook {
     isbn: null,
     location: null,
     cover_url: null,
+    ndc: null,
     note: null,
     created_at: "2026-09-01T00:00:00Z",
     ...overrides,
@@ -152,5 +154,35 @@ describe("shelfOverview", () => {
         new Date("2026-10-02T00:00:00Z"),
       ),
     ).toEqual({ total: 4, value: 1960, authors: 3, recent: 2 });
+  });
+});
+
+describe("genres", () => {
+  const books = [
+    book({ title: "a", ndc: "933.7" }),
+    book({ title: "b", ndc: "913.6" }),
+    book({ title: "c", ndc: "336" }),
+    book({ title: "d" }),
+  ];
+
+  it("counts each NDC class in order, the unclassified last", () => {
+    expect(genres(books)).toEqual([
+      { code: "3", count: 1 },
+      { code: "9", count: 2 },
+      { code: null, count: 1 },
+    ]);
+  });
+
+  it("filters by class, or by having none", () => {
+    expect(
+      filterBooks(books, { query: "", genre: "9" }).map((b) => b.title),
+    ).toEqual(["a", "b"]);
+    expect(filterBooks(books, { query: "", genre: null })).toHaveLength(1);
+  });
+
+  it("finds books by their genre's name", () => {
+    expect(
+      filterBooks(books, { query: "英米文学" }).map((b) => b.title),
+    ).toEqual(["a"]);
   });
 });

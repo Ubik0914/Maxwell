@@ -20,6 +20,8 @@ export interface BookDetails {
   price: number | null;
   /** openBD's cover image, when it has one. Always https. */
   cover_url: string | null;
+  /** Nippon Decimal Classification, from the NDL (openBD has none). */
+  ndc: string | null;
 }
 
 type Unknown = Record<string, unknown> | null | undefined;
@@ -107,5 +109,6 @@ export function parseOpenBdRecord(record: unknown): BookDetails | null {
     published: formatPubdate(summary?.pubdate),
     price: priceOf(record as Unknown),
     cover_url: coverOf(summary?.cover),
+    ndc: null,
   };
 }

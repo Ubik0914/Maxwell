@@ -81,6 +81,25 @@ function stripRole(name: string): string {
 }
 
 /**
+ * The record's NDC: the tenth edition's number where the NDL gives one,
+ * then the ninth's or eighth's — a book catalogued before NDC10 carries
+ * only an older one, and the classes are the same at the level shown.
+ * "933.7" stays "933.7"; anything not shaped like a class number is
+ * ignored.
+ */
+export function ndcOf(item: string): string | null {
+  for (const edition of ["NDC10", "NDC9", "NDC8", "NDC"]) {
+    const pattern = new RegExp(
+      `<dc:subject[^>]*xsi:type="dcndl:${edition}"[^>]*>([^<]*)</dc:subject>`,
+    );
+    const raw = item.match(pattern)?.[1];
+    const ndc = raw ? decode(raw).normalize("NFKC").trim() : "";
+    if (/^[0-9]{3}(\.[0-9]+)?$/.test(ndc)) return ndc;
+  }
+  return null;
+}
+
+/**
  * The first record in the feed as BookDetails, or null when there is
  * none. When the NDL holds several records for one ISBN (reprints,
  * separate catalogue entries), the price is taken from the first that
@@ -111,6 +130,10 @@ export function parseNdlOpenSearch(xml: string): BookDetails | null {
     // The NDL's pictures are served by ISBN, not linked from the feed;
     // BookCover asks for them directly when there is no stored cover.
     cover_url: null,
+    ndc:
+      items
+        .map((candidate) => ndcOf(candidate))
+        .find((value) => value !== null) ?? null,
   };
 }
 
@@ -196,5 +219,6 @@ export function mergeDetails(
     published: primary.published ?? fallback.published,
     price: primary.price ?? fallback.price,
     cover_url: primary.cover_url ?? fallback.cover_url,
+    ndc: primary.ndc ?? fallback.ndc,
   };
 }

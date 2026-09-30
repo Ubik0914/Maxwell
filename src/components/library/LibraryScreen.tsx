@@ -49,6 +49,7 @@ import {
 import { IconButton, Window, WindowBar } from "@/components/library/Window";
 import {
   filterBooks,
+  genres,
   libraryStats,
   shelfOverview,
   shelves,
@@ -57,6 +58,7 @@ import {
   type ShelvedBook,
 } from "@/domain/library/filter";
 import { formatIsbn } from "@/domain/library/isbn";
+import { ndcClassName, ndcGenre } from "@/domain/library/ndc";
 import { googleSearchUrl } from "@/domain/library/search";
 
 const SORT_LABEL: Record<BookSort, string> = {
@@ -152,6 +154,8 @@ export function LibraryScreen({
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<BookSort>("recent");
   const [shelf, setShelf] = useState<ShelfChoice>(undefined);
+  // An NDC class digit, null for the unclassified, undefined for all.
+  const [genre, setGenre] = useState<string | null | undefined>(undefined);
   const [view, setView] = useState<View>("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
@@ -199,9 +203,15 @@ export function LibraryScreen({
     shelf !== undefined && places.some((place) => place.name === shelf)
       ? shelf
       : undefined;
+  const genreCounts = useMemo(() => genres(books), [books]);
+  // Likewise a genre with no books left in it.
+  const activeGenre =
+    genre !== undefined && genreCounts.some((g) => g.code === genre)
+      ? genre
+      : undefined;
   const onShelf = useMemo(
-    () => filterBooks(books, { query: "", location }),
-    [books, location],
+    () => filterBooks(books, { query: "", location, genre: activeGenre }),
+    [books, location, activeGenre],
   );
   const overview = useMemo(() => shelfOverview(onShelf), [onShelf]);
   const shown = useMemo(
@@ -460,6 +470,24 @@ export function LibraryScreen({
           icon: place.name === undefined ? <BookIcon /> : <PinIcon />,
           run: () => setShelf(place.name),
         })),
+      ...[
+        { code: undefined as string | null | undefined, count: books.length },
+        ...genreCounts,
+      ]
+        .filter((g) => g.code !== activeGenre)
+        .map((g) => ({
+          id: `genre-${g.code === undefined ? "all" : (g.code ?? "none")}`,
+          section: "ジャンル",
+          title: `${
+            g.code === undefined
+              ? "すべてのジャンル"
+              : g.code === null
+                ? "ジャンル未設定"
+                : ndcClassName(g.code)
+          }（${g.count}）`,
+          icon: <BookIcon />,
+          run: () => setGenre(g.code),
+        })),
       {
         id: "refresh-all",
         section: "表示",
@@ -500,6 +528,8 @@ export function LibraryScreen({
     books.length,
     places,
     location,
+    genreCounts,
+    activeGenre,
     userEmail,
     addPasskey,
     scan,
@@ -589,8 +619,16 @@ export function LibraryScreen({
     setSelectedId(book.id);
   }
 
+  const genreName =
+    activeGenre === undefined
+      ? null
+      : activeGenre === null
+        ? "ジャンル未設定"
+        : ndcClassName(activeGenre);
   const shelfName =
-    location === undefined ? "すべての本" : (location ?? "場所未設定");
+    [location === undefined ? null : (location ?? "場所未設定"), genreName]
+      .filter(Boolean)
+      .join(" · ") || "すべての本";
   const open = (book: ShelvedBook) => {
     setSelectedId(book.id);
     // The pane shows it where there is one; elsewhere it opens.
@@ -620,6 +658,9 @@ export function LibraryScreen({
           shelves={places}
           shelf={location}
           onShelf={setShelf}
+          genres={genreCounts}
+          genre={activeGenre}
+          onGenre={setGenre}
           onScan={scan}
           onManual={() => setEditing("new")}
           onRefreshAll={() => void refreshAll()}
@@ -877,6 +918,13 @@ export function LibraryScreen({
       )}
     </Window>
   );
+}
+
+/** "英米文学 · 933.7": the genre by name, and the number it came from. */
+function genreLabel(ndc: string | null): string | null {
+  const genre = ndcGenre(ndc);
+  if (!genre) return null;
+  return `${genre.name || genre.className} · ${ndc}`;
 }
 
 /** The line under the author: who published it, when, for how much. */
@@ -1143,6 +1191,7 @@ const FIELD_LABEL: Record<string, string> = {
   published: "発売",
   price: "価格",
   cover_url: "表紙",
+  ndc: "ジャンル",
 };
 
 /** Whether a re-lookup could still add something to this book. */
@@ -1152,7 +1201,8 @@ function missingDetails(book: ShelvedBook): boolean {
     !book.publisher ||
     !book.published ||
     book.price == null ||
-    !book.cover_url
+    !book.cover_url ||
+    !book.ndc
   );
 }
 
@@ -1185,6 +1235,7 @@ function BookDetail({
   const rows: [string, string | null][] = [
     ["著者", book.authors],
     ["出版社", book.publisher],
+    ["ジャンル", genreLabel(book.ndc)],
     ["発売", book.published],
     ["価格", book.price == null ? null : `¥${yen.format(book.price)}`],
     ["ISBN", book.isbn ? formatIsbn(book.isbn) : null],
@@ -1281,7 +1332,9 @@ function BookDetail({
           <div
             key={label}
             className={
-              label === "著者" || label === "出版社" ? "col-span-2" : ""
+              label === "著者" || label === "出版社" || label === "ジャンル"
+                ? "col-span-2"
+                : ""
             }
           >
             <dt className="text-[11px] text-text-faint">{label}</dt>
