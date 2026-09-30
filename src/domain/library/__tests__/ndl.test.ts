@@ -1,7 +1,9 @@
 import {
   mergeDetails,
   parseIssued,
+  parseNdlCandidates,
   parseNdlOpenSearch,
+  rankCandidates,
   parsePrice,
 } from "../ndl";
 
@@ -97,5 +99,90 @@ describe("mergeDetails", () => {
     expect(mergeDetails(null, ndl)).toBe(ndl);
     expect(mergeDetails(openbd, null)).toBe(openbd);
     expect(mergeDetails(null, null)).toBeNull();
+  });
+});
+
+describe("parseNdlCandidates", () => {
+  const SEARCH = `<rss><channel>
+<item>
+<title>イシューからはじめよ : 知的生産の「シンプルな本質」</title>
+<description><![CDATA[<p>英治出版,2024,978-4-86276-356-3<p>]]></description>
+<dc:title>イシューからはじめよ : 知的生産の「シンプルな本質」</dc:title>
+<dc:creator>安宅, 和人</dc:creator>
+<dc:publisher>英治出版</dc:publisher>
+<dcterms:issued>2024</dcterms:issued>
+<dcndl:price>2000円</dcndl:price>
+</item>
+<item>
+<dc:title>イシューからはじめよ</dc:title>
+<dc:creator>安宅和人 著</dc:creator>
+<dc:publisher>英治出版</dc:publisher>
+<dcterms:issued>2010.11</dcterms:issued>
+<dc:identifier xsi:type="dcndl:ISBN">978-4-86276-085-2</dc:identifier>
+</item>
+<item>
+<dc:title>イシューからはじめよ（重複）</dc:title>
+<dc:identifier xsi:type="dcndl:ISBN">9784862760852</dc:identifier>
+</item>
+<item>
+<dc:title>ISBN のない雑誌記事</dc:title>
+</item>
+</channel></rss>`;
+
+  it("keeps each book with an ISBN once, in order", () => {
+    expect(parseNdlCandidates(SEARCH)).toEqual([
+      {
+        isbn: "9784862763563",
+        title: "イシューからはじめよ : 知的生産の「シンプルな本質」",
+        authors: "安宅, 和人",
+        publisher: "英治出版",
+        published: "2024",
+        price: 2000,
+        cover_url: null,
+      },
+      {
+        isbn: "9784862760852",
+        title: "イシューからはじめよ",
+        authors: "安宅和人",
+        publisher: "英治出版",
+        published: "2010-11",
+        price: null,
+        cover_url: null,
+      },
+    ]);
+  });
+
+  it("finds nothing in an empty feed", () => {
+    expect(parseNdlCandidates("<rss><channel></channel></rss>")).toEqual([]);
+  });
+});
+
+describe("rankCandidates", () => {
+  const candidate = (title: string) => ({
+    isbn: title,
+    title,
+    authors: null,
+    publisher: null,
+    published: null,
+    price: null,
+    cover_url: null,
+  });
+
+  it("puts the titles holding every word first, keeping the order", () => {
+    const ranked = rankCandidates(
+      [
+        candidate("秋田県民謡緊急調査事業"),
+        candidate("うれしいね!チイカワ"),
+        candidate("おえかきぱふぇ"),
+        candidate("アニメちいかわひみつずかん"),
+      ],
+      "ちいかわ",
+    );
+    expect(ranked.map((c) => c.title)).toEqual([
+      "うれしいね!チイカワ",
+      "アニメちいかわひみつずかん",
+      "秋田県民謡緊急調査事業",
+      "おえかきぱふぇ",
+    ]);
   });
 });

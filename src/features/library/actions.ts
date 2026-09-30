@@ -9,7 +9,12 @@ import {
   type BookFieldsInput,
 } from "@/lib/validation/book";
 import type { BookDetails } from "@/domain/library/openbd";
-import { fetchBookDetails } from "@/features/library/bibliography";
+import {
+  CatalogueBusyError,
+  fetchBookDetails,
+  searchByTitle,
+} from "@/features/library/bibliography";
+import type { BookCandidate } from "@/domain/library/ndl";
 import type { ShelvedBook } from "@/domain/library/filter";
 import * as bookRepository from "@/repositories/book.repository";
 import type { ActionResult } from "@/types/action-result";
@@ -137,6 +142,37 @@ export async function lookupIsbnAction(
     }
     return { success: true, data: { ...details, isbn } };
   } catch {
+    return unreachable();
+  }
+}
+
+/**
+ * Books that go by this title, for the manual form: typing a title and
+ * picking the edition beats typing everything else too.
+ */
+export async function searchTitleAction(
+  rawTitle: string,
+): Promise<ActionResult<BookCandidate[]>> {
+  const title = rawTitle.normalize("NFKC").trim();
+  if (title.length < 2) return invalid("書名を2文字以上入力してください");
+  if (title.length > 200) return invalid("書名が長すぎます");
+
+  const { user } = await requireUser();
+  if (!user) return notLoggedIn();
+
+  try {
+    return { success: true, data: await searchByTitle(title) };
+  } catch (error) {
+    if (error instanceof CatalogueBusyError) {
+      return {
+        success: false,
+        error: {
+          code: ErrorCode.INTERNAL_ERROR,
+          message:
+            "国立国会図書館の検索が混み合っています。少し待ってからもう一度お試しください。",
+        },
+      };
+    }
     return unreachable();
   }
 }
