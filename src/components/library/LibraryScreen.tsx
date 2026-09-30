@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   BarcodeIcon,
   BookIcon,
+  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -149,7 +150,7 @@ export function LibraryScreen({
   // showing, rather than a browser confirm() box over the page.
   const [deleting, setDeleting] = useState(false);
   // ⌘K's panel, or — from the phone's tab bar — just its shelves.
-  const [panel, setPanel] = useState<"all" | "shelves" | null>(null);
+  const [panel, setPanel] = useState<"all" | "shelves" | "sort" | null>(null);
   const actionsOpen = panel !== null;
   // Phones have no room for a detail pane; tapping a book opens it as a
   // sheet instead, and editing is one more tap from there.
@@ -345,6 +346,19 @@ export function LibraryScreen({
       showError(result.message);
     }
   }, [showError, showSuccess]);
+
+  // The tab bar's ソート: every order, the one in use ticked.
+  const sortChoices = useMemo<Action[]>(
+    () =>
+      (Object.keys(SORT_LABEL) as BookSort[]).map((option) => ({
+        id: `sort-choice-${option}`,
+        section: "並び順",
+        title: SORT_LABEL[option],
+        icon: option === sort ? <CheckIcon /> : <SortIcon />,
+        run: () => setSort(option),
+      })),
+    [sort],
+  );
 
   const actions = useMemo<Action[]>(() => {
     const list: Action[] = [];
@@ -651,7 +665,7 @@ export function LibraryScreen({
               onScroll={onListScroll}
               // Room under the last book for the phone's tab bar, which
               // floats over the list so it can slide away.
-              className="flex min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0"
+              className="flex min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(5rem+max(0.25rem,calc(env(safe-area-inset-bottom)-1rem)))] md:pb-0"
             >
               {books.length === 0 ? (
                 <EmptyShelf onScan={scan} />
@@ -763,9 +777,17 @@ export function LibraryScreen({
                 actions={
                   panel === "shelves"
                     ? actions.filter((action) => action.section === "場所")
-                    : actions
+                    : panel === "sort"
+                      ? sortChoices
+                      : actions
                 }
-                title={panel === "shelves" ? "場所" : undefined}
+                title={
+                  panel === "shelves"
+                    ? "場所"
+                    : panel === "sort"
+                      ? "並び順"
+                      : undefined
+                }
                 onClose={() => setPanel(null)}
               />
             )}
@@ -774,11 +796,8 @@ export function LibraryScreen({
               shelfName={location === undefined ? null : shelfName}
               panel={panel}
               refreshProgress={refreshAllProgress}
-              onHome={() => {
-                setShelf(undefined);
-                setQuery("");
-                listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-              }}
+              sortLabel={SORT_LABEL[sort]}
+              onSort={() => setPanel("sort")}
               onShelves={() => setPanel("shelves")}
               onScan={scan}
               onManual={() => setEditing("new")}
@@ -953,7 +972,8 @@ function TabBar({
   shelfName,
   panel,
   refreshProgress,
-  onHome,
+  sortLabel,
+  onSort,
   onShelves,
   onScan,
   onManual,
@@ -963,16 +983,18 @@ function TabBar({
   hidden: boolean;
   /** The shelf being shown, or null for all of them. */
   shelfName: string | null;
-  panel: "all" | "shelves" | null;
+  panel: "all" | "shelves" | "sort" | null;
   refreshProgress: { done: number; total: number } | null;
-  onHome: () => void;
+  /** The order the list is in now, for the tab's accessible name. */
+  sortLabel: string;
+  onSort: () => void;
   onShelves: () => void;
   onScan: () => void;
   onManual: () => void;
   onMore: () => void;
 }) {
   const tab = (active: boolean) =>
-    `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 pt-2 pb-1 text-[11px] transition-colors active:scale-[0.94] ${
+    `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 text-[11px] transition-colors active:scale-[0.94] ${
       active ? "text-accent" : "text-text-muted"
     }`;
   return (
@@ -980,7 +1002,7 @@ function TabBar({
       aria-label="メニュー"
       aria-hidden={hidden || undefined}
       inert={hidden}
-      className={`absolute inset-x-0 bottom-0 z-20 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] transition-transform duration-300 ease-[cubic-bezier(0.16,0.9,0.28,1)] md:hidden ${
+      className={`absolute inset-x-0 bottom-0 z-20 border-t border-border bg-surface pb-[max(0.25rem,calc(env(safe-area-inset-bottom)-1rem))] transition-transform duration-300 ease-[cubic-bezier(0.16,0.9,0.28,1)] md:hidden ${
         // Far enough to take the raised スキャン button with it.
         hidden ? "translate-y-[calc(100%+2rem)]" : ""
       }`}
@@ -994,15 +1016,18 @@ function TabBar({
           書誌を再取得中 {refreshProgress.done}/{refreshProgress.total}
         </p>
       )}
-      <div className="flex h-16 items-stretch">
+      {/* The home indicator overlaps the bar's own bottom padding rather
+          than adding its full inset below it, the way native tab bars
+          sit: the full inset left a band of empty bar under the tabs. */}
+      <div className="flex h-14 items-stretch">
         <button
           type="button"
-          onClick={onHome}
-          aria-current={shelfName === null && !panel ? "page" : undefined}
-          className={tab(shelfName === null && !panel)}
+          onClick={onSort}
+          aria-label={`ソート（${sortLabel}）`}
+          className={tab(panel === "sort")}
         >
-          <BookIcon className="h-6 w-6" />
-          本棚
+          <SortIcon className="h-6 w-6" />
+          ソート
         </button>
         <button
           type="button"
@@ -1021,7 +1046,7 @@ function TabBar({
             type="button"
             onClick={onScan}
             aria-label="スキャンして追加"
-            className="absolute -top-6 left-1/2 flex h-[4.75rem] w-[4.75rem] -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-accent text-[11px] font-semibold text-inverse shadow-[0_8px_24px_var(--accent-soft),0_0_0_4px_var(--surface)] transition-transform active:scale-[0.94]"
+            className="absolute -top-5 left-1/2 flex h-[4.25rem] w-[4.25rem] -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-accent text-[11px] font-semibold text-inverse shadow-[0_8px_24px_var(--accent-soft),0_0_0_4px_var(--surface)] transition-transform active:scale-[0.94]"
           >
             <BarcodeIcon className="h-7 w-7" />
             スキャン
@@ -1293,6 +1318,11 @@ function DetailSheet({
   const [zoomed, setZoomed] = useState(false);
   useEscapeKey(onClose, !covered && !zoomed, { exclusive: true });
   const topRef = useRef<HTMLDivElement>(null);
+  const swipe = useSwipeBetween({
+    targetRef: topRef,
+    onPrevious: previous ? () => onGo(previous) : undefined,
+    onNext: next ? () => onGo(next) : undefined,
+  });
 
   // A different book starts at its top, not wherever the last one was
   // scrolled to.
@@ -1309,7 +1339,16 @@ function DetailSheet({
       width="max-w-md"
       fullScreenOnMobile
     >
-      <div ref={topRef} key={book.id} className="lib-detail">
+      {/* Swiped sideways, the book follows the finger, and far enough
+          (or quick enough) turns to the next or previous one. */}
+      <div
+        ref={topRef}
+        key={book.id}
+        // pan-y: sideways belongs to this, not to the browser, whose own
+        // horizontal swipe is "back" and would close the sheet instead.
+        className="lib-detail touch-pan-y overscroll-x-none"
+        {...swipe}
+      >
         <BookDetail
           book={book}
           refreshing={refreshing}
@@ -1330,6 +1369,93 @@ function DetailSheet({
       )}
     </Modal>
   );
+}
+
+/** Past this, or flicked faster than FLICK px/ms, a swipe turns the page. */
+const TURN_PX = 72;
+const FLICK = 0.5;
+
+/**
+ * Horizontal swipes on the detail: left for the next book, right for the
+ * previous one. The content follows the finger while it moves — with
+ * resistance where there is no book that way — and springs back if the
+ * swipe falls short. A mostly vertical movement is left alone, to scroll
+ * or to pull the sheet down.
+ */
+function useSwipeBetween({
+  targetRef,
+  onPrevious,
+  onNext,
+}: {
+  targetRef: React.RefObject<HTMLDivElement | null>;
+  onPrevious?: () => void;
+  onNext?: () => void;
+}) {
+  const gesture = useRef<{
+    x: number;
+    y: number;
+    at: number;
+    sideways: boolean | null;
+    dx: number;
+  } | null>(null);
+
+  function place(dx: number, animate: boolean) {
+    const target = targetRef.current;
+    if (!target) return;
+    target.style.transition = animate
+      ? "translate 220ms cubic-bezier(0.16, 0.9, 0.28, 1)"
+      : "none";
+    target.style.translate = dx === 0 ? "" : `${dx}px 0`;
+  }
+
+  return {
+    onTouchStart(event: React.TouchEvent) {
+      if (event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      gesture.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        at: performance.now(),
+        sideways: null,
+        dx: 0,
+      };
+    },
+    onTouchMove(event: React.TouchEvent) {
+      const current = gesture.current;
+      if (!current) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - current.x;
+      const dy = touch.clientY - current.y;
+      if (current.sideways === null) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        current.sideways = Math.abs(dx) > Math.abs(dy);
+      }
+      if (!current.sideways) return;
+      const blocked = dx > 0 ? !onPrevious : !onNext;
+      current.dx = dx;
+      place(blocked ? dx * 0.2 : dx * 0.6, false);
+    },
+    onTouchEnd() {
+      const current = gesture.current;
+      gesture.current = null;
+      if (!current?.sideways) return;
+      const { dx } = current;
+      const speed = Math.abs(dx) / Math.max(performance.now() - current.at, 1);
+      const turn =
+        Math.abs(dx) > TURN_PX || (speed > FLICK && Math.abs(dx) > 24);
+      const go = dx < 0 ? onNext : onPrevious;
+      if (turn && go) {
+        // The new book mounts fresh (keyed), so nothing to reset here.
+        go();
+      } else {
+        place(0, true);
+      }
+    },
+    onTouchCancel() {
+      gesture.current = null;
+      place(0, true);
+    },
+  };
 }
 
 /** One of the two buttons under the detail: which way, and to what. */
