@@ -22,8 +22,9 @@ export interface Action {
  * Raycast's ⌘K panel: every action for the selected thing, in a list
  * you can filter by typing and walk with the arrow keys.
  *
- * On a desktop it floats above the footer's right-hand corner, where
- * the button that opens it lives, and takes the keyboard while it is
+ * On a desktop it drops from the top right, under the detail pane's
+ * title where the button that opens it lives (a popover above the
+ * bottom edge between sm and md), and takes the keyboard while it is
  * open — arrows move within it, Enter runs, Escape closes — so nothing
  * typed here reaches the list underneath.
  *
@@ -111,7 +112,7 @@ export function ActionPanel({
         role="dialog"
         aria-label={title}
         aria-modal="true"
-        className="lib-pop fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] bottom-0 z-[70] flex flex-col overflow-hidden rounded-t-2xl bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_40px_rgba(0,0,0,0.5)] sm:absolute sm:top-auto sm:inset-auto sm:right-3 sm:bottom-12 sm:z-30 sm:max-h-[min(24rem,70dvh)] sm:w-[22rem] sm:rounded-lg sm:border sm:border-border-strong sm:p-0 sm:shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
+        className="lib-pop fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] bottom-0 z-[70] flex flex-col overflow-hidden rounded-t-2xl bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_40px_rgba(0,0,0,0.5)] sm:absolute sm:top-auto sm:inset-auto sm:right-3 sm:bottom-24 sm:z-30 md:fixed md:top-16 md:right-4 md:bottom-auto sm:max-h-[min(24rem,70dvh)] sm:w-[22rem] sm:rounded-lg sm:border sm:border-border-strong sm:p-0 sm:shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
         onKeyDown={(event) => {
           if (event.key === "ArrowDown") {
             event.preventDefault();

@@ -48,7 +48,6 @@ import {
   Kbd,
   Window,
   WindowBar,
-  WindowFooter,
 } from "@/components/library/Window";
 import {
   filterBooks,
@@ -596,6 +595,16 @@ export function LibraryScreen({
                 />
                 <ShelfStats {...overview} />
                 <ViewToggle view={view} onChange={changeView} />
+                {/* Where there is no detail pane to hold it (md to xl). */}
+                <span className="hidden md:contents xl:hidden">
+                  <IconButton
+                    label="アクション"
+                    keys={["⌘", "K"]}
+                    onClick={() => setPanel((open) => (open ? null : "all"))}
+                  >
+                    <MoreIcon className={ICON} />
+                  </IconButton>
+                </span>
               </WindowBar>
             </div>
           </div>
@@ -703,6 +712,7 @@ export function LibraryScreen({
                     refreshing={refreshing === selected.id}
                     onEdit={() => setEditing(selected)}
                     onRefresh={() => void refresh(selected)}
+                    onActions={() => setPanel((open) => (open ? null : "all"))}
                   />
                 </div>
               ) : (
@@ -723,39 +733,6 @@ export function LibraryScreen({
                 onClose={() => setPanel(null)}
               />
             )}
-            {/* The desktop's status bar; a phone has the tab bar below. */}
-            <div className="hidden md:block">
-              <WindowFooter
-                left={
-                  refreshAllProgress && (
-                    <>
-                      <Spinner />
-                      <span className="truncate" aria-live="polite">
-                        書誌を再取得中 {refreshAllProgress.done}/
-                        {refreshAllProgress.total}
-                      </span>
-                    </>
-                  )
-                }
-              >
-                {selected && (
-                  <IconButton
-                    label="編集"
-                    keys={["⌘", "E"]}
-                    onClick={() => setEditing(selected)}
-                  >
-                    <PencilIcon className={ICON} />
-                  </IconButton>
-                )}
-                <IconButton
-                  label="アクション"
-                  keys={["⌘", "K"]}
-                  onClick={() => setPanel((open) => (open ? null : "all"))}
-                >
-                  <MoreIcon className={ICON} />
-                </IconButton>
-              </WindowFooter>
-            </div>
             <TabBar
               hidden={chromeHidden}
               shelfName={location === undefined ? null : shelfName}
@@ -1095,6 +1072,7 @@ function BookDetail({
   onRefresh,
   compact = false,
   onZoomChange,
+  onActions,
 }: {
   book: ShelvedBook;
   refreshing: boolean;
@@ -1104,6 +1082,8 @@ function BookDetail({
   /** Told when the cover viewer opens and closes, so a sheet under it
    *  can leave Escape to it. */
   onZoomChange?: (open: boolean) => void;
+  /** Opens ⌘K's panel; the desktop pane only. */
+  onActions?: () => void;
 }) {
   const rows: [string, string | null][] = [
     ["著者", book.authors],
@@ -1142,9 +1122,23 @@ function BookDetail({
           />
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
-          <h2 className="text-base leading-snug font-semibold text-text">
-            {book.title}
-          </h2>
+          <div className="flex items-start gap-2">
+            <h2 className="min-w-0 flex-1 text-base leading-snug font-semibold text-text">
+              {book.title}
+            </h2>
+            {/* The desktop's ⌘K, beside what it acts on — there is no
+                footer to hold it. */}
+            {onActions && (
+              <IconButton
+                label="アクション"
+                keys={["⌘", "K"]}
+                onClick={onActions}
+                className="-mt-1 -mr-1"
+              >
+                <MoreIcon className={ICON} />
+              </IconButton>
+            )}
+          </div>
           {book.authors && (
             <p className="text-sm text-text-muted">{book.authors}</p>
           )}
@@ -1171,11 +1165,24 @@ function BookDetail({
         ))}
       </dl>
 
-      {book.note && (
-        <p className="rounded-md bg-bg/40 p-3 text-xs whitespace-pre-wrap text-text-muted">
-          {book.note}
-        </p>
-      )}
+      {/* Always there, written or not: the place a note goes is part of
+          the page, and an empty one is a way in to writing it. */}
+      <section aria-label="メモ" className="flex flex-col gap-1">
+        <h3 className="text-[11px] text-text-faint">メモ</h3>
+        {book.note ? (
+          <p className="min-h-16 rounded-md bg-bg/40 p-3 text-xs whitespace-pre-wrap text-text-muted">
+            {book.note}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="flex min-h-16 items-start rounded-md border border-dashed border-border p-3 text-left text-xs text-text-faint transition-colors hover:border-border-strong hover:text-text-muted"
+          >
+            メモなし・押して追加
+          </button>
+        )}
+      </section>
 
       <div className="flex flex-wrap gap-2">
         <IconButton label="編集" tone="outline" onClick={onEdit}>
