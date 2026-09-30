@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon } from "@/components/icons";
+import { useBackToClose } from "@/hooks/useBackToClose";
 
 /**
  * The one way this app puts something in front of the graph.
@@ -41,6 +42,11 @@ export function Modal({
    */
   fullScreenOnMobile?: boolean;
 }) {
+  // A full page is left with the back gesture, like any page. The
+  // centred dialogs Maxwell uses are not pages and keep back for
+  // navigation.
+  useBackToClose(fullScreenOnMobile, onClose);
+
   // No portal target during SSR. Every caller mounts this in response to
   // a click, so there is no first client render for it to disagree with
   // and no hydration mismatch to create.
