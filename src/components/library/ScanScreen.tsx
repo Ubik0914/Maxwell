@@ -26,6 +26,7 @@ import { Spinner } from "@/components/Spinner";
 import { BookDialog } from "@/components/library/BookDialog";
 import { BookCover } from "@/components/library/BookCover";
 import { CameraLoading } from "@/components/library/CameraLoading";
+import { refreshShelf } from "@/features/library/shelfStore";
 import { useOpenedFromShell } from "@/components/library/scanShell";
 import {
   useBarcodeScanner,
@@ -183,6 +184,9 @@ export function ScanScreen() {
         if (outcome.status === "added") {
           update(id, { kind: "added", book: outcome.book });
           signal(true);
+          // The POST is done: fetch the shelf as it now stands, so the
+          // library shows this book when it is gone back to.
+          void refreshShelf();
         } else if (outcome.status === "duplicate") {
           update(id, { kind: "duplicate", book: outcome.book });
           signal(false);
@@ -276,6 +280,7 @@ export function ScanScreen() {
     }
     session.current.forget(row.isbn);
     update(row.id, { kind: "undone", book: row.state.book });
+    void refreshShelf();
   }
 
   function retry(row: Row) {
@@ -481,6 +486,7 @@ export function ScanScreen() {
               { id, isbn: book.isbn ?? "", state: { kind: "added", book } },
               ...current,
             ]);
+            void refreshShelf();
           }}
         />
       )}
@@ -489,7 +495,10 @@ export function ScanScreen() {
         <BookDialog
           initialIsbn={manualEntry.isbn}
           onClose={() => setManualEntry(null)}
-          onSaved={(book) => update(manualEntry.id, { kind: "added", book })}
+          onSaved={(book) => {
+            update(manualEntry.id, { kind: "added", book });
+            void refreshShelf();
+          }}
         />
       )}
     </Window>

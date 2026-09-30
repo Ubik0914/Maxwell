@@ -33,6 +33,12 @@ import { BookCover } from "@/components/library/BookCover";
 import { CoverLightbox } from "@/components/library/CoverLightbox";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
 import {
+  knownShelf,
+  refreshShelf,
+  rememberShelf,
+  subscribeShelf,
+} from "@/features/library/shelfStore";
+import {
   LibrarySidebar,
   ShelfStats,
   type ShelfChoice,
@@ -132,7 +138,9 @@ export function LibraryScreen({
     setBarHidden(delta > 0 && top > 48);
   }, []);
 
-  const [books, setBooks] = useState(initialBooks);
+  // What this tab last knew beats the page as the router cached it:
+  // coming back from the scan screen, that is the shelf with its adds.
+  const [books, setBooks] = useState(() => knownShelf() ?? initialBooks);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<BookSort>("recent");
   const [shelf, setShelf] = useState<ShelfChoice>(undefined);
@@ -149,6 +157,22 @@ export function LibraryScreen({
   // sheet instead, and editing is one more tap from there.
   const [viewing, setViewing] = useState<ShelvedBook | null>(null);
   const [refreshing, setRefreshing] = useState<string | null>(null);
+
+  // Arriving, GET the shelf once more — and take every fresh shelf a
+  // POST elsewhere fetches — so nothing added since is missing.
+  useEffect(() => {
+    const unsubscribe = subscribeShelf((fresh) => {
+      setBooks(fresh);
+      setViewing(
+        (open) => open && (fresh.find((book) => book.id === open.id) ?? open),
+      );
+    });
+    void refreshShelf();
+    return unsubscribe;
+  }, []);
+  useEffect(() => {
+    rememberShelf(books);
+  }, [books]);
 
   const stats = useMemo(() => libraryStats(books), [books]);
   const places = useMemo(() => shelves(books), [books]);
@@ -274,6 +298,7 @@ export function LibraryScreen({
     }
 
     setRefreshAllProgress(null);
+    void refreshShelf();
     showSuccess(
       `${updatedCount}冊の書誌を補完しました` +
         (failedCount > 0 ? `（${failedCount}冊は取得できませんでした）` : ""),
@@ -776,11 +801,13 @@ export function LibraryScreen({
           onSaved={(book) => {
             saved(book);
             setViewing((open) => (open?.id === book.id ? book : open));
+            void refreshShelf();
           }}
           onDeleted={(bookId) => {
             setBooks((current) => current.filter((b) => b.id !== bookId));
             setViewing(null);
             showSuccess("削除しました");
+            void refreshShelf();
           }}
         />
       )}
