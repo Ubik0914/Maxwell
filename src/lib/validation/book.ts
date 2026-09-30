@@ -75,5 +75,5 @@ export const isbnLookupSchema = z.string().transform((value, ctx) => {
 export const bookSearchSchema = z.object({
   q: z.string().max(200, "Query must be 200 characters or fewer").default(""),
   sort: z.enum(["recent", "title", "author", "published"]).default("recent"),
-  limit: z.coerce.number().int().min(1).max(500).default(50),
+  limit: z.coerce.number().int().min(1).max(5000).default(50),
 });
