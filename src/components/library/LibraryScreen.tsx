@@ -79,7 +79,7 @@ const yen = new Intl.NumberFormat("ja-JP");
  * place a keyboard can reach it all.
  */
 const ELSEWHERE_ON_PHONE =
-  /^(open|edit|refresh|delete|scan|manual|sort-.+|shelf-.+)$/;
+  /^(open|edit|refresh|delete|scan|manual|sort-.+|shelf-.+|genre-.+)$/;
 
 /** Wide enough for the detail pane beside the sidebar and the shelf. */
 const DETAIL_PANE = "(min-width: 1280px)";
@@ -164,7 +164,7 @@ export function LibraryScreen({
   const [deleting, setDeleting] = useState(false);
   // ⌘K's panel, or — from the phone's tab bar — just its shelves.
   const [panel, setPanel] = useState<
-    "all" | "more" | "shelves" | "sort" | null
+    "all" | "more" | "shelves" | "genres" | "sort" | null
   >(null);
   const actionsOpen = panel !== null;
   // Phones have no room for a detail pane; tapping a book opens it as a
@@ -647,6 +647,28 @@ export function LibraryScreen({
       : { previous: shown[index - 1], next: shown[index + 1] };
   };
 
+  // その他's way to the two filters: one line each, naming what is
+  // chosen, that opens its own list rather than spilling every place
+  // and genre into this one.
+  const narrowing: Action[] = [
+    {
+      id: "to-genres",
+      section: "絞り込み",
+      title: `ジャンル › ${genreName ?? "すべて"}`,
+      icon: <BookIcon />,
+      run: () => setPanel("genres"),
+    },
+    {
+      id: "to-shelves",
+      section: "絞り込み",
+      title: `場所 › ${
+        location === undefined ? "すべて" : (location ?? "場所未設定")
+      }`,
+      icon: <PinIcon />,
+      run: () => setPanel("shelves"),
+    },
+  ];
+
   // The tab bar and the search bar, both out of the way.
   const chromeHidden = barHidden && !panel && !searchFocused;
 
@@ -840,20 +862,29 @@ export function LibraryScreen({
                     ? actions.filter((action) => action.section === "場所")
                     : panel === "sort"
                       ? sortChoices
-                      : panel === "more"
+                      : panel === "genres"
                         ? actions.filter(
-                            (action) => !ELSEWHERE_ON_PHONE.test(action.id),
+                            (action) => action.section === "ジャンル",
                           )
-                        : actions
+                        : panel === "more"
+                          ? [
+                              ...narrowing,
+                              ...actions.filter(
+                                (action) => !ELSEWHERE_ON_PHONE.test(action.id),
+                              ),
+                            ]
+                          : actions
                 }
                 title={
                   panel === "shelves"
                     ? "場所"
                     : panel === "sort"
                       ? "並び順"
-                      : panel === "more"
-                        ? "その他"
-                        : undefined
+                      : panel === "genres"
+                        ? "ジャンル"
+                        : panel === "more"
+                          ? "その他"
+                          : undefined
                 }
                 onClose={() => setPanel(null)}
               />
@@ -1057,7 +1088,7 @@ function TabBar({
   hidden: boolean;
   /** The shelf being shown, or null for all of them. */
   shelfName: string | null;
-  panel: "all" | "more" | "shelves" | "sort" | null;
+  panel: "all" | "more" | "shelves" | "genres" | "sort" | null;
   refreshProgress: { done: number; total: number } | null;
   /** The order the list is in now, for the tab's accessible name. */
   sortLabel: string;
