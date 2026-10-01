@@ -113,6 +113,56 @@ export async function deleteBookAction(
   }
 }
 
+/** Book ids for a bulk change: the most a shelf is expected to hold. */
+const bulkIds = z.array(z.string().uuid()).min(1).max(5000);
+
+/**
+ * Several books to one place — the shelf-wide 場所を変更 of a multiple
+ * selection. An empty place clears it.
+ */
+export async function moveBooksAction(
+  bookIds: string[],
+  rawLocation: string,
+): Promise<ActionResult<ShelvedBook[]>> {
+  const ids = bulkIds.safeParse(bookIds);
+  if (!ids.success) return invalid("Invalid book ids");
+  const location = rawLocation.normalize("NFKC").trim();
+  if (location.length > 100)
+    return invalid("場所は100文字以内で入力してください");
+
+  const { supabase, user } = await requireUser();
+  if (!user) return notLoggedIn();
+
+  try {
+    const books = await bookRepository.moveBooks(
+      supabase,
+      ids.data,
+      location === "" ? null : location,
+    );
+    return { success: true, data: books };
+  } catch (error) {
+    return failed(error, "場所を変更できませんでした。");
+  }
+}
+
+/** Several books deleted at once; how many went. */
+export async function deleteBooksAction(
+  bookIds: string[],
+): Promise<ActionResult<{ deleted: number }>> {
+  const ids = bulkIds.safeParse(bookIds);
+  if (!ids.success) return invalid("Invalid book ids");
+
+  const { supabase, user } = await requireUser();
+  if (!user) return notLoggedIn();
+
+  try {
+    const deleted = await bookRepository.deleteBooks(supabase, ids.data);
+    return { success: true, data: { deleted } };
+  } catch (error) {
+    return failed(error, "本を削除できませんでした。");
+  }
+}
+
 /**
  * Title, author, publisher, date, price and cover for an ISBN, from
  * openBD with the NDL filling its gaps.
