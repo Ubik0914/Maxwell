@@ -149,7 +149,7 @@ main.theme-raycast {
     0 12px 36px rgba(0, 0, 0, 0.5);
 }
 
-/* Black, rimmed in a spectrum: the tab in use and the round スキャン button.
+/* Black, rimmed in a spectrum: the tab in use.
    Two backgrounds, one clipped to the padding box (the black) and one
    to the border box (the rainbow), so the transparent border shows
    only the gradient. */
@@ -185,4 +185,12 @@ main.theme-raycast {
    only: the accent's dots and bars elsewhere have no rim. */
 :root:has(.theme-raycast) :is(button, a, [role="button"]).bg-accent {
   box-shadow: inset 0 0 0 1px rgba(255, 190, 190, 0.6);
+}
+
+/* The round スキャン button is coral like the others but keeps its
+   moat, and a coral glow under it instead of their rim. */
+:root:has(.theme-raycast) button.lib-notch.bg-accent {
+  box-shadow:
+    0 0 0 4px #07080d,
+    0 8px 24px var(--accent-soft);
 }

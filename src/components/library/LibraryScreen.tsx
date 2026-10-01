@@ -1626,14 +1626,14 @@ function TabBar({
           )}
         </div>
 
-        {/* スキャン, cut into the middle of the capsule: a round black
-            button a size larger than the bar, ringed in the same
-            rainbow, with a moat of backdrop around it. */}
+        {/* スキャン, cut into the middle of the capsule: the round coral
+            button, a size larger than the bar, with a moat of backdrop
+            around it. */}
         <button
           type="button"
           onClick={onScan}
           aria-label="スキャンして追加"
-          className="lib-rainbow lib-notch -my-2 flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-semibold text-white transition-transform active:scale-[0.92]"
+          className="lib-notch -my-2 flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full bg-accent text-[10px] font-semibold text-inverse transition-transform active:scale-[0.92]"
         >
           <BarcodeIcon className="h-6 w-6" />
           スキャン
