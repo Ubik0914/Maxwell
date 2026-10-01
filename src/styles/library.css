@@ -7,7 +7,7 @@
  * over that — tinted, translucent, edged with a hairline of light. The
  * panels that float over moving content (sheets, menus, the tab bar)
  * blur what is behind them; the window itself sits over the still
- * backdrop, so a tint is all it needs. One warm accent, coral, kept for
+ * backdrop, so a tint is all it needs. One accent, red, kept for
  * the few things that are the point of the screen.
  *
  * Scoped with :root:has(.theme-raycast) rather than on the library's
@@ -32,9 +32,9 @@
   --text-faint: #9093a3;
   --inverse: #ffffff;
 
-  --accent: #ff6b6b;
-  --accent-hover: #ff8585;
-  --accent-soft: rgba(255, 107, 107, 0.16);
+  --accent: #ff3b30;
+  --accent-hover: #ff5a50;
+  --accent-soft: rgba(255, 59, 48, 0.18);
 
   --danger: #ff5a52;
   --danger-hover: #ff7a73;
@@ -47,7 +47,7 @@
   --warning-soft: rgba(255, 214, 10, 0.14);
 
   /* What the glass lies over: near-black, with pools of violet, teal
-     and coral far enough apart that no two meet. Fixed, so it stays
+     and red far enough apart that no two meet. Fixed, so it stays
      put while the pages scroll over it. */
   --glass-backdrop:
     radial-gradient(
@@ -62,7 +62,7 @@
     ),
     radial-gradient(
       46rem 34rem at 60% 105%,
-      rgba(255, 107, 107, 0.22),
+      rgba(255, 59, 48, 0.2),
       transparent 70%
     ),
     #05060a;
@@ -179,16 +179,16 @@ main.theme-raycast {
     0 10px 28px rgba(0, 0, 0, 0.55);
 }
 
-/* The coral buttons (スキャンして追加, 登録, ログイン…) are the one thing
-   not in glass: a solid coral fill, with a lighter coral rim inside it
+/* The red buttons (スキャンして追加, 登録, ログイン…) are the one thing
+   not in glass: a solid red fill, with a lighter red rim inside it
    — an inset shadow, not a border, so no button changes size. Buttons
    only: the accent's dots and bars elsewhere have no rim. */
 :root:has(.theme-raycast) :is(button, a, [role="button"]).bg-accent {
-  box-shadow: inset 0 0 0 1px rgba(255, 190, 190, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 140, 130, 0.55);
 }
 
-/* The round スキャン button is coral like the others but keeps its
-   moat, and a coral glow under it instead of their rim. */
+/* The round スキャン button is red like the others but keeps its
+   moat, and a red glow under it instead of their rim. */
 :root:has(.theme-raycast) button.lib-notch.bg-accent {
   box-shadow:
     0 0 0 4px #07080d,
