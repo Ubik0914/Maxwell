@@ -1,44 +1,109 @@
 /*
- * The library's own dress: graphite neutrals with no hue in them,
- * hairline borders, a selection that is just a lighter grey, and one
- * warm accent (coral) kept for the few things that are the point of
- * the screen. Opaque throughout — the glass it wore for a while is
- * gone; the edges it gave things (the hairlines, the spectrum rims,
- * the coral buttons' lighter rim) stay.
+ * The library, in dark liquid glass.
+ *
+ * Maxwell's palette is a night-blue circuit board: navy surfaces, a
+ * cyan current. The library wears its own: a dim backdrop with a few
+ * slow pools of colour in it, and every surface a pane of smoked glass
+ * over that — tinted, translucent, edged with a hairline of light. The
+ * panels that float over moving content (sheets, menus, the tab bar)
+ * blur what is behind them; the window itself sits over the still
+ * backdrop, so a tint is all it needs. One warm accent, coral, kept for
+ * the few things that are the point of the screen.
  *
  * Scoped with :root:has(.theme-raycast) rather than on the library's
  * own wrapper, because its sheets, dialogs and the cover viewer are
  * portalled to the end of <body>, outside that wrapper; while a library
  * screen is on the page the whole document takes the palette, and
- * Maxwell's pages, which never carry the class, keep theirs.
+ * Maxwell's pages, which never carry the class, keep theirs. (The class
+ * keeps the name it had when the dress was Raycast's.)
  *
  * The inks keep the rule globals.css set for them: the faintest is
- * still above 4.5:1 on the window.
+ * still above 4.5:1 on the darkest glass over the brightest pool.
  */
 :root:has(.theme-raycast) {
-  --bg: #0d0d0e;
-  --surface: #1c1c1e;
-  --surface-hover: #2c2c2e;
-  --border: #2c2c2e;
-  --border-strong: #3a3a3c;
-  --text: #ececec;
-  --text-muted: #a1a1a6;
-  --text-faint: #8e8e93;
+  /* Glass, from the deepest well (inputs) to the nearest pane. */
+  --bg: rgba(6, 7, 12, 0.5);
+  --surface: rgba(24, 26, 36, 0.62);
+  --surface-hover: rgba(255, 255, 255, 0.075);
+  --border: rgba(255, 255, 255, 0.085);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #f0f1f5;
+  --text-muted: #b0b3c0;
+  --text-faint: #9093a3;
   --inverse: #ffffff;
 
-  --accent: #ff6363;
-  --accent-hover: #ff7b7b;
-  --accent-soft: rgba(255, 99, 99, 0.15);
+  --accent: #ff6b6b;
+  --accent-hover: #ff8585;
+  --accent-soft: rgba(255, 107, 107, 0.16);
 
-  --danger: #ff453a;
-  --danger-hover: #ff6961;
-  --danger-soft: rgba(255, 69, 58, 0.14);
+  --danger: #ff5a52;
+  --danger-hover: #ff7a73;
+  --danger-soft: rgba(255, 90, 82, 0.15);
 
-  --success: #32d74b;
-  --success-soft: rgba(50, 215, 75, 0.14);
+  --success: #3ddc68;
+  --success-soft: rgba(61, 220, 104, 0.15);
 
   --warning: #ffd60a;
   --warning-soft: rgba(255, 214, 10, 0.14);
+
+  /* What the glass lies over: near-black, with pools of violet, teal
+     and coral far enough apart that no two meet. Fixed, so it stays
+     put while the pages scroll over it. */
+  --glass-backdrop:
+    radial-gradient(
+      42rem 32rem at 12% 8%,
+      rgba(124, 92, 255, 0.34),
+      transparent 70%
+    ),
+    radial-gradient(
+      38rem 30rem at 92% 30%,
+      rgba(38, 198, 218, 0.24),
+      transparent 70%
+    ),
+    radial-gradient(
+      46rem 34rem at 60% 105%,
+      rgba(255, 107, 107, 0.22),
+      transparent 70%
+    ),
+    #05060a;
+  /* The frost: a blur, and saturation so the colour behind still shows.
+     Kept moderate: past about 20px Chrome's blur on a pane as thin as
+     the tab bar mirrors its edges back in and the text behind reads
+     through again. */
+  --glass-frost: blur(14px) saturate(170%);
+}
+
+:root:has(.theme-raycast) body,
+.theme-raycast.lib-desktop,
+main.theme-raycast {
+  background: var(--glass-backdrop);
+  background-attachment: fixed;
+}
+
+/* Panes that float over content which moves under them are frosted,
+   not just tinted. The window is left out: what is behind it is the
+   still backdrop, and a filter there would also become the containing
+   block of every fixed sheet inside it. */
+:root:has(.theme-raycast)
+  :is(.bg-surface, [class*="bg-surface/"]):not(.lib-window),
+:root:has(.theme-raycast) .modal-panel {
+  -webkit-backdrop-filter: var(--glass-frost);
+  backdrop-filter: var(--glass-frost);
+}
+
+/* A dimmed page behind a sheet is frosted a little too, and dimmed
+   less: the glass in front carries the contrast. */
+:root:has(.theme-raycast) .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* Glass catches the light along its top edge. */
+:root:has(.theme-raycast) :is(.modal-panel, .lib-pop) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 24px 70px rgba(0, 0, 0, 0.55);
 }
 
 /* Set in the system face (SF Pro on a Mac, the platform's
@@ -53,11 +118,18 @@
   letter-spacing: -0.005em;
 }
 
-/* The window's edge: a hairline of light all round and a deep shadow
-   under it. */
+/* The window is the clearest pane: the pools behind it should show
+   through, softened by the tint rather than hidden by it. */
+:root:has(.theme-raycast) .lib-window {
+  background-color: rgba(14, 15, 22, 0.42);
+}
+
+/* The window's edge: a hairline of light all round, a brighter one
+   along the top where the light falls, and a deep shadow under it. */
 .theme-raycast .lib-window {
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 30px 90px rgba(0, 0, 0, 0.6);
 }
 
@@ -69,9 +141,12 @@
   }
 }
 
-/* The phone's tab bar floats over the list: a shadow under it. */
+/* The phone's tab bar, after a floating capsule of glass: light along
+   its top edge, a soft shadow under it. */
 .theme-raycast .lib-capsule {
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 12px 36px rgba(0, 0, 0, 0.5);
 }
 
 /* Black, rimmed in a spectrum: the tab in use and the round スキャン button.
@@ -100,14 +175,14 @@
    so it reads as cut into the capsule rather than laid on it. */
 .lib-notch {
   box-shadow:
-    0 0 0 4px var(--bg),
+    0 0 0 4px #07080d,
     0 10px 28px rgba(0, 0, 0, 0.55);
 }
 
-/* The coral buttons (スキャンして追加, 登録, ログイン…) keep the solid
-   fill with a lighter coral rim inside it — an inset shadow, not a
-   border, so no button changes size. Buttons only: the accent's dots
-   and bars elsewhere have no rim. */
+/* The coral buttons (スキャンして追加, 登録, ログイン…) are the one thing
+   not in glass: a solid coral fill, with a lighter coral rim inside it
+   — an inset shadow, not a border, so no button changes size. Buttons
+   only: the accent's dots and bars elsewhere have no rim. */
 :root:has(.theme-raycast) :is(button, a, [role="button"]).bg-accent {
   box-shadow: inset 0 0 0 1px rgba(255, 190, 190, 0.6);
 }
