@@ -180,15 +180,22 @@ main.theme-raycast {
 }
 
 /* The red buttons (スキャンして追加, 登録, ログイン…) are the one thing
-   not in glass: a solid red fill, with a lighter red rim inside it
-   — an inset shadow, not a border, so no button changes size. Buttons
+   not in glass: a solid fill, coral running into red, with a lighter
+   red rim inside it — an inset shadow, not a border, so no button
+   changes size. Buttons
    only: the accent's dots and bars elsewhere have no rim. */
 :root:has(.theme-raycast) :is(button, a, [role="button"]).bg-accent {
+  /* Coral at the top left running into red at the bottom right. */
+  background-image: linear-gradient(135deg, #ff8170, #ff3b30 55%, #e8261c);
   box-shadow: inset 0 0 0 1px rgba(255, 140, 130, 0.55);
 }
 
-/* The round スキャン button is red like the others but keeps its
-   moat, and a red glow under it instead of their rim. */
+:root:has(.theme-raycast) :is(button, a, [role="button"]).bg-accent:hover {
+  background-image: linear-gradient(135deg, #ff917f, #ff4a3f 55%, #f0322a);
+}
+
+/* The round スキャン button has the same coral-to-red fill but keeps its
+   moat, and a red glow under it instead of the others' rim. */
 :root:has(.theme-raycast) button.lib-notch.bg-accent {
   box-shadow:
     0 0 0 4px #07080d,
