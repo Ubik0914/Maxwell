@@ -656,8 +656,11 @@ html[data-motion="reduced"] {
  * graph-enter does — a lingering transform would turn the element into
  * the containing block for anything fixed inside it.
  */
+/* Backwards, not both: held at its last frame, the filter stays on as
+   blur(0px), and any filter on the window walls off the frosted panes
+   inside it — their backdrop-filter would see nothing to blur. */
 .lib-window {
-  animation: lib-window 360ms cubic-bezier(0.16, 0.9, 0.28, 1) both;
+  animation: lib-window 360ms cubic-bezier(0.16, 0.9, 0.28, 1) backwards;
 }
 
 @keyframes lib-window {
