@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import {
   BarcodeIcon,
   BookIcon,
+  ExportIcon,
+  ImportIcon,
   KeyIcon,
   LogoutIcon,
   PlusIcon,
@@ -34,6 +36,9 @@ export function LibrarySidebar({
   onManual,
   onRefreshAll,
   refreshProgress,
+  onImportCsv,
+  importProgress,
+  onExportCsv,
   userEmail,
   onLogout,
   onRegisterPasskey,
@@ -50,6 +55,9 @@ export function LibrarySidebar({
   onManual: () => void;
   onRefreshAll: () => void;
   refreshProgress: { done: number; total: number } | null;
+  onImportCsv: () => void;
+  importProgress: { done: number; total: number } | null;
+  onExportCsv: () => void;
   userEmail: string;
   onLogout: () => void;
   onRegisterPasskey: () => void;
@@ -147,6 +155,22 @@ export function LibrarySidebar({
           ) : (
             "書誌を一括再取得"
           )}
+        </SidebarButton>
+        <SidebarButton
+          onClick={onImportCsv}
+          disabled={importProgress !== null}
+          icon={importProgress ? <Spinner /> : <ImportIcon />}
+        >
+          {importProgress ? (
+            <span aria-live="polite">
+              取り込み中 {importProgress.done}/{importProgress.total}
+            </span>
+          ) : (
+            "CSVから取り込む"
+          )}
+        </SidebarButton>
+        <SidebarButton onClick={onExportCsv} icon={<ExportIcon />}>
+          CSVに書き出す
         </SidebarButton>
         <div className="mt-1 flex items-center gap-2 border-t border-border px-2 pt-2">
           <span className="min-w-0 flex-1 truncate text-xs text-text-faint">

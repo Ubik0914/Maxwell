@@ -86,6 +86,16 @@ export function ImportIcon({ className }: { className?: string }) {
   );
 }
 
+/** Export — the import tray with the arrow leaving it, upward. */
+export function ExportIcon({ className }: { className?: string }) {
+  return (
+    <Icon className={className}>
+      <path d="M10 12V4m0 0L7 7m3-3l3 3" />
+      <path d="M3.5 13v2a2 2 0 002 2h9a2 2 0 002-2v-2" />
+    </Icon>
+  );
+}
+
 export function TrashIcon({ className }: { className?: string }) {
   return (
     <Icon className={className}>

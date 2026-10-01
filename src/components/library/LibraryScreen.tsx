@@ -9,7 +9,9 @@ import {
   CloseIcon,
   ChevronDownIcon,
   CopyIcon,
+  ExportIcon,
   GridIcon,
+  ImportIcon,
   KeyIcon,
   ListIcon,
   PinIcon,
@@ -26,6 +28,7 @@ import { useToast } from "@/components/Toast";
 import { logoutAction } from "@/features/auth/actions";
 import { registerPasskey } from "@/features/auth/passkey";
 import {
+  addBookByIsbnAction,
   deleteBooksAction,
   moveBooksAction,
   refreshBookAction,
@@ -40,6 +43,7 @@ import { BookCover } from "@/components/library/BookCover";
 import { CoverLightbox } from "@/components/library/CoverLightbox";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
 import { BulkPanel } from "@/components/library/BulkPanel";
+import { booksToCsv, decodeCsv, isbnsFromCsv } from "@/domain/library/csv";
 import {
   knownShelf,
   refreshShelf,
@@ -423,6 +427,88 @@ export function LibraryScreen({
     [books, refreshMany],
   );
 
+  // CSV import: progress while it runs, null when idle.
+  const [importProgress, setImportProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  // The hidden file input, held as state rather than a ref so ⌘K's
+  // actions (built during render) can close over it.
+  const [csvInput, setCsvInput] = useState<HTMLInputElement | null>(null);
+  const pickCsv = useCallback(() => csvInput?.click(), [csvInput]);
+
+  /**
+   * CSVを取り込む: every number in the file's first column, added as
+   * a scan would add it — openBD's details, the shelf checked first so
+   * a book already there is counted rather than added twice. Two at a
+   * time, so a few hundred rows neither take all day nor trip the
+   * catalogues' rate limits.
+   */
+  const importCsv = useCallback(
+    async (file: File) => {
+      const { isbns, invalid, repeated } = isbnsFromCsv(
+        decodeCsv(await file.arrayBuffer()),
+      );
+      if (isbns.length === 0) {
+        showError(
+          invalid.length > 0
+            ? `1列目の数字が ISBN ではありませんでした（${invalid.length}行）`
+            : "1列目に ISBN がある行が見つかりませんでした",
+        );
+        return;
+      }
+
+      const tally = { added: 0, duplicate: 0, notFound: 0, failed: 0 };
+      let next = 0;
+      let done = 0;
+      setImportProgress({ done: 0, total: isbns.length });
+
+      const worker = async () => {
+        while (next < isbns.length) {
+          const isbn = isbns[next++];
+          const result = await addBookByIsbnAction(isbn).catch(() => null);
+          if (!result?.success) tally.failed += 1;
+          else if (result.data.status === "added") {
+            tally.added += 1;
+            const { book } = result.data;
+            setBooks((current) => [book, ...current]);
+          } else if (result.data.status === "duplicate") tally.duplicate += 1;
+          else tally.notFound += 1;
+          setImportProgress({ done: ++done, total: isbns.length });
+        }
+      };
+      await Promise.all([worker(), worker()]);
+
+      setImportProgress(null);
+      void refreshShelf();
+      const notes = [
+        tally.duplicate + repeated > 0 &&
+          `登録済み${tally.duplicate + repeated}`,
+        tally.notFound > 0 && `書誌なし${tally.notFound}`,
+        tally.failed > 0 && `失敗${tally.failed}`,
+        invalid.length > 0 && `ISBN不正${invalid.length}`,
+      ].filter(Boolean);
+      const message =
+        `${tally.added}冊を取り込みました` +
+        (notes.length > 0 ? `（${notes.join("・")}）` : "");
+      if (tally.added === 0 && tally.failed > 0) showError(message);
+      else showSuccess(message);
+    },
+    [showError, showSuccess],
+  );
+
+  /** CSVに書き出す: the whole shelf, ISBN first, as a download. */
+  const exportCsv = useCallback(() => {
+    const url = URL.createObjectURL(
+      new Blob([booksToCsv(books)], { type: "text/csv;charset=utf-8" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `maxwell-books-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }, [books]);
+
   const refresh = useCallback(
     async (book: ShelvedBook) => {
       setRefreshing(book.id);
@@ -543,6 +629,13 @@ export function LibraryScreen({
         run: () => setEditing("new"),
       },
       {
+        id: "csv-import",
+        section: "追加",
+        title: "CSVから取り込む（1列目の ISBN）",
+        icon: <ImportIcon />,
+        run: pickCsv,
+      },
+      {
         id: "view",
         section: "表示",
         title: view === "list" ? "グリッド表示" : "リスト表示",
@@ -586,6 +679,13 @@ export function LibraryScreen({
         icon: <RefreshIcon />,
         run: () => void refreshAll(),
       },
+      {
+        id: "csv-export",
+        section: "表示",
+        title: `CSVに書き出す（${books.length}冊）`,
+        icon: <ExportIcon />,
+        run: exportCsv,
+      },
       ...(Object.keys(SORT_LABEL) as BookSort[])
         .filter((option) => option !== sort)
         .map((option) => ({
@@ -626,6 +726,8 @@ export function LibraryScreen({
     scan,
     refresh,
     refreshAll,
+    exportCsv,
+    pickCsv,
     showError,
     showSuccess,
   ]);
@@ -943,6 +1045,18 @@ export function LibraryScreen({
 
   return (
     <Window wide>
+      <input
+        ref={setCsvInput}
+        type="file"
+        accept=".csv,text/csv"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          // Cleared so choosing the same file again still fires.
+          event.target.value = "";
+          if (file) void importCsv(file);
+        }}
+      />
       <div className="flex min-h-0 flex-1">
         <LibrarySidebar
           total={books.length}
@@ -956,6 +1070,9 @@ export function LibraryScreen({
           onManual={() => setEditing("new")}
           onRefreshAll={() => void refreshAll()}
           refreshProgress={refreshAllProgress}
+          onImportCsv={pickCsv}
+          importProgress={importProgress}
+          onExportCsv={exportCsv}
           userEmail={userEmail}
           onLogout={() => void logoutAction()}
           onRegisterPasskey={() => void addPasskey()}
@@ -1199,7 +1316,13 @@ export function LibraryScreen({
               hidden={chromeHidden}
               shelfName={location === undefined ? null : shelfName}
               panel={panel}
-              refreshProgress={refreshAllProgress}
+              progress={
+                importProgress
+                  ? { label: "CSVを取り込み中", ...importProgress }
+                  : refreshAllProgress
+                    ? { label: "書誌を再取得中", ...refreshAllProgress }
+                    : null
+              }
               sortLabel={SORT_LABEL[sort]}
               onSort={() => setPanel("sort")}
               onShelves={() => setPanel("shelves")}
@@ -1394,7 +1517,7 @@ function TabBar({
   hidden,
   shelfName,
   panel,
-  refreshProgress,
+  progress,
   sortLabel,
   onSort,
   onShelves,
@@ -1407,7 +1530,8 @@ function TabBar({
   /** The shelf being shown, or null for all of them. */
   shelfName: string | null;
   panel: "all" | "more" | "shelves" | "sort" | null;
-  refreshProgress: { done: number; total: number } | null;
+  /** A long job's count, shown as a line over the tabs. */
+  progress: { label: string; done: number; total: number } | null;
   /** The order the list is in now, for the tab's accessible name. */
   sortLabel: string;
   onSort: () => void;
@@ -1430,13 +1554,13 @@ function TabBar({
         hidden ? "translate-y-[calc(100%+2rem)]" : ""
       }`}
     >
-      {refreshProgress && (
+      {progress && (
         <p
           aria-live="polite"
           className="flex items-center justify-center gap-2 border-b border-border py-1.5 text-xs text-text-muted"
         >
           <Spinner />
-          書誌を再取得中 {refreshProgress.done}/{refreshProgress.total}
+          {progress.label} {progress.done}/{progress.total}
         </p>
       )}
       {/* The home indicator overlaps the bar's own bottom padding rather
