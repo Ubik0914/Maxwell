@@ -6,6 +6,7 @@ import {
   BarcodeIcon,
   BookIcon,
   CheckIcon,
+  CloseIcon,
   ChevronDownIcon,
   CopyIcon,
   GridIcon,
@@ -25,6 +26,8 @@ import { useToast } from "@/components/Toast";
 import { logoutAction } from "@/features/auth/actions";
 import { registerPasskey } from "@/features/auth/passkey";
 import {
+  deleteBooksAction,
+  moveBooksAction,
   refreshBookAction,
   refreshBooksAction,
 } from "@/features/library/actions";
@@ -36,6 +39,7 @@ import { SCAN_FROM_LIBRARY } from "@/components/library/navigation";
 import { BookCover } from "@/components/library/BookCover";
 import { CoverLightbox } from "@/components/library/CoverLightbox";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
+import { BulkPanel } from "@/components/library/BulkPanel";
 import {
   knownShelf,
   refreshShelf,
@@ -204,6 +208,15 @@ export function LibraryScreen({
   const [view, setView] = useState<View>("list");
   const [columns, setColumns] = useState<Columns>(3);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Several books at once (desktop): shift for a range from the anchor,
+  // ⌘/Ctrl for one at a time. Empty, or one, is the ordinary selection.
+  const [marked, setMarked] = useState<string[]>([]);
+  const anchorId = useRef<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState<
+    "move" | "refresh" | "delete" | null
+  >(null);
+  const [bulkSheet, setBulkSheet] = useState(false);
+  const bulkLocationRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState<ShelvedBook | "new" | null>(null);
   // ⌘K's 削除 opens the book with its own delete confirmation already
   // showing, rather than a browser confirm() box over the page.
@@ -309,9 +322,21 @@ export function LibraryScreen({
   const selected: ShelvedBook | undefined = shown[selectedIndex];
 
   const select = useCallback(
-    (index: number) => {
+    (index: number, extend = false) => {
       const book = shown[index];
       if (!book) return;
+      if (extend) {
+        // Shift: everything between the anchor and here.
+        const from = Math.max(
+          shown.findIndex((b) => b.id === (anchorId.current ?? book.id)),
+          0,
+        );
+        const [lo, hi] = from < index ? [from, index] : [index, from];
+        setMarked(shown.slice(lo, hi + 1).map((b) => b.id));
+      } else {
+        anchorId.current = book.id;
+        setMarked([]);
+      }
       setSelectedId(book.id);
       rowRefs.current.get(book.id)?.scrollIntoView({ block: "nearest" });
     },
@@ -347,49 +372,56 @@ export function LibraryScreen({
    * few books per call, so the footer can count them off and no single
    * server call has to fit the whole shelf.
    */
-  const refreshAll = useCallback(async () => {
-    const targets = books
-      .filter((book) => book.isbn && missingDetails(book))
-      .map((book) => book.id);
-    if (targets.length === 0) {
-      showSuccess("補完が必要な本はありません");
-      return;
-    }
-
-    const BATCH = 8;
-    let updatedCount = 0;
-    let failedCount = 0;
-    setRefreshAllProgress({ done: 0, total: targets.length });
-
-    for (let start = 0; start < targets.length; start += BATCH) {
-      const result = await refreshBooksAction(
-        targets.slice(start, start + BATCH),
-      );
-      if (!result.success) {
-        showError(result.error.message);
-        break;
+  const refreshMany = useCallback(
+    async (from: ShelvedBook[]) => {
+      const targets = from
+        .filter((book) => book.isbn && missingDetails(book))
+        .map((book) => book.id);
+      if (targets.length === 0) {
+        showSuccess("補完が必要な本はありません");
+        return;
       }
-      const { updated } = result.data;
-      updatedCount += updated.length;
-      failedCount += result.data.failed;
-      setBooks((current) =>
-        current.map(
-          (book) => updated.find((fresh) => fresh.id === book.id) ?? book,
-        ),
-      );
-      setRefreshAllProgress({
-        done: Math.min(start + BATCH, targets.length),
-        total: targets.length,
-      });
-    }
 
-    setRefreshAllProgress(null);
-    void refreshShelf();
-    showSuccess(
-      `${updatedCount}冊の書誌を補完しました` +
-        (failedCount > 0 ? `（${failedCount}冊は取得できませんでした）` : ""),
-    );
-  }, [books, showError, showSuccess]);
+      const BATCH = 8;
+      let updatedCount = 0;
+      let failedCount = 0;
+      setRefreshAllProgress({ done: 0, total: targets.length });
+
+      for (let start = 0; start < targets.length; start += BATCH) {
+        const result = await refreshBooksAction(
+          targets.slice(start, start + BATCH),
+        );
+        if (!result.success) {
+          showError(result.error.message);
+          break;
+        }
+        const { updated } = result.data;
+        updatedCount += updated.length;
+        failedCount += result.data.failed;
+        setBooks((current) =>
+          current.map(
+            (book) => updated.find((fresh) => fresh.id === book.id) ?? book,
+          ),
+        );
+        setRefreshAllProgress({
+          done: Math.min(start + BATCH, targets.length),
+          total: targets.length,
+        });
+      }
+
+      setRefreshAllProgress(null);
+      void refreshShelf();
+      showSuccess(
+        `${updatedCount}冊の書誌を補完しました` +
+          (failedCount > 0 ? `（${failedCount}冊は取得できませんでした）` : ""),
+      );
+    },
+    [showError, showSuccess],
+  );
+  const refreshAll = useCallback(
+    () => refreshMany(books),
+    [books, refreshMany],
+  );
 
   const refresh = useCallback(
     async (book: ShelvedBook) => {
@@ -627,6 +659,7 @@ export function LibraryScreen({
           event.key === "ArrowDown"
             ? Math.min(selectedIndex + step, shown.length - 1)
             : Math.max(selectedIndex - step, 0),
+          event.shiftKey,
         );
       } else if (
         view === "grid" &&
@@ -638,10 +671,14 @@ export function LibraryScreen({
           event.key === "ArrowRight"
             ? Math.min(selectedIndex + 1, shown.length - 1)
             : Math.max(selectedIndex - 1, 0),
+          event.shiftKey,
         );
       } else if (event.key === "Enter" && selected) {
         event.preventDefault();
         setViewing(selected);
+      } else if (event.key === "Escape" && marked.length > 0) {
+        event.preventDefault();
+        setMarked([]);
       } else if (event.key === "Escape" && query) {
         event.preventDefault();
         setQuery("");
@@ -667,6 +704,7 @@ export function LibraryScreen({
     selected,
     query,
     view,
+    marked.length,
   ]);
 
   function saved(book: ShelvedBook) {
@@ -688,11 +726,143 @@ export function LibraryScreen({
     [location === undefined ? null : (location ?? "場所未設定"), genreName]
       .filter(Boolean)
       .join(" · ") || "すべての本";
-  const open = (book: ShelvedBook) => {
+  const open = (book: ShelvedBook, event?: React.MouseEvent) => {
+    const desktop = window.matchMedia("(min-width: 768px)").matches;
+    if (desktop && event?.shiftKey) {
+      // A range, from the anchor to here; the anchor stays put.
+      select(
+        shown.findIndex((b) => b.id === book.id),
+        true,
+      );
+      return;
+    }
+    if (desktop && (event?.metaKey || event?.ctrlKey)) {
+      // One more, or one fewer; the first ⌘-click keeps what was selected.
+      setMarked((current) => {
+        const base =
+          current.length > 0 ? current : selectedId ? [selectedId] : [];
+        return base.includes(book.id)
+          ? base.filter((id) => id !== book.id)
+          : [...base, book.id];
+      });
+      anchorId.current = book.id;
+      setSelectedId(book.id);
+      return;
+    }
+    setMarked([]);
+    anchorId.current = book.id;
     setSelectedId(book.id);
     // The pane shows it where there is one; elsewhere it opens.
     if (!window.matchMedia(DETAIL_PANE).matches) setViewing(book);
   };
+
+  // The books marked, in the list's order, as far as the list still
+  // shows them; two or more is a multiple selection.
+  const markedBooks = shown.filter((book) => marked.includes(book.id));
+  const bulk = markedBooks.length >= 2 ? markedBooks : null;
+
+  async function bulkMove(location: string) {
+    if (!bulk) return;
+    setBulkBusy("move");
+    const result = await moveBooksAction(
+      bulk.map((book) => book.id),
+      location,
+    );
+    setBulkBusy(null);
+    if (!result.success) {
+      showError(result.error.message);
+      return;
+    }
+    const moved = new Map(result.data.map((book) => [book.id, book]));
+    setBooks((current) => current.map((book) => moved.get(book.id) ?? book));
+    showSuccess(
+      `${result.data.length}冊の場所を${location.trim() ? `「${location.trim()}」に` : "外し"}ました`,
+    );
+    void refreshShelf();
+  }
+
+  async function bulkRefresh() {
+    if (!bulk) return;
+    setBulkBusy("refresh");
+    await refreshMany(bulk);
+    setBulkBusy(null);
+  }
+
+  async function bulkDelete() {
+    if (!bulk) return;
+    setBulkBusy("delete");
+    const ids = bulk.map((book) => book.id);
+    const result = await deleteBooksAction(ids);
+    setBulkBusy(null);
+    if (!result.success) {
+      showError(result.error.message);
+      return;
+    }
+    setBooks((current) => current.filter((book) => !ids.includes(book.id)));
+    setMarked([]);
+    setBulkSheet(false);
+    showSuccess(`${result.data.deleted}冊を削除しました`);
+    void refreshShelf();
+  }
+
+  const bulkPanel = bulk && (
+    <BulkPanel
+      key={bulk.map((book) => book.id).join()}
+      books={bulk}
+      places={placeNames}
+      busy={bulkBusy}
+      onMove={(location) => void bulkMove(location)}
+      onRefresh={() => void bulkRefresh()}
+      onDelete={() => void bulkDelete()}
+      onClear={() => {
+        setMarked([]);
+        setBulkSheet(false);
+      }}
+      locationRef={bulkLocationRef}
+    />
+  );
+
+  /** ⌘K's section for a multiple selection, ahead of everything else. */
+  const openBulk = () => {
+    // The pane holds the panel from xl; narrower, it opens as a sheet.
+    if (!window.matchMedia(DETAIL_PANE).matches) setBulkSheet(true);
+  };
+  const bulkActions: Action[] = bulk
+    ? [
+        {
+          id: "bulk-move",
+          section: `${bulk.length}冊を選択中`,
+          title: "場所をまとめて変更…",
+          icon: <PinIcon />,
+          run: () => {
+            openBulk();
+            window.setTimeout(() => bulkLocationRef.current?.focus(), 50);
+          },
+        },
+        {
+          id: "bulk-refresh",
+          section: `${bulk.length}冊を選択中`,
+          title: "書誌をまとめて再取得",
+          icon: <RefreshIcon />,
+          run: () => void bulkRefresh(),
+        },
+        {
+          id: "bulk-delete",
+          section: `${bulk.length}冊を選択中`,
+          title: "まとめて削除…",
+          icon: <TrashIcon />,
+          danger: true,
+          run: openBulk,
+        },
+        {
+          id: "bulk-clear",
+          section: `${bulk.length}冊を選択中`,
+          title: "選択を解除",
+          icon: <CloseIcon />,
+          run: () => setMarked([]),
+        },
+      ]
+    : [];
   const rowRef = (id: string) => (element: HTMLLIElement | null) => {
     if (element) rowRefs.current.set(id, element);
     else rowRefs.current.delete(id);
@@ -898,7 +1068,8 @@ export function LibraryScreen({
                           <BookCard
                             book={book}
                             selected={index === selectedIndex}
-                            onClick={() => open(book)}
+                            marked={bulk !== null && marked.includes(book.id)}
+                            onClick={(event) => open(book, event)}
                           />
                         </li>
                       ))}
@@ -928,7 +1099,8 @@ export function LibraryScreen({
                           <BookRow
                             book={book}
                             selected={index === selectedIndex}
-                            onClick={() => open(book)}
+                            marked={bulk !== null && marked.includes(book.id)}
+                            onClick={(event) => open(book, event)}
                           />
                         </li>
                       ))}
@@ -938,8 +1110,41 @@ export function LibraryScreen({
               )}
             </div>
 
+            {/* md to xl has no pane to hold the panel: a bar over the
+                list says what is chosen and opens it as a sheet. */}
+            {bulk && (
+              <div className="lib-pop absolute bottom-4 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-3 rounded-xl border border-border-strong bg-surface px-4 py-2 text-sm shadow-[0_12px_40px_rgba(0,0,0,0.6)] md:flex xl:hidden">
+                <span className="text-text">{bulk.length}冊を選択中</span>
+                <button
+                  type="button"
+                  onClick={() => setBulkSheet(true)}
+                  className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-inverse hover:bg-accent-hover"
+                >
+                  まとめて操作
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMarked([])}
+                  className="text-xs text-text-faint hover:text-text"
+                >
+                  解除
+                </button>
+              </div>
+            )}
+            {bulkSheet && bulkPanel && (
+              <Modal
+                title="まとめて操作"
+                onClose={() => setBulkSheet(false)}
+                width="max-w-md"
+              >
+                {bulkPanel}
+              </Modal>
+            )}
+
             <aside className="hidden w-[22rem] shrink-0 overflow-y-auto border-l border-border xl:block">
-              {selected ? (
+              {bulkPanel ? (
+                <div className="lib-detail">{bulkPanel}</div>
+              ) : selected ? (
                 <div key={selected.id} className="lib-detail">
                   <BookDetail
                     book={selected}
@@ -973,7 +1178,7 @@ export function LibraryScreen({
                                 action.id !== "view",
                             ),
                           ]
-                        : actions
+                        : [...bulkActions, ...actions]
                 }
                 title={
                   panel === "shelves"
@@ -1079,11 +1284,14 @@ function imprint(book: ShelvedBook): string {
 function BookRow({
   book,
   selected,
+  marked = false,
   onClick,
 }: {
   book: ShelvedBook;
   selected: boolean;
-  onClick: () => void;
+  /** Part of a multiple selection. */
+  marked?: boolean;
+  onClick: (event: React.MouseEvent) => void;
 }) {
   const line = imprint(book);
   return (
@@ -1092,8 +1300,12 @@ function BookRow({
       role="option"
       aria-selected={selected}
       onClick={onClick}
-      className={`lib-select flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left ${
-        selected ? "bg-surface-hover" : "hover:bg-surface-hover/60"
+      className={`lib-select flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left select-none ${
+        marked
+          ? "bg-accent-soft"
+          : selected
+            ? "bg-surface-hover"
+            : "hover:bg-surface-hover/60"
       }`}
     >
       <BookCover
@@ -1130,11 +1342,14 @@ function BookRow({
 function BookCard({
   book,
   selected,
+  marked = false,
   onClick,
 }: {
   book: ShelvedBook;
   selected: boolean;
-  onClick: () => void;
+  /** Part of a multiple selection. */
+  marked?: boolean;
+  onClick: (event: React.MouseEvent) => void;
 }) {
   return (
     <button
@@ -1142,7 +1357,7 @@ function BookCard({
       role="option"
       aria-selected={selected}
       onClick={onClick}
-      className="lib-select group flex w-full min-w-0 flex-col gap-1.5 text-left md:gap-2"
+      className="lib-select group flex w-full min-w-0 flex-col gap-1.5 text-left select-none md:gap-2"
     >
       <BookCover
         title={book.title}
@@ -1150,7 +1365,9 @@ function BookCard({
         coverUrl={book.cover_url}
         size="fill"
         className={`shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-[transform,box-shadow] group-hover:-translate-y-0.5 ${
-          selected ? "ring-2 ring-accent ring-offset-2 ring-offset-surface" : ""
+          marked || selected
+            ? "ring-2 ring-accent ring-offset-2 ring-offset-surface"
+            : ""
         }`}
       />
       <span className="min-w-0 px-0.5">

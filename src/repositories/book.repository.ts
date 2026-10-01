@@ -89,3 +89,35 @@ export async function deleteBook(
   const { error } = await supabase.from("books").delete().eq("id", bookId);
   if (error) throw error;
 }
+
+/** Several books moved to one place (null: no place). The rows as they
+ *  now stand, for the ones RLS let through. */
+export async function moveBooks(
+  supabase: Client,
+  bookIds: string[],
+  location: string | null,
+): Promise<ShelvedBook[]> {
+  const { data, error } = await supabase
+    .from("books")
+    .update({ location })
+    .in("id", bookIds)
+    .select(COLUMNS);
+
+  if (error) throw error;
+  return data;
+}
+
+/** Several books removed at once; how many actually went. */
+export async function deleteBooks(
+  supabase: Client,
+  bookIds: string[],
+): Promise<number> {
+  const { data, error } = await supabase
+    .from("books")
+    .delete()
+    .in("id", bookIds)
+    .select("id");
+
+  if (error) throw error;
+  return data.length;
+}
