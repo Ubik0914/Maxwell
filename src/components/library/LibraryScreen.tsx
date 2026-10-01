@@ -1146,7 +1146,7 @@ export function LibraryScreen({
               onScroll={onListScroll}
               // Room under the last book for the phone's tab bar, which
               // floats over the list so it can slide away.
-              className="flex min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(5rem+max(0.25rem,calc(env(safe-area-inset-bottom)-1rem)))] md:pb-0"
+              className="flex min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(4.5rem+max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem)))] md:pb-0"
             >
               {books.length === 0 ? (
                 <EmptyShelf onScan={scan} />
@@ -1561,78 +1561,100 @@ function TabBar({
   onManual: () => void;
   onMore: () => void;
 }) {
-  const tab = (active: boolean) =>
-    `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 text-[11px] transition-colors active:scale-[0.94] ${
-      active ? "text-accent" : "text-text-muted"
-    }`;
+  /**
+   * One tab: the icon alone, or — for the one in use — the icon and its
+   * name together in a black pill with a rainbow rim.
+   */
+  const tab = (
+    active: boolean,
+    icon: React.ReactNode,
+    label: React.ReactNode,
+    props: React.ButtonHTMLAttributes<HTMLButtonElement>,
+  ) => (
+    <button
+      type="button"
+      {...props}
+      className={`flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold transition-[flex-grow,background-color,color] duration-300 ease-[cubic-bezier(0.16,0.9,0.28,1)] active:scale-[0.94] ${
+        active
+          ? "lib-rainbow flex-[1.9] px-3 text-white"
+          : "flex-1 text-text-muted"
+      }`}
+    >
+      {icon}
+      {active && <span className="min-w-0 truncate">{label}</span>}
+    </button>
+  );
   return (
     <nav
       aria-label="メニュー"
       aria-hidden={hidden || undefined}
       inert={hidden}
-      className={`absolute inset-x-0 bottom-0 z-20 border-t border-border bg-surface pb-[max(0.25rem,calc(env(safe-area-inset-bottom)-1rem))] transition-transform duration-300 ease-[cubic-bezier(0.16,0.9,0.28,1)] md:hidden ${
-        // Far enough to take the raised スキャン button with it.
-        hidden ? "translate-y-[calc(100%+2rem)]" : ""
+      // A capsule floating over the list rather than a bar along the
+      // edge; it sits a little above the home indicator, as native
+      // floating tab bars do.
+      className={`absolute inset-x-3 bottom-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem))] z-20 transition-transform duration-300 ease-[cubic-bezier(0.16,0.9,0.28,1)] md:hidden ${
+        hidden ? "translate-y-[calc(100%+3rem)]" : ""
       }`}
     >
       {progress && (
         <p
           aria-live="polite"
-          className="flex items-center justify-center gap-2 border-b border-border py-1.5 text-xs text-text-muted"
+          className="mx-auto mb-2 flex w-fit items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text-muted"
         >
           <Spinner />
           {progress.label} {progress.done}/{progress.total}
         </p>
       )}
-      {/* The home indicator overlaps the bar's own bottom padding rather
-          than adding its full inset below it, the way native tab bars
-          sit: the full inset left a band of empty bar under the tabs. */}
-      <div className="flex h-14 items-stretch">
-        <button
-          type="button"
-          onClick={onSort}
-          aria-label={`ソート（${sortLabel}）`}
-          className={tab(panel === "sort")}
-        >
-          <SortIcon className="h-6 w-6" />
-          ソート
-        </button>
-        <button
-          type="button"
-          onClick={onShelves}
-          className={tab(shelfName !== null || panel === "shelves")}
-        >
-          <PinIcon className="h-6 w-6" />
-          <span className="max-w-full truncate px-1">
-            {shelfName ?? "場所"}
-          </span>
-        </button>
-
-        {/* The room the round button stands in. */}
-        <div className="relative w-[5.5rem] shrink-0">
-          <button
-            type="button"
-            onClick={onScan}
-            aria-label="スキャンして追加"
-            className="absolute -top-5 left-1/2 flex h-[4.25rem] w-[4.25rem] -translate-x-1/2 flex-col items-center justify-center gap-0.5 rounded-full bg-accent text-[11px] font-semibold text-inverse shadow-[0_8px_24px_var(--accent-soft),0_0_0_4px_var(--surface)] transition-transform active:scale-[0.94]"
-          >
-            <BarcodeIcon className="h-7 w-7" />
-            スキャン
-          </button>
+      <div className="lib-capsule flex h-14 items-center gap-1 rounded-full border border-border-strong bg-surface px-1.5">
+        {/* Two halves of equal width either side of the + button, so it
+            stays in the middle whichever tab is spread out. */}
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          {tab(
+            panel === "sort",
+            <SortIcon className="h-[22px] w-[22px] shrink-0" />,
+            "ソート",
+            { onClick: onSort, "aria-label": `ソート（${sortLabel}）` },
+          )}
+          {tab(
+            shelfName !== null || panel === "shelves",
+            <PinIcon className="h-[22px] w-[22px] shrink-0" />,
+            shelfName ?? "場所",
+            {
+              onClick: onShelves,
+              "aria-label": `場所（${shelfName ?? "すべて"}）`,
+            },
+          )}
         </div>
 
-        <button type="button" onClick={onManual} className={tab(false)}>
-          <PlusIcon className="h-6 w-6" />
-          手入力
-        </button>
+        {/* スキャン, cut into the middle of the capsule: a round black
+            button a size larger than the bar, ringed in the same
+            rainbow, with a moat of backdrop around it. */}
         <button
           type="button"
-          onClick={onMore}
-          className={tab(panel === "more")}
+          onClick={onScan}
+          aria-label="スキャンして追加"
+          className="lib-rainbow lib-notch -my-2 flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-white transition-transform active:scale-[0.92]"
         >
-          <MoreIcon className="h-6 w-6" />
-          その他
+          <PlusIcon className="h-8 w-8" />
         </button>
+
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          {tab(
+            false,
+            <PencilIcon className="h-[22px] w-[22px] shrink-0" />,
+            "手入力",
+            {
+              onClick: onManual,
+              "aria-label": "手入力で追加",
+            },
+          )}
+          {tab(
+            panel === "more",
+            <MoreIcon className="h-[22px] w-[22px] shrink-0" />,
+            "その他",
+            { onClick: onMore, "aria-label": "その他" },
+          )}
+        </div>
       </div>
     </nav>
   );

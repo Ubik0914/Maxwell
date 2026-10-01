@@ -140,3 +140,41 @@ main.theme-raycast {
     box-shadow: none;
   }
 }
+
+/* The phone's tab bar, after a floating capsule of glass: light along
+   its top edge, a soft shadow under it. */
+.theme-raycast .lib-capsule {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+/* Black, rimmed in a spectrum: the tab in use and the round + button.
+   Two backgrounds, one clipped to the padding box (the black) and one
+   to the border box (the rainbow), so the transparent border shows
+   only the gradient. */
+.lib-rainbow {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#050507, #050507) padding-box,
+    conic-gradient(
+        from 200deg,
+        #ff375f,
+        #ff9f0a,
+        #ffd60a,
+        #30d158,
+        #64d2ff,
+        #5e5ce6,
+        #bf5af2,
+        #ff375f
+      )
+      border-box;
+}
+
+/* The + button's moat: a ring of the page's own dark around the rim,
+   so it reads as cut into the capsule rather than laid on it. */
+.lib-notch {
+  box-shadow:
+    0 0 0 4px #07080d,
+    0 10px 28px rgba(0, 0, 0, 0.55);
+}
