@@ -1633,15 +1633,16 @@ function TabBar({
           type="button"
           onClick={onScan}
           aria-label="スキャンして追加"
-          className="lib-rainbow lib-notch -my-2 flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-white transition-transform active:scale-[0.92]"
+          className="lib-rainbow lib-notch -my-2 flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-semibold text-white transition-transform active:scale-[0.92]"
         >
-          <PlusIcon className="h-8 w-8" />
+          <BarcodeIcon className="h-6 w-6" />
+          スキャン
         </button>
 
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {tab(
             false,
-            <PencilIcon className="h-[22px] w-[22px] shrink-0" />,
+            <PlusIcon className="h-[22px] w-[22px] shrink-0" />,
             "手入力",
             {
               onClick: onManual,
