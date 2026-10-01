@@ -166,7 +166,7 @@ export function LibrarySidebar({
               取り込み中 {importProgress.done}/{importProgress.total}
             </span>
           ) : (
-            "CSVから取り込む"
+            "CSV・Excelから取り込む"
           )}
         </SidebarButton>
         <SidebarButton onClick={onExportCsv} icon={<ExportIcon />}>
