@@ -178,3 +178,30 @@ main.theme-raycast {
     0 0 0 4px #07080d,
     0 10px 28px rgba(0, 0, 0, 0.55);
 }
+
+/* The coral buttons (スキャンして追加, 保存, ログイン…) are glass too:
+   coral-tinted and translucent rather than painted, a sheen across the
+   top half, a rim of lighter coral, and a glow under them. Buttons
+   only — the accent's dots and bars elsewhere keep their solid fill.
+   The rim is an inset shadow, not a border, so no button changes
+   size. */
+:root:has(.theme-raycast) :is(button, a, [role="button"]).bg-accent {
+  background-color: rgba(255, 107, 107, 0.24);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 107, 107, 0.12)
+  );
+  color: #fff;
+  -webkit-backdrop-filter: var(--glass-frost);
+  backdrop-filter: var(--glass-frost);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 150, 150, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 8px 24px rgba(255, 107, 107, 0.22);
+}
+
+:root:has(.theme-raycast) :is(button, a, [role="button"]).bg-accent:hover {
+  background-color: rgba(255, 107, 107, 0.34);
+}
