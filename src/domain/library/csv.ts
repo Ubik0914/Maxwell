@@ -56,8 +56,13 @@ export function parseCsv(text: string): string[][] {
 export interface CsvIsbns {
   /** Valid ISBNs, 13-digit, each once, in the file's order. */
   isbns: string[];
-  /** First cells that were numbers but not an ISBN (a typo, 9.78E+12). */
+  /** First cells that were numbers but not an ISBN (a typo). */
   invalid: string[];
+  /**
+   * Cells Excel had already turned into 9.78479E+12 before the CSV was
+   * saved: the digits are lost, so these can only be pointed out.
+   */
+  rounded: number;
   /** ISBNs the file had more than once, counted past the first. */
   repeated: number;
 }
@@ -65,19 +70,31 @@ export interface CsvIsbns {
 /** A first cell that is meant as a number: digits, hyphens, a final X. */
 const NUMBERISH = /^[\d\s-]*\d[\d\s-]*[xX]?$/;
 
-/** The ISBNs in a CSV's first column. */
-export function isbnsFromCsv(text: string): CsvIsbns {
-  const seen = new Set<string>();
-  const result: CsvIsbns = { isbns: [], invalid: [], repeated: 0 };
+/** Excel's exponent form of a long number: 9.78479E+12. */
+const EXPONENT = /^\d(?:\.\d+)?E\+\d+$/i;
 
-  for (const row of parseCsv(text.replace(/^\uFEFF/, ""))) {
+/** The ISBNs among the first cells of a file's rows. */
+export function isbnsFromCells(cells: string[]): CsvIsbns {
+  const seen = new Set<string>();
+  const result: CsvIsbns = {
+    isbns: [],
+    invalid: [],
+    rounded: 0,
+    repeated: 0,
+  };
+
+  for (const raw of cells) {
     // Full-width digits (９７８…) are digits too; Excel's ="978…" is
     // its way of keeping a long number from turning into 9.78E+12.
-    const cell = (row[0] ?? "")
+    const cell = raw
       .normalize("NFKC")
       .trim()
       .replace(/^="(.*)"$/, "$1")
       .trim();
+    if (EXPONENT.test(cell)) {
+      result.rounded += 1;
+      continue;
+    }
     if (!NUMBERISH.test(cell)) continue;
 
     const isbn = normalizeIsbn(cell);
@@ -89,6 +106,13 @@ export function isbnsFromCsv(text: string): CsvIsbns {
     }
   }
   return result;
+}
+
+/** The ISBNs in a CSV's first column. */
+export function isbnsFromCsv(text: string): CsvIsbns {
+  return isbnsFromCells(
+    parseCsv(text.replace(/^\uFEFF/, "")).map((row) => row[0] ?? ""),
+  );
 }
 
 const HEADER = [

@@ -27,6 +27,7 @@ describe("isbnsFromCsv", () => {
     expect(isbnsFromCsv(text)).toEqual({
       isbns: ["9784150102296", "9784151200533"],
       invalid: [],
+      rounded: 0,
       repeated: 0,
     });
   });
@@ -45,6 +46,12 @@ describe("isbnsFromCsv", () => {
     expect(result.isbns).toEqual(["9784150102296"]);
     expect(result.invalid).toEqual(["9784150102290", "12345"]);
     expect(result.repeated).toBe(1);
+  });
+
+  it("counts cells Excel already wrote as 9.78479E+12", () => {
+    const result = isbnsFromCsv("9.78479E+12\n9784150102296\n");
+    expect(result.rounded).toBe(1);
+    expect(result.isbns).toEqual(["9784150102296"]);
   });
 });
 

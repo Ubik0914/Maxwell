@@ -43,7 +43,13 @@ import { BookCover } from "@/components/library/BookCover";
 import { CoverLightbox } from "@/components/library/CoverLightbox";
 import { ActionPanel, type Action } from "@/components/library/ActionPanel";
 import { BulkPanel } from "@/components/library/BulkPanel";
-import { booksToCsv, decodeCsv, isbnsFromCsv } from "@/domain/library/csv";
+import {
+  booksToCsv,
+  decodeCsv,
+  isbnsFromCells,
+  isbnsFromCsv,
+} from "@/domain/library/csv";
+import { firstColumnOfXlsx } from "@/domain/library/xlsx";
 import {
   knownShelf,
   refreshShelf,
@@ -446,14 +452,27 @@ export function LibraryScreen({
    */
   const importCsv = useCallback(
     async (file: File) => {
-      const { isbns, invalid, repeated } = isbnsFromCsv(
-        decodeCsv(await file.arrayBuffer()),
-      );
+      const bytes = await file.arrayBuffer();
+      let read;
+      try {
+        // An Excel workbook as it is, or a CSV in UTF-8 or Shift_JIS.
+        read = /\.xlsx$/i.test(file.name)
+          ? isbnsFromCells(await firstColumnOfXlsx(bytes))
+          : isbnsFromCsv(decodeCsv(bytes));
+      } catch {
+        showError(
+          "ファイルを読み込めませんでした（.xlsx か .csv を選んでください）",
+        );
+        return;
+      }
+      const { isbns, invalid, rounded, repeated } = read;
       if (isbns.length === 0) {
         showError(
-          invalid.length > 0
-            ? `1列目の数字が ISBN ではありませんでした（${invalid.length}行）`
-            : "1列目に ISBN がある行が見つかりませんでした",
+          rounded > 0
+            ? `Excel が ISBN を 9.78E+12 の形にして保存していました（${rounded}行）。.xlsx のまま取り込んでください`
+            : invalid.length > 0
+              ? `1列目の数字が ISBN ではありませんでした（${invalid.length}行）`
+              : "1列目に ISBN がある行が見つかりませんでした",
         );
         return;
       }
@@ -487,6 +506,8 @@ export function LibraryScreen({
         tally.notFound > 0 && `書誌なし${tally.notFound}`,
         tally.failed > 0 && `失敗${tally.failed}`,
         invalid.length > 0 && `ISBN不正${invalid.length}`,
+        rounded > 0 &&
+          `指数表記で読めず${rounded}（.xlsx で取り込み直してください）`,
       ].filter(Boolean);
       const message =
         `${tally.added}冊を取り込みました` +
@@ -631,7 +652,7 @@ export function LibraryScreen({
       {
         id: "csv-import",
         section: "追加",
-        title: "CSVから取り込む（1列目の ISBN）",
+        title: "CSV・Excelから取り込む（1列目の ISBN）",
         icon: <ImportIcon />,
         run: pickCsv,
       },
@@ -1048,7 +1069,7 @@ export function LibraryScreen({
       <input
         ref={setCsvInput}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         hidden
         onChange={(event) => {
           const file = event.target.files?.[0];
