@@ -93,3 +93,50 @@ export const bookSearchSchema = z.object({
   sort: z.enum(["recent", "title", "author", "published"]).default("recent"),
   limit: z.coerce.number().int().min(1).max(5000).default(50),
 });
+
+/** The fields a book has that a caller may set. */
+const EDITABLE = [
+  "title",
+  "authors",
+  "publisher",
+  "published",
+  "price",
+  "isbn",
+  "location",
+  "cover_url",
+  "ndc",
+  "note",
+] as const;
+
+/**
+ * A PATCH to one book: any of its fields, and nothing else. Only the
+ * keys are checked here; the values are checked by bookFieldsSchema
+ * once merged over the book as it stands, so a partial edit and a full
+ * one are held to exactly the same rules.
+ */
+export const bookPatchSchema = z
+  .object(Object.fromEntries(EDITABLE.map((key) => [key, z.unknown()])))
+  .partial()
+  .strict()
+  .refine((patch) => Object.keys(patch).length > 0, "Nothing to change");
+
+/**
+ * POST /api/v1/books: an ISBN alone, to be looked up and filled in
+ * from the catalogues (with a place and a note if wanted), or a book
+ * written out in full — anything with a title is taken as given.
+ */
+export const bookAddByIsbnSchema = z
+  .object({
+    isbn: isbnLookupSchema,
+    location: z.unknown().optional(),
+    note: z.unknown().optional(),
+  })
+  .strict();
+
+/** PATCH /api/v1/books: several books to one place (null: no place). */
+export const bookMoveSchema = z
+  .object({
+    bookIds: z.array(z.string().uuid()).min(1).max(5000),
+    location: z.string().nullable(),
+  })
+  .strict();

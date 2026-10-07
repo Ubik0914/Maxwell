@@ -1,7 +1,8 @@
 # maxwell-mcp — MCPサーバー
 
-ルート `/` の**蔵書**を、AIエージェントが呼べる読み取り専用のツールとして
-公開する MCP (Model Context Protocol) サーバー。**繋ぎ方は2つある。**
+ルート `/` の**蔵書**を、AIエージェントが呼べるツール（検索・閲覧と、
+メモ・項目の編集、追加、場所の移動、削除）として公開する
+MCP (Model Context Protocol) サーバー。**繋ぎ方は2つある。**
 
 > 以前ここにあった Maxwell のグラフ操作ツール（`list_stories` /
 > `create_task` / `set_task_status` など12個）は廃止した。グラフは
@@ -118,9 +119,22 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 | `whoami` | どのアカウントとして動いているか、トークンがまだ有効か |
 | `search_books` | 蔵書検索（**最初に呼ぶべき1本**）。`query` 省略で全件（登録が新しい順）。`sort`（recent / title / author / published）・`limit`（既定50、最大500） |
 | `get_book` | 1冊の全項目（メモ含む）。id は `search_books` から |
+| `append_note` | メモの末尾に1行追記。今あるメモは残す（メモを書くときの基本） |
+| `set_note` | メモを丸ごと書き換え。`""` で消去 |
+| `update_book` | 書名・著者・出版社・発売日・価格・ISBN・場所・NDC・メモのうち、渡したものだけ変更。`null` で消去（書名を除く） |
+| `move_books` | 複数冊の場所をまとめて変更。`null` / `""` で場所を外す |
+| `add_book` | ISBN だけ渡せば openBD / NDL から書誌を埋めて登録（`status`: added / duplicate / not_found）。書名を渡せば手入力として登録 |
+| `delete_book` | 1冊を削除（取り消し不可） |
 
-すべて `readOnlyHint: true`。追加・変更・削除のツールは無いので、
-ホストが確認なしで実行しても何も壊れない。
+読むだけのツールは `readOnlyHint: true`。上書きするもの（`set_note`・
+`update_book`）と `delete_book` は `destructiveHint: true` なので、
+慎重なホストはそれらの前に確認を挟む。追記と追加は破壊的でない扱い。
+
+書き込みもすべて `/api/v1` を通る（`POST /api/v1/books`、
+`PATCH /api/v1/books`（一括移動）、`PATCH` / `DELETE /api/v1/books/:id`）。
+部分更新は今の本に重ねてから、手で全項目を書いたときと同じ検証
+（`bookFieldsSchema`）を通す。ISBN での追加はアプリのスキャンと同じ関数
+（`src/features/library/shelve.ts`）。
 
 検索はアプリの蔵書画面と同じ関数（`src/domain/library/filter.ts`）を
 通る。スペース区切りの語が**すべて**、書名・著者・出版社・ISBN・場所・
