@@ -96,19 +96,41 @@ describe("tools/list", () => {
     }
   });
 
-  it("offers only the library readers", () => {
+  it("offers the library's readers and editors, nothing else", () => {
     expect(TOOLS.map((tool) => tool.name).sort()).toEqual([
+      "add_book",
+      "append_note",
+      "delete_book",
       "get_book",
+      "move_books",
       "search_books",
+      "set_note",
+      "update_book",
       "whoami",
     ]);
   });
 
-  it("marks every tool read-only, and none destructive", () => {
-    for (const tool of TOOLS) {
-      expect(tool.annotations?.readOnlyHint).toBe(true);
-      expect(tool.annotations?.destructiveHint ?? false).toBe(false);
-    }
+  it("marks the readers read-only and what overwrites or removes as destructive", () => {
+    const hints = Object.fromEntries(
+      TOOLS.map((tool) => [
+        tool.name,
+        [
+          tool.annotations?.readOnlyHint ?? false,
+          tool.annotations?.destructiveHint ?? false,
+        ],
+      ]),
+    );
+    expect(hints).toEqual({
+      whoami: [true, false],
+      search_books: [true, false],
+      get_book: [true, false],
+      append_note: [false, false],
+      add_book: [false, false],
+      move_books: [false, false],
+      set_note: [false, true],
+      update_book: [false, true],
+      delete_book: [false, true],
+    });
   });
 });
 
@@ -285,5 +307,143 @@ describe("the catalogue", () => {
         "password",
       );
     }
+  });
+});
+
+/**
+ * The editors, each a request (or two) to /api/v1. What matters is the
+ * method, the path and the body — that they ask the API for exactly the
+ * change they were given and nothing more.
+ */
+describe("the editing tools", () => {
+  type Asked = { path: string; method: string; body?: unknown };
+
+  async function run(
+    name: string,
+    args: Record<string, unknown>,
+    reply: (asked: Asked) => unknown = () => ({}),
+  ) {
+    const asked: Asked[] = [];
+    const response = await dispatch(
+      {
+        jsonrpc: "2.0",
+        id: 7,
+        method: "tools/call",
+        params: { name, arguments: args },
+      },
+      async (path, { method = "GET", body } = {}) => {
+        const request = { path, method, body };
+        asked.push(request);
+        return reply(request);
+      },
+    );
+    return { asked, response: response as Answer };
+  }
+
+  const id = "00000000-0000-4000-8000-000000000001";
+
+  it("append_note reads the note and writes it back with a line added", async () => {
+    const { asked } = await run(
+      "append_note",
+      { bookId: id, text: "2章まで読んだ" },
+      ({ method }) => (method === "GET" ? { id, note: "借りた本\n" } : {}),
+    );
+    expect(asked).toEqual([
+      { path: `/api/v1/books/${id}`, method: "GET", body: undefined },
+      {
+        path: `/api/v1/books/${id}`,
+        method: "PATCH",
+        body: { note: "借りた本\n2章まで読んだ" },
+      },
+    ]);
+  });
+
+  it("append_note starts the note when there was none", async () => {
+    const { asked } = await run(
+      "append_note",
+      { bookId: id, text: "最初のメモ" },
+      ({ method }) => (method === "GET" ? { id, note: null } : {}),
+    );
+    expect(asked[1].body).toEqual({ note: "最初のメモ" });
+  });
+
+  it("set_note replaces the note in one request", async () => {
+    const { asked } = await run("set_note", { bookId: id, note: "" });
+    expect(asked).toEqual([
+      { path: `/api/v1/books/${id}`, method: "PATCH", body: { note: "" } },
+    ]);
+  });
+
+  it("update_book sends only the fields it was given", async () => {
+    const { asked } = await run("update_book", {
+      bookId: id,
+      location: "会社",
+      price: null,
+    });
+    expect(asked).toEqual([
+      {
+        path: `/api/v1/books/${id}`,
+        method: "PATCH",
+        body: { location: "会社", price: null },
+      },
+    ]);
+  });
+
+  it("move_books is one request for every book", async () => {
+    const { asked } = await run("move_books", {
+      bookIds: [id, "00000000-0000-4000-8000-000000000002"],
+      location: "自宅",
+    });
+    expect(asked).toEqual([
+      {
+        path: "/api/v1/books",
+        method: "PATCH",
+        body: {
+          bookIds: [id, "00000000-0000-4000-8000-000000000002"],
+          location: "自宅",
+        },
+      },
+    ]);
+  });
+
+  it("add_book with an ISBN alone asks for a lookup", async () => {
+    const { asked } = await run("add_book", {
+      isbn: "978-4-15-010229-6",
+      location: "自宅",
+      price: 900,
+    });
+    expect(asked).toEqual([
+      {
+        path: "/api/v1/books",
+        method: "POST",
+        body: { isbn: "978-4-15-010229-6", location: "自宅" },
+      },
+    ]);
+  });
+
+  it("add_book with a title sends the book as written", async () => {
+    const { asked } = await run("add_book", {
+      title: "自費出版の本",
+      authors: "わたし",
+      price: 500,
+    });
+    expect(asked[0].body).toEqual({
+      title: "自費出版の本",
+      authors: "わたし",
+      price: 500,
+    });
+  });
+
+  it("add_book with neither says so without a request", async () => {
+    const { asked, response } = await run("add_book", { location: "自宅" });
+    expect(asked).toEqual([]);
+    expect(response.result?.isError).toBe(true);
+  });
+
+  it("delete_book sends a DELETE for the one book", async () => {
+    const { asked } = await run("delete_book", { bookId: id });
+    expect(asked).toEqual([
+      { path: `/api/v1/books/${id}`, method: "DELETE", body: undefined },
+    ]);
   });
 });

@@ -16,6 +16,12 @@ import {
 } from "@/features/library/bibliography";
 import type { BookCandidate } from "@/domain/library/ndl";
 import type { ShelvedBook } from "@/domain/library/filter";
+import {
+  CatalogueUnreachableError,
+  InvalidDetailsError,
+  shelveByIsbn,
+  type ScanOutcome,
+} from "@/features/library/shelve";
 import * as bookRepository from "@/repositories/book.repository";
 import type { ActionResult } from "@/types/action-result";
 
@@ -237,19 +243,14 @@ function unreachable<T>(): ActionResult<T> {
   };
 }
 
-export type ScanOutcome =
-  | { status: "added"; book: ShelvedBook }
-  | { status: "duplicate"; book: ShelvedBook }
-  | { status: "not_found"; isbn: string };
+export type { ScanOutcome };
 
 /**
  * One scan: an ISBN in, a book on the shelf out.
  *
  * The continuous scanner calls this once per barcode, so it does the
- * whole job in one round trip — check the shelf, ask openBD, insert —
- * rather than making the page choreograph three. What it cannot do is
- * invent a title: an ISBN openBD does not know comes back as not_found
- * for the person to fill in, rather than as a row called "9784…".
+ * whole job in one round trip; shelveByIsbn is that job, shared with
+ * POST /api/v1/books so the two cannot drift apart.
  *
  * `defaults` are the scanning session's settings (which shelf the books
  * are going on), applied to every book it adds.
@@ -266,42 +267,12 @@ export async function addBookByIsbnAction(
   const { supabase, user } = await requireUser();
   if (!user) return notLoggedIn();
 
-  const isbn = parsed.data;
-
   try {
-    const existing = await bookRepository.findBookByIsbn(supabase, isbn);
-    if (existing)
-      return { success: true, data: { status: "duplicate", book: existing } };
+    const outcome = await shelveByIsbn(supabase, parsed.data, defaults);
+    return { success: true, data: outcome };
   } catch (error) {
-    return failed(error, "本棚を確認できませんでした。");
-  }
-
-  let details: BookDetails | null;
-  try {
-    details = await fetchBookDetails(isbn);
-  } catch {
-    return unreachable();
-  }
-  if (!details) return { success: true, data: { status: "not_found", isbn } };
-
-  const fields = bookFieldsSchema.safeParse({ ...details, ...defaults, isbn });
-  if (!fields.success) {
-    return invalid(fields.error.issues[0]?.message ?? "Invalid input");
-  }
-
-  try {
-    const book = await bookRepository.createBook(supabase, fields.data);
-    return { success: true, data: { status: "added", book } };
-  } catch (error) {
-    // Two scans of the same book racing each other: the unique index
-    // lets one in, and the other is the duplicate it would have been
-    // had it arrived a moment later.
-    if (isDuplicate(error)) {
-      const book = await bookRepository
-        .findBookByIsbn(supabase, isbn)
-        .catch(() => null);
-      if (book) return { success: true, data: { status: "duplicate", book } };
-    }
+    if (error instanceof CatalogueUnreachableError) return unreachable();
+    if (error instanceof InvalidDetailsError) return invalid(error.message);
     return failed(error, "本を登録できませんでした。");
   }
 }

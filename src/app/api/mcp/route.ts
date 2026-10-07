@@ -4,7 +4,7 @@ import { handle, type CallApi } from "@mcp/maxwell-mcp.mjs";
 /**
  * The library, as a remote MCP server.
  *
- * The same read-only book tools the stdio server offers
+ * The same library tools the stdio server offers
  * (mcp/maxwell-mcp.mjs),
  * over Streamable HTTP instead of a pipe, so a client that cannot run a
  * process on the user's machine can still reach them — no clone, no

@@ -13,10 +13,11 @@
  * than closing over one, so there is one catalogue and one `handle`,
  * and a tool cannot behave differently depending on how it was reached.
  *
- * What it offers is the library at "/", read-only: searching the
- * signed-in user's books and reading one. Maxwell's own graph tools
- * were withdrawn from here; the graph is still reachable over /api/v1
- * and the CLI.
+ * What it offers is the library at "/": searching the signed-in
+ * user's books and reading one, and editing them — adding a book by
+ * its ISBN, changing its fields, writing its note, moving books to a
+ * place, removing one. Maxwell's own graph tools were withdrawn from
+ * here; the graph is still reachable over /api/v1 and the CLI.
  *
  * It is a client of /api/v1 and nothing more, exactly as the CLI is.
  * There is no second code path into the data here: the same endpoints,
@@ -43,7 +44,7 @@ import { MaxwellError, apiRequest, readCredentials } from "../cli/client.mjs";
 
 // Named for what it serves. The library is what a connected client
 // sees; nothing it is told should point anywhere else.
-const SERVER = { name: "library", version: "0.2.0" };
+const SERVER = { name: "library", version: "0.3.0" };
 
 /**
  * Protocol versions this speaks. A client asks for one in `initialize`;
@@ -56,9 +57,8 @@ const SERVER = { name: "library", version: "0.2.0" };
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 /** What the model is told about this server once, on connection. */
-const INSTRUCTIONS = `This server reads the signed-in user's library: the books on the
-shelf and where each one is. It only reads — nothing here adds,
-changes or removes a book.
+const INSTRUCTIONS = `This server reads and edits the signed-in user's library: the books
+on the shelf, where each one is, and the note kept on each.
 
 search_books is the call to start with. With no query it lists the
 shelf, newest first; with one, every word must appear somewhere in the
@@ -68,6 +68,17 @@ Its reply carries \`total\` (how many matched before the limit) and
 \`stats\` for the whole shelf, so an empty page and a truncated one
 can be told apart. get_book returns one book by the id search_books
 gave it.
+
+To change things, find the book first and use its id:
+- append_note adds a line to a book's note and keeps what was there;
+  set_note replaces the note outright ("" clears it). Prefer
+  append_note unless asked to rewrite.
+- update_book changes any other fields (title, authors, location, …)
+  and leaves the ones not given alone.
+- move_books puts several books in one place at once.
+- add_book adds a book by its ISBN, filling the rest in from the
+  catalogues; a book already on the shelf is reported, not added twice.
+- delete_book removes a book for good. Confirm with the user first.
 
 Everything acts as the signed-in user, so it can reach exactly the
 books they own. A book it cannot see returns "not found" rather than
@@ -86,14 +97,63 @@ const uuid = (description) => ({
 });
 
 /**
- * The library, read-only.
+ * What each tool may do, for a host deciding whether to ask first.
  *
- * Maxwell's graph tools used to live here and were withdrawn: the one
- * thing this server now offers is looking books up. Every tool is a
- * reader, and says so in `annotations`, so a host can run them without
- * stopping to ask — there is nothing here that could destroy anything.
+ * Readers say so and can run unasked. Writers are not read-only; the
+ * ones that overwrite what was there (a field, the whole note) or
+ * remove a book are marked destructive, so a careful host asks before
+ * those and not before adding a line or a book.
  */
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true };
+const ADDS = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  openWorldHint: true,
+};
+const OVERWRITES = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: true,
+  openWorldHint: true,
+};
+
+/** The fields of a book a caller may set, as the API names them. */
+const FIELDS = {
+  title: { type: "string", description: "The title." },
+  authors: { type: ["string", "null"], description: "The author(s)." },
+  publisher: { type: ["string", "null"], description: "The publisher." },
+  published: {
+    type: ["string", "null"],
+    description: 'Publication date as written, e.g. "2015-04".',
+  },
+  price: {
+    type: ["integer", "null"],
+    minimum: 0,
+    description: "Price in yen.",
+  },
+  isbn: {
+    type: ["string", "null"],
+    description: "ISBN-10 or -13; hyphens are fine.",
+  },
+  location: {
+    type: ["string", "null"],
+    description: 'Where the book is kept, e.g. "自宅" or "会社". null clears it.',
+  },
+  ndc: {
+    type: ["string", "null"],
+    description: 'Nippon Decimal Classification, e.g. "913.6" — the genre.',
+  },
+  note: {
+    type: ["string", "null"],
+    description: "The free-text note. null or \"\" clears it.",
+  },
+};
+
+/** The book's note with `text` added on a line of its own. */
+function appended(note, text) {
+  const before = (note ?? "").replace(/\s+$/, "");
+  return before ? `${before}\n${text}` : text;
+}
 
 const TOOLS = [
   {
@@ -165,6 +225,151 @@ const TOOLS = [
     annotations: READ_ONLY,
     run: ({ bookId }, call) =>
       call(`/api/v1/books/${encodeURIComponent(bookId)}`),
+  },
+
+  {
+    name: "append_note",
+    title: "Add to a book's note",
+    description:
+      "Adds text to the end of a book's note, on a new line, keeping everything already written. The usual way to jot something down about a book.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        bookId: uuid("From search_books."),
+        text: { type: "string", description: "What to add." },
+      },
+      required: ["bookId", "text"],
+      additionalProperties: false,
+    },
+    annotations: ADDS,
+    async run({ bookId, text }, call) {
+      const path = `/api/v1/books/${encodeURIComponent(bookId)}`;
+      const book = await call(path);
+      return call(path, {
+        method: "PATCH",
+        body: { note: appended(book?.note, text) },
+      });
+    },
+  },
+
+  {
+    name: "set_note",
+    title: "Rewrite a book's note",
+    description:
+      'Replaces a book\'s note with the given text — what was there is gone. "" clears it. To add to the note instead, use append_note.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        bookId: uuid("From search_books."),
+        note: { type: "string", description: "The whole new note." },
+      },
+      required: ["bookId", "note"],
+      additionalProperties: false,
+    },
+    annotations: OVERWRITES,
+    run: ({ bookId, note }, call) =>
+      call(`/api/v1/books/${encodeURIComponent(bookId)}`, {
+        method: "PATCH",
+        body: { note },
+      }),
+  },
+
+  {
+    name: "update_book",
+    title: "Edit a book",
+    description:
+      "Changes some of a book's fields — title, authors, publisher, date, price, ISBN, location, genre (NDC) or note — and leaves the rest as they are. null clears a field (not the title).",
+    inputSchema: {
+      type: "object",
+      properties: { bookId: uuid("From search_books."), ...FIELDS },
+      required: ["bookId"],
+      additionalProperties: false,
+    },
+    annotations: OVERWRITES,
+    run({ bookId, ...fields }, call) {
+      return call(`/api/v1/books/${encodeURIComponent(bookId)}`, {
+        method: "PATCH",
+        body: fields,
+      });
+    },
+  },
+
+  {
+    name: "move_books",
+    title: "Move books to a place",
+    description:
+      'Puts one or more books in the same place at once, e.g. everything read this month into "会社". null or "" takes them off any shelf.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        bookIds: {
+          type: "array",
+          items: { type: "string", format: "uuid" },
+          minItems: 1,
+          description: "From search_books.",
+        },
+        location: FIELDS.location,
+      },
+      required: ["bookIds", "location"],
+      additionalProperties: false,
+    },
+    annotations: { ...OVERWRITES, destructiveHint: false },
+    run: ({ bookIds, location }, call) =>
+      call("/api/v1/books", {
+        method: "PATCH",
+        body: { bookIds, location },
+      }),
+  },
+
+  {
+    name: "add_book",
+    title: "Add a book",
+    description:
+      'Adds a book to the shelf. Give an ISBN alone (with a location or note if wanted) and the title, authors, cover and the rest are filled in from the catalogues; the reply\'s status is "added", "duplicate" (already on the shelf, left as it was) or "not_found" (no catalogue knows it — retry with a title to add it by hand). Give a title to add a book written out in full.',
+    inputSchema: {
+      type: "object",
+      properties: FIELDS,
+      additionalProperties: false,
+    },
+    annotations: ADDS,
+    run(args, call) {
+      if (!args.title && !args.isbn) {
+        throw new Error("add_book needs an isbn or a title.");
+      }
+      // An ISBN alone is a lookup; the API takes only those three keys
+      // for one, so anything else means a book written out by hand.
+      const body = args.title
+        ? args
+        : Object.fromEntries(
+            Object.entries(args).filter(([key]) =>
+              ["isbn", "location", "note"].includes(key),
+            ),
+          );
+      return call("/api/v1/books", { method: "POST", body });
+    },
+  },
+
+  {
+    name: "delete_book",
+    title: "Delete a book",
+    description:
+      "Removes a book from the shelf for good, note and all. There is no undo — confirm with the user before calling.",
+    inputSchema: {
+      type: "object",
+      properties: { bookId: uuid("From search_books.") },
+      required: ["bookId"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    run: ({ bookId }, call) =>
+      call(`/api/v1/books/${encodeURIComponent(bookId)}`, {
+        method: "DELETE",
+      }),
   },
 ];
 
