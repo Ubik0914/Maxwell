@@ -755,14 +755,25 @@ export function LibraryScreen({
 
   // The list's keyboard. Typing goes to the search box wherever focus
   // is, the way Raycast's does; ↑↓ move the selection, ↵ opens it
-  // (to read, not to edit — that is ⌘E), ⌘K opens the actions, and
-  // Escape clears the search.
+  // (to read, not to edit — that is ⌘E), ⌘K opens the actions, ⌘G
+  // puts the cursor in the search box, and Escape clears the search.
   useEffect(() => {
     if (editing || actionsOpen || viewing) return;
 
     function onKeyDown(event: KeyboardEvent) {
-      if (typingElsewhere(event.target, searchRef.current)) return;
       const mod = event.metaKey || event.ctrlKey;
+
+      // ⌘G: to the search box from anywhere, a note being typed in
+      // included, with what is already there selected so typing
+      // replaces it. Taken from the browser's find-next on purpose.
+      if (mod && !event.shiftKey && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+        return;
+      }
+
+      if (typingElsewhere(event.target, searchRef.current)) return;
 
       if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -1119,6 +1130,8 @@ export function LibraryScreen({
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="本を検索…"
                   aria-label="蔵書を検索"
+                  aria-keyshortcuts="Meta+G Control+G"
+                  title="検索（⌘G）"
                   autoComplete="off"
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
