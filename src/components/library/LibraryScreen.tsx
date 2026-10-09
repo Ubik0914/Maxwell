@@ -860,9 +860,9 @@ export function LibraryScreen({
         : ndcClassName(activeGenre);
   /**
    * A phone swipes along the shelves the sidebar lists: すべて, then
-   * each place. The finger moving right goes on to the next place, as
-   * asked; left comes back towards すべて. The list starts again at its
-   * top, sliding in from the side the finger came from.
+   * each place. The finger moving left goes on to the next place, as
+   * pages turn; right comes back towards すべて. The list starts again
+   * at its top, sliding in from the side the finger came from.
    */
   const [shelfEnter, setShelfEnter] = useState<-1 | 1 | 0>(0);
   // Picked from the sidebar or ⌘K: no slide, it did not come from a side.
@@ -871,8 +871,7 @@ export function LibraryScreen({
     setShelfEnter(0);
   };
   const swipeShelf = useSwipeFilter({
-    onSwipe: (direction) => {
-      const step = -direction as -1 | 1;
+    onSwipe: (step) => {
       const next = stepShelf(places, location, step);
       if (!next) return;
       setShelf(next.name);
@@ -882,9 +881,9 @@ export function LibraryScreen({
   });
   const shelfEnterClass =
     shelfEnter === 1
-      ? "pane-from-left"
+      ? "pane-from-right"
       : shelfEnter === -1
-        ? "pane-from-right"
+        ? "pane-from-left"
         : "";
   const shelfName =
     [location === undefined ? null : (location ?? "場所未設定"), genreName]
