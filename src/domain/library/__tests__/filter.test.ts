@@ -7,6 +7,7 @@ import {
   shelves,
   sortBooks,
   type ShelvedBook,
+  stepShelf,
 } from "../filter";
 
 function book(overrides: Partial<ShelvedBook>): ShelvedBook {
@@ -184,5 +185,27 @@ describe("genres", () => {
     expect(
       filterBooks(books, { query: "英米文学" }).map((b) => b.title),
     ).toEqual(["a"]);
+  });
+});
+
+describe("stepShelf", () => {
+  const places = [
+    { name: "自宅", count: 3 },
+    { name: "会社", count: 2 },
+    { name: null, count: 1 },
+  ];
+
+  it("goes from すべて to the first place, and on to 場所未設定", () => {
+    expect(stepShelf(places, undefined, 1)).toEqual({ name: "自宅" });
+    expect(stepShelf(places, "会社", 1)).toEqual({ name: null });
+  });
+
+  it("goes back to すべて", () => {
+    expect(stepShelf(places, "自宅", -1)).toEqual({ name: undefined });
+  });
+
+  it("stops at both ends", () => {
+    expect(stepShelf(places, undefined, -1)).toBeNull();
+    expect(stepShelf(places, null, 1)).toBeNull();
   });
 });
