@@ -12,7 +12,25 @@ import type { ShelvedBook } from "./filter";
 export function googleSearchUrl(
   book: Pick<ShelvedBook, "title" | "authors">,
 ): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(titleAndAuthor(book))}`;
+}
+
+/**
+ * An Amazon (amazon.co.jp, books) search for a book: its ISBN when it
+ * has one, else its title and first author.
+ *
+ * Unlike Google, the ISBN is what a person on Amazon wants: it lands on
+ * this very edition, where a title search lists every edition, the
+ * Kindle one and unrelated books with the same words.
+ */
+export function amazonSearchUrl(
+  book: Pick<ShelvedBook, "title" | "authors" | "isbn">,
+): string {
+  const query = book.isbn?.trim() || titleAndAuthor(book);
+  return `https://www.amazon.co.jp/s?k=${encodeURIComponent(query)}&i=stripbooks`;
+}
+
+function titleAndAuthor(book: Pick<ShelvedBook, "title" | "authors">): string {
   const author = book.authors?.split("/")[0]?.trim();
-  const query = [book.title.trim(), author].filter(Boolean).join(" ");
-  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  return [book.title.trim(), author].filter(Boolean).join(" ");
 }

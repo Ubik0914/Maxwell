@@ -74,7 +74,7 @@ import {
 } from "@/domain/library/filter";
 import { formatIsbn } from "@/domain/library/isbn";
 import { ndcClassName, ndcGenre } from "@/domain/library/ndc";
-import { googleSearchUrl } from "@/domain/library/search";
+import { amazonSearchUrl, googleSearchUrl } from "@/domain/library/search";
 
 const SORT_LABEL: Record<BookSort, string> = {
   recent: "登録が新しい順",
@@ -1854,6 +1854,17 @@ function BookDetail({
         >
           <SearchIcon className={ICON} />
           Google
+        </a>
+        <a
+          href={amazonSearchUrl(book)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Amazonで検索"
+          title="Amazonで検索"
+          className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-border px-3 text-sm text-text-muted transition-[transform,background-color,color] hover:bg-surface-hover hover:text-text active:scale-[0.92] sm:h-8 sm:rounded-lg sm:px-2.5 sm:text-xs"
+        >
+          <SearchIcon className={ICON} />
+          Amazon
         </a>
       </div>
 
