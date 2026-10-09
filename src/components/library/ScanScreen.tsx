@@ -11,6 +11,7 @@ import {
   PencilIcon,
   PlusIcon,
   RefreshIcon,
+  SearchIcon,
   UndoIcon,
 } from "@/components/icons";
 import { useRouter } from "next/navigation";
@@ -32,6 +33,7 @@ import {
   subscribeShelf,
 } from "@/features/library/shelfStore";
 import { PlaceSuggestions } from "@/components/library/PlaceSuggestions";
+import { SearchLinks } from "@/components/library/SearchLinks";
 import { useOpenedFromShell } from "@/components/library/scanShell";
 import {
   useBarcodeScanner,
@@ -40,13 +42,22 @@ import {
 import {
   addBookByIsbnAction,
   deleteBookAction,
+  lookupIsbnAction,
 } from "@/features/library/actions";
 import { formatIsbn } from "@/domain/library/isbn";
 import { isbnFromBarcode, ScanSession } from "@/domain/library/scan";
 import { shelves, type ShelvedBook } from "@/domain/library/filter";
+import type { BookDetails } from "@/domain/library/openbd";
 
 /** Icon size inside an IconButton: larger under a thumb, 16px with a mouse. */
 const ICON = "h-5 w-5 sm:h-4 sm:w-4";
+
+/**
+ * What a scan does: put the book on the shelf, or only look it up, to
+ * search for it on Google or Amazon (in a shop, say, deciding whether
+ * to buy it) without it landing in the library.
+ */
+type ScanMode = "add" | "search";
 
 type RowState =
   | { kind: "pending" }
@@ -54,11 +65,16 @@ type RowState =
   | { kind: "duplicate"; book: ShelvedBook }
   | { kind: "not_found" }
   | { kind: "undone"; book: ShelvedBook }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  /** Looked up, not added. `owned` when the library already has it. */
+  | { kind: "found"; book: BookDetails; owned: boolean }
+  /** Looked up, not added, and the bibliographic databases know nothing. */
+  | { kind: "unknown"; owned: boolean };
 
 interface Row {
   id: number;
   isbn: string;
+  mode: ScanMode;
   state: RowState;
 }
 
@@ -117,12 +133,18 @@ export function ScanScreen() {
   usePullToDismiss({ sheetRef, scrollRef, onDismiss: leave });
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const session = useRef(new ScanSession());
+  // One per mode: a book looked up can still be scanned to add it.
+  const sessions = useRef<Record<ScanMode, ScanSession>>({
+    add: new ScanSession(),
+    search: new ScanSession(),
+  });
   const queue = useRef<Promise<void>>(Promise.resolve());
   const nextId = useRef(1);
+  /** Keyed by mode and ISBN, as the sessions are. */
   const rowByIsbn = useRef(new Map<string, number>());
   const audio = useRef<AudioContext | null>(null);
 
+  const [mode, setMode] = useState<ScanMode>("add");
   const [cameraOn, setCameraOn] = useState(true);
   const [manualOpen, setManualOpen] = useState(false);
   const [typingBook, setTypingBook] = useState(false);
@@ -148,6 +170,11 @@ export function ScanScreen() {
         .filter((name): name is string => name !== null),
     [shelfBooks],
   );
+  // Read when a lookup lands, to say whether the book is already owned.
+  const shelfNow = useRef(shelfBooks);
+  useEffect(() => {
+    shelfNow.current = shelfBooks;
+  }, [shelfBooks]);
   const [rows, setRows] = useState<Row[]>([]);
   const [flash, setFlash] = useState<number | null>(null);
   const [manualEntry, setManualEntry] = useState<Row | null>(null);
@@ -185,8 +212,25 @@ export function ScanScreen() {
   }, []);
 
   const process = useCallback(
-    (id: number, isbn: string) => {
+    (id: number, isbn: string, mode: ScanMode) => {
       queue.current = queue.current.then(async () => {
+        if (mode === "search") {
+          const result = await lookupIsbnAction(isbn).catch(() => null);
+          const owned = shelfNow.current.some((book) => book.isbn === isbn);
+          if (result?.success) {
+            update(id, { kind: "found", book: result.data, owned });
+            signal(true);
+          } else if (result) {
+            // Not found: the ISBN alone is still worth searching for.
+            update(id, { kind: "unknown", owned });
+            signal(false);
+          } else {
+            update(id, { kind: "error", message: "通信に失敗しました。" });
+            signal(false);
+          }
+          return;
+        }
+
         const { location } = defaults.current;
         const result = await addBookByIsbnAction(isbn, { location }).catch(
           () => null,
@@ -223,25 +267,33 @@ export function ScanScreen() {
     [signal, update],
   );
 
+  // Read when a barcode arrives, so the camera's callback stays put.
+  const modeNow = useRef(mode);
+  useEffect(() => {
+    modeNow.current = mode;
+  }, [mode]);
+
   /** Every source of an ISBN ends here: camera, scanner, keyboard. */
   const offer = useCallback(
     (text: string): boolean => {
       const isbn = isbnFromBarcode(text);
       if (!isbn) return false;
+      const mode = modeNow.current;
+      const key = `${mode}:${isbn}`;
 
-      if (!session.current.admit(isbn)) {
+      if (!sessions.current[mode].admit(isbn)) {
         // Already in the list: point at it instead of adding a row.
-        setFlash(rowByIsbn.current.get(isbn) ?? null);
+        setFlash(rowByIsbn.current.get(key) ?? null);
         return true;
       }
 
       const id = nextId.current++;
-      rowByIsbn.current.set(isbn, id);
+      rowByIsbn.current.set(key, id);
       setRows((current) => [
-        { id, isbn, state: { kind: "pending" } },
+        { id, isbn, mode, state: { kind: "pending" } },
         ...current,
       ]);
-      process(id, isbn);
+      process(id, isbn, mode);
       return true;
     },
     [process],
@@ -302,14 +354,14 @@ export function ScanScreen() {
       update(row.id, { kind: "error", message: result.error.message });
       return;
     }
-    session.current.forget(row.isbn);
+    sessions.current.add.forget(row.isbn);
     update(row.id, { kind: "undone", book: row.state.book });
     void refreshShelf();
   }
 
   function retry(row: Row) {
     update(row.id, { kind: "pending" });
-    process(row.id, row.isbn);
+    process(row.id, row.isbn, row.mode);
   }
 
   const counts = rows.reduce(
@@ -319,6 +371,7 @@ export function ScanScreen() {
     }),
     {} as Partial<Record<RowState["kind"], number>>,
   );
+  const searched = (counts.found ?? 0) + (counts.unknown ?? 0);
 
   return (
     <Window sheet settled={openedFromShell} sheetRef={sheetRef}>
@@ -384,17 +437,24 @@ export function ScanScreen() {
             )}
 
           <div className="flex items-center gap-2">
-            <input
-              id="scan-location"
-              list="scan-location-places"
-              autoComplete="off"
-              aria-label="登録先の場所"
-              value={location}
-              onChange={(event) => setLocation(event.target.value)}
-              placeholder="登録先の場所（例: 会社）"
-              maxLength={100}
-              className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
-            />
+            <ModeSwitch mode={mode} onChange={setMode} />
+            {mode === "add" ? (
+              <input
+                id="scan-location"
+                list="scan-location-places"
+                autoComplete="off"
+                aria-label="登録先の場所"
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                placeholder="登録先の場所（例: 会社）"
+                maxLength={100}
+                className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
+              />
+            ) : (
+              <p className="min-w-0 flex-1 text-xs text-text-muted">
+                蔵書には追加しません
+              </p>
+            )}
             <IconButton
               label={cameraOn ? "カメラを止める" : "カメラを再開"}
               tone="outline"
@@ -407,12 +467,14 @@ export function ScanScreen() {
               )}
             </IconButton>
           </div>
-          <PlaceSuggestions
-            listId="scan-location-places"
-            places={places}
-            value={location}
-            onPick={setLocation}
-          />
+          {mode === "add" && (
+            <PlaceSuggestions
+              listId="scan-location-places"
+              places={places}
+              value={location}
+              onPick={setLocation}
+            />
+          )}
         </section>
 
         {/* The secondary ways in. Folded away while the camera works;
@@ -442,8 +504,16 @@ export function ScanScreen() {
                 placeholder="ISBN を読み取るか入力して Enter"
                 className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
               />
-              <IconButton label="追加" tone="outline" type="submit">
-                <PlusIcon className={ICON} />
+              <IconButton
+                label={mode === "add" ? "追加" : "検索"}
+                tone="outline"
+                type="submit"
+              >
+                {mode === "add" ? (
+                  <PlusIcon className={ICON} />
+                ) : (
+                  <SearchIcon className={ICON} />
+                )}
               </IconButton>
             </div>
             {manualError && (
@@ -452,14 +522,16 @@ export function ScanScreen() {
               </p>
             )}
           </form>
-          <button
-            type="button"
-            onClick={() => setTypingBook(true)}
-            className="mt-2 mb-1 flex min-h-11 items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text sm:min-h-0 sm:text-xs"
-          >
-            <PlusIcon className="h-3.5 w-3.5" />
-            バーコードの無い本を手入力で追加
-          </button>
+          {mode === "add" && (
+            <button
+              type="button"
+              onClick={() => setTypingBook(true)}
+              className="mt-2 mb-1 flex min-h-11 items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text sm:min-h-0 sm:text-xs"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              バーコードの無い本を手入力で追加
+            </button>
+          )}
         </details>
 
         <section className="flex flex-col gap-2">
@@ -496,6 +568,7 @@ export function ScanScreen() {
               書誌なし {counts.not_found ?? 0}
               {counts.error ? ` · エラー ${counts.error}` : ""}
               {counts.pending ? ` · 処理中 ${counts.pending}` : ""}
+              {searched ? ` · 検索 ${searched}` : ""}
             </span>
           </>
         }
@@ -512,11 +585,16 @@ export function ScanScreen() {
           onSaved={(book) => {
             const id = nextId.current++;
             if (book.isbn) {
-              session.current.admit(book.isbn);
-              rowByIsbn.current.set(book.isbn, id);
+              sessions.current.add.admit(book.isbn);
+              rowByIsbn.current.set(`add:${book.isbn}`, id);
             }
             setRows((current) => [
-              { id, isbn: book.isbn ?? "", state: { kind: "added", book } },
+              {
+                id,
+                isbn: book.isbn ?? "",
+                mode: "add",
+                state: { kind: "added", book },
+              },
               ...current,
             ]);
             void refreshShelf();
@@ -546,7 +624,47 @@ const TONE: Record<RowState["kind"], string> = {
   not_found: "",
   undone: "opacity-50",
   error: "",
+  found: "",
+  unknown: "",
 };
+
+/** 登録 or 検索: what the next scan does. */
+function ModeSwitch({
+  mode,
+  onChange,
+}: {
+  mode: ScanMode;
+  onChange: (mode: ScanMode) => void;
+}) {
+  const options: [ScanMode, string][] = [
+    ["add", "登録"],
+    ["search", "検索"],
+  ];
+  return (
+    <div
+      role="radiogroup"
+      aria-label="スキャンしたら"
+      className="flex shrink-0 rounded-lg bg-bg/60 p-0.5"
+    >
+      {options.map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={mode === value}
+          onClick={() => onChange(value)}
+          className={`flex h-10 items-center rounded-[10px] px-3 text-sm transition-colors sm:h-7 sm:rounded-md sm:px-2.5 sm:text-xs ${
+            mode === value
+              ? "bg-surface-hover text-text"
+              : "text-text-faint hover:text-text"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function ScanRow({
   row,
@@ -565,7 +683,8 @@ function ScanRow({
   const book =
     state.kind === "added" ||
     state.kind === "duplicate" ||
-    state.kind === "undone"
+    state.kind === "undone" ||
+    state.kind === "found"
       ? state.book
       : null;
 
@@ -597,8 +716,12 @@ function ScanRow({
           {state.kind === "not_found" && "書誌データベースに見つかりません"}
           {state.kind === "undone" && "取り消しました"}
           {state.kind === "error" && state.message}
+          {state.kind === "found" &&
+            (state.owned ? "蔵書にあります" : (book?.authors ?? "著者不明"))}
+          {state.kind === "unknown" &&
+            (state.owned ? "蔵書にあります" : "書誌なし · ISBN で検索します")}
         </p>
-        {state.kind === "added" && book && (
+        {(state.kind === "added" || state.kind === "found") && book && (
           <p className="truncate text-[11px] text-text-faint">
             {[
               book.publisher,
@@ -647,6 +770,16 @@ function ScanRow({
           >
             <PencilIcon className={ICON} />
           </IconButton>
+        )}
+        {(state.kind === "found" || state.kind === "unknown") && (
+          <SearchLinks
+            compact
+            book={{
+              title: book?.title ?? row.isbn,
+              authors: book?.authors ?? null,
+              isbn: row.isbn,
+            }}
+          />
         )}
         {state.kind === "error" && (
           <IconButton
