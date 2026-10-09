@@ -9,9 +9,7 @@ import {
   CheckIcon,
   CopyIcon,
   PencilIcon,
-  PlusIcon,
   RefreshIcon,
-  SearchIcon,
   UndoIcon,
 } from "@/components/icons";
 import { useRouter } from "next/navigation";
@@ -81,17 +79,16 @@ interface Row {
 const SCANNER_MESSAGE: Partial<Record<ScannerState, string>> = {
   starting: "カメラを起動しています…",
   denied:
-    "カメラの使用が許可されていません。ブラウザの設定で許可するか、下のバーコードリーダー / 手入力をお使いください。",
+    "カメラの使用が許可されていません。ブラウザの設定で許可するか、蔵書の「手入力で追加」をお使いください。",
   unavailable:
-    "この端末ではカメラを使えません。バーコードリーダーか手入力で続けられます。",
+    "この端末ではカメラを使えません。蔵書の「手入力で追加」をお使いください。",
   error: "カメラを起動できませんでした。もう一度お試しください。",
 };
 
 /**
  * Scanning a shelf, one book after another, without stopping.
  *
- * Every barcode the camera (or a keyboard-wedge scanner, or a person)
- * produces goes into a queue that is worked through one ISBN at a time:
+ * Every barcode the camera produces goes into a queue that is worked through one ISBN at a time:
  * look it up, add it, report back, next. One at a time because two
  * copies of the same scan must not race each other into the table, and
  * because the list below reads in the order the books were scanned.
@@ -102,8 +99,8 @@ const SCANNER_MESSAGE: Partial<Record<ScannerState, string>> = {
  * rather than a confirm step standing between every book and the next.
  *
  * Scanning is the way in, so the camera starts as soon as the page
- * opens. Typing — an ISBN, or a whole book with no barcode — is still
- * here, folded away below it.
+ * opens, and the books read come straight below it. Typing a book in is
+ * the library's 手入力で追加, not a way into a scan.
  */
 export function ScanScreen() {
   const router = useRouter();
@@ -132,7 +129,6 @@ export function ScanScreen() {
   // On a phone the screen is a sheet, and pulled down it goes.
   usePullToDismiss({ sheetRef, scrollRef, onDismiss: leave });
   const videoRef = useRef<HTMLVideoElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   // One per mode: a book looked up can still be scanned to add it.
   const sessions = useRef<Record<ScanMode, ScanSession>>({
     add: new ScanSession(),
@@ -146,10 +142,6 @@ export function ScanScreen() {
 
   const [mode, setMode] = useState<ScanMode>("add");
   const [cameraOn, setCameraOn] = useState(true);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [typingBook, setTypingBook] = useState(false);
-  const [manual, setManual] = useState("");
-  const [manualError, setManualError] = useState<string | null>(null);
   const [location, setLocation] = useState("");
 
   // The places books are already kept, to offer for 登録先の場所: from
@@ -307,10 +299,6 @@ export function ScanScreen() {
 
   const scannerState = useBarcodeScanner(videoRef, offer, cameraOn);
   const openedFromShell = useOpenedFromShell();
-  const cameraFailed =
-    scannerState === "denied" ||
-    scannerState === "unavailable" ||
-    scannerState === "error";
 
   // The AudioContext has to be born inside a user gesture, or iOS keeps
   // it muted for good. The camera now starts on its own, so the first
@@ -335,18 +323,6 @@ export function ScanScreen() {
       window.removeEventListener("keydown", unlock);
     };
   }, []);
-
-  function submitManual(event: React.FormEvent) {
-    event.preventDefault();
-    if (manual.trim() === "") return;
-    if (offer(manual)) {
-      setManual("");
-      setManualError(null);
-    } else {
-      setManualError("ISBN として読めませんでした。");
-    }
-    inputRef.current?.focus();
-  }
 
   async function undo(row: Row & { state: { kind: "added" } }) {
     const result = await deleteBookAction(row.state.book.id);
@@ -438,23 +414,9 @@ export function ScanScreen() {
 
           <div className="flex items-center gap-2">
             <ModeSwitch mode={mode} onChange={setMode} />
-            {mode === "add" ? (
-              <input
-                id="scan-location"
-                list="scan-location-places"
-                autoComplete="off"
-                aria-label="登録先の場所"
-                value={location}
-                onChange={(event) => setLocation(event.target.value)}
-                placeholder="登録先の場所（例: 会社）"
-                maxLength={100}
-                className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
-              />
-            ) : (
-              <p className="min-w-0 flex-1 text-xs text-text-muted">
-                蔵書には追加しません
-              </p>
-            )}
+            <p className="min-w-0 flex-1 truncate text-xs text-text-muted">
+              {mode === "search" && "蔵書には追加しません"}
+            </p>
             <IconButton
               label={cameraOn ? "カメラを止める" : "カメラを再開"}
               tone="outline"
@@ -468,71 +430,32 @@ export function ScanScreen() {
             </IconButton>
           </div>
           {mode === "add" && (
-            <PlaceSuggestions
-              listId="scan-location-places"
-              places={places}
-              value={location}
-              onPick={setLocation}
-            />
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="scan-location"
+                className="px-1 text-[11px] font-semibold text-text-faint"
+              >
+                登録先の場所
+              </label>
+              <input
+                id="scan-location"
+                list="scan-location-places"
+                autoComplete="off"
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                placeholder="例: 会社"
+                maxLength={100}
+                className="min-w-0 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
+              />
+              <PlaceSuggestions
+                listId="scan-location-places"
+                places={places}
+                value={location}
+                onPick={setLocation}
+              />
+            </div>
           )}
         </section>
-
-        {/* The secondary ways in. Folded away while the camera works;
-            opened for you when it cannot. */}
-        <details
-          open={manualOpen || cameraFailed}
-          onToggle={(event) => setManualOpen(event.currentTarget.open)}
-          className="group rounded-lg bg-bg/40 px-3 py-2"
-        >
-          <summary className="-mx-3 -my-2 flex min-h-11 cursor-pointer list-none items-center gap-1 px-3 py-2 text-sm text-text-muted select-none sm:min-h-0 sm:text-xs">
-            <span className="inline-block transition-transform group-open:rotate-90">
-              ›
-            </span>{" "}
-            バーコードリーダー / 手入力
-          </summary>
-          <form onSubmit={submitManual} className="mt-2 flex flex-col gap-1">
-            <div className="flex gap-2">
-              <input
-                ref={inputRef}
-                id="scan-manual"
-                aria-label="ISBN"
-                value={manual}
-                onChange={(event) => setManual(event.target.value)}
-                inputMode="numeric"
-                autoComplete="off"
-                enterKeyHint="send"
-                placeholder="ISBN を読み取るか入力して Enter"
-                className="min-w-0 flex-1 rounded-md border border-border bg-bg px-3 text-text placeholder:text-text-faint focus:border-accent focus:outline-none py-2.5 text-base sm:py-2 sm:text-sm"
-              />
-              <IconButton
-                label={mode === "add" ? "追加" : "検索"}
-                tone="outline"
-                type="submit"
-              >
-                {mode === "add" ? (
-                  <PlusIcon className={ICON} />
-                ) : (
-                  <SearchIcon className={ICON} />
-                )}
-              </IconButton>
-            </div>
-            {manualError && (
-              <p role="alert" className="text-xs text-danger">
-                {manualError}
-              </p>
-            )}
-          </form>
-          {mode === "add" && (
-            <button
-              type="button"
-              onClick={() => setTypingBook(true)}
-              className="mt-2 mb-1 flex min-h-11 items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text sm:min-h-0 sm:text-xs"
-            >
-              <PlusIcon className="h-3.5 w-3.5" />
-              バーコードの無い本を手入力で追加
-            </button>
-          )}
-        </details>
 
         <section className="flex flex-col gap-2">
           <p className="px-1 text-[11px] font-semibold text-text-faint">
@@ -577,30 +500,6 @@ export function ScanScreen() {
           <CheckIcon className={ICON} />
         </IconButton>
       </WindowFooter>
-
-      {typingBook && (
-        <BookDialog
-          places={places}
-          onClose={() => setTypingBook(false)}
-          onSaved={(book) => {
-            const id = nextId.current++;
-            if (book.isbn) {
-              sessions.current.add.admit(book.isbn);
-              rowByIsbn.current.set(`add:${book.isbn}`, id);
-            }
-            setRows((current) => [
-              {
-                id,
-                isbn: book.isbn ?? "",
-                mode: "add",
-                state: { kind: "added", book },
-              },
-              ...current,
-            ]);
-            void refreshShelf();
-          }}
-        />
-      )}
 
       {manualEntry && (
         <BookDialog
