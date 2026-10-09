@@ -177,6 +177,27 @@ export function shelves(books: ShelvedBook[]): Shelf[] {
     );
 }
 
+/**
+ * The shelf a swipe moves to: すべて first, then each place in the
+ * order `shelves` gives. `current` is undefined for すべて, null for
+ * 場所未設定. Null at either end — a swipe off the edge stays put
+ * rather than wrapping round, as the task filters do.
+ */
+export function stepShelf(
+  places: Shelf[],
+  current: string | null | undefined,
+  direction: -1 | 1,
+): { name: string | null | undefined } | null {
+  const order: (string | null | undefined)[] = [
+    undefined,
+    ...places.map((place) => place.name),
+  ];
+  const at = order.indexOf(current);
+  const next = (at === -1 ? 0 : at) + direction;
+  if (next < 0 || next >= order.length) return null;
+  return { name: order[next] };
+}
+
 export interface ShelfOverview {
   total: number;
   value: number;

@@ -37,6 +37,7 @@ import {
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useSwipeFilter } from "@/hooks/useSwipeFilter";
 import { BookDialog } from "@/components/library/BookDialog";
 import { SCAN_FROM_LIBRARY } from "@/components/library/navigation";
 import { BookCover } from "@/components/library/BookCover";
@@ -68,6 +69,7 @@ import {
   libraryStats,
   shelfOverview,
   shelves,
+  stepShelf,
   sortBooks,
   type BookSort,
   type ShelvedBook,
@@ -673,7 +675,7 @@ export function LibraryScreen({
               ? `すべての本（${place.count}）`
               : `${place.name ?? "場所未設定"}（${place.count}）`,
           icon: place.name === undefined ? <BookIcon /> : <PinIcon />,
-          run: () => setShelf(place.name),
+          run: () => chooseShelf(place.name),
         })),
       ...[
         { code: undefined as string | null | undefined, count: books.length },
@@ -856,6 +858,34 @@ export function LibraryScreen({
       : activeGenre === null
         ? "ジャンル未設定"
         : ndcClassName(activeGenre);
+  /**
+   * A phone swipes along the shelves the sidebar lists: すべて, then
+   * each place. The finger moving right goes on to the next place, as
+   * asked; left comes back towards すべて. The list starts again at its
+   * top, sliding in from the side the finger came from.
+   */
+  const [shelfEnter, setShelfEnter] = useState<-1 | 1 | 0>(0);
+  // Picked from the sidebar or ⌘K: no slide, it did not come from a side.
+  const chooseShelf = (name: ShelfChoice) => {
+    setShelf(name);
+    setShelfEnter(0);
+  };
+  const swipeShelf = useSwipeFilter({
+    onSwipe: (direction) => {
+      const step = -direction as -1 | 1;
+      const next = stepShelf(places, location, step);
+      if (!next) return;
+      setShelf(next.name);
+      setShelfEnter(step);
+      listRef.current?.scrollTo({ top: 0 });
+    },
+  });
+  const shelfEnterClass =
+    shelfEnter === 1
+      ? "pane-from-left"
+      : shelfEnter === -1
+        ? "pane-from-right"
+        : "";
   const shelfName =
     [location === undefined ? null : (location ?? "場所未設定"), genreName]
       .filter(Boolean)
@@ -1094,7 +1124,7 @@ export function LibraryScreen({
           total={books.length}
           shelves={places}
           shelf={location}
-          onShelf={setShelf}
+          onShelf={chooseShelf}
           genres={genreCounts}
           genre={activeGenre}
           onGenre={setGenre}
@@ -1157,6 +1187,7 @@ export function LibraryScreen({
             <div
               ref={listRef}
               onScroll={onListScroll}
+              {...swipeShelf}
               // Room under the last book for the phone's tab bar, which
               // floats over the list so it can slide away.
               className="flex min-w-0 flex-1 flex-col overflow-y-auto pb-[calc(4.5rem+max(0.75rem,calc(env(safe-area-inset-bottom)-0.5rem)))] md:pb-0"
@@ -1203,11 +1234,13 @@ export function LibraryScreen({
                   ) : view === "grid" ? (
                     <ul
                       ref={gridRef}
+                      // Keyed on the shelf so a swipe replays the slide.
+                      key={`grid-${location ?? String(location)}`}
                       role="listbox"
                       aria-label="蔵書"
                       // Three across on a phone, however narrow; from md up as
                       // many 9rem covers as fit.
-                      className={`grid ${COLUMN_CLASS[columns]} gap-y-4 px-3 pt-1 pb-4 md:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] md:gap-x-4 md:gap-y-5 md:px-4`}
+                      className={`${shelfEnterClass} grid ${COLUMN_CLASS[columns]} gap-y-4 px-3 pt-1 pb-4 md:grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] md:gap-x-4 md:gap-y-5 md:px-4`}
                     >
                       {shown.map((book, index) => (
                         <li
@@ -1234,11 +1267,12 @@ export function LibraryScreen({
                     </ul>
                   ) : (
                     <ul
+                      key={`list-${location ?? String(location)}`}
                       role="listbox"
                       aria-label="蔵書"
                       // pb-9: about half a row of room under the last
                       // book, so the list ends with space, not at the edge.
-                      className="px-2 pb-9 md:px-3"
+                      className={`${shelfEnterClass} px-2 pb-9 md:px-3`}
                     >
                       {shown.map((book, index) => (
                         <li
