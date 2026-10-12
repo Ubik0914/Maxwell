@@ -44,3 +44,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# mail: Android shell (Capacitor) — never commit Firebase config or signing keys
+/mobile/node_modules
+/mobile/android/app/google-services.json
+/mobile/android/.gradle/
+/mobile/android/build/
+/mobile/android/app/build/
+/mobile/android/local.properties
+/mobile/android/capacitor-cordova-android-plugins/build/
+*.keystore
+*.jks
+service-account*.json

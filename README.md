@@ -6,18 +6,20 @@ DAGベースのタスク管理システム。StoryのStartとGoalを先に定義
 
 | パス | 中身 |
 | --- | --- |
-| `/` | **ツールのダッシュボード**。蔵書・連続スキャン・メールへの入口と、蔵書 MCP の接続先を並べる。ログイン不要（各ツールが自分でサインインを求める）。`/maxwell` は載せない |
+| `/` | **ツールのダッシュボード**。蔵書・連続スキャン・メールへの入口と、MCP の接続先を並べる。ログイン不要（各ツールが自分でサインインを求める）。`/maxwell` は載せない |
 | `/book` | **蔵書管理**（書名・著者・出版社・発売日・価格・ISBN・場所）。複数人で使う前提なので読書状況も貸出も持たない。本の追加はスキャンが主、手入力は副。書誌は openBD を主に、欠けた項目（特に価格）は国立国会図書館サーチ OpenSearch で補完する |
 | `/book/scan` | 蔵書の**連続スキャン**。カメラ（Android Chrome は BarcodeDetector、iPhone Safari などは ZXing）かバーコードリーダーで ISBN を読むたびに openBD で書誌を引いて即登録する。登録済み・書誌なしは一覧に残り、取消・手入力・再試行ができる |
-| `/mail` | **メール**（Synedge）。リポジトリの [`mail/`](mail) にある別の Next.js アプリ（pnpm ワークスペース、`basePath: "/mail"`）を別の Vercel プロジェクトとしてデプロイし、`next.config.ts` の `rewrites` で転送する。転送先は環境変数 `MAIL_ORIGIN`（ビルド時に読む。未設定なら `/mail` は 404）。サインインは Maxwell と別（Google） |
+| `/mail` | **メール**（Gmail クライアント。旧 Synedge）。一覧・検索・スレッド・返信・下書き・送信。PC は3ペイン、スマホは一覧→詳細。新着は Android アプリ（[`mobile/`](mobile)）に OS 通知。**ログインは Maxwell と共通**（Supabase）。Gmail は `/mail/settings` で Google の同意画面からつなぐ。コードは [`src/mail/`](src/mail)、画面と API は `src/app/mail/`。設定手順は [`docs/mail.md`](docs/mail.md) |
 | `/maxwell` | Maxwell 本体（`/maxwell/stories`・`/maxwell/workspaces`・`/maxwell/routines`・`/maxwell/docs`）。**蔵書側からの導線は無い**（リンク・タイトル・PWA 名・MCP 名のどこにも出さない）。docs を含め全体が要ログインで、独自の manifest（id `/maxwell`）を持つ |
 | `/login`・`/signup` | 両方で共通のサインイン。`?next=/path` でサインイン後の戻り先を指定できる |
-| `/api/*`・`/oauth/*` | Maxwell の REST API / MCP / OAuth。外部クライアントの接続先を変えないためルートのまま |
+| `/api/*`・`/oauth/*` | Maxwell の REST API / MCP / OAuth。外部クライアントの接続先を変えないためルートのまま。メールの AI 向け API は `/api/v1/mail/*` |
+| `/mail/api/*` | メールの画面が使う API と、Google（Pub/Sub）・Vercel Cron から呼ばれる受け口（`/mail/api/pubsub/gmail`・`/mail/api/jobs/*`） |
 
 蔵書の旧パス `/scan` は `/book/scan` へ、打ち間違えやすい `/Book` は `/book` へ 308 で転送する（`/Book` は `src/proxy.ts`。next.config の redirects は大文字小文字を区別しないため）。旧 `/` に入っていた蔵書のブックマークはダッシュボードに着く。PWA（manifest id `/`）の起動先は `/book`。
 
 Maxwell の旧パス（`/stories/...` など）の転送は置かない（`/maxwell` の存在を推測させないため）。古いブックマークは 404 になる。
 蔵書は `dag.books`（`supabase/migrations/20260929090000_create_dag_books.sql`）に持ち、RLS で本人の行だけが見える。
+メールは `mail` スキーマ（`supabase/migrations/20261012090000_create_mail_schema.sql`）。Gmail の暗号化トークン・同期カーソル・通知端末などだけを持ち、本文・件名・送信者は保存しない。公開 API からは読めず（RLS・権限剥奪）、サーバーが `MAIL_DATABASE_URL` で直接つなぐ。
 
 使い方のガイドはアプリ自身の `/maxwell/docs` にある（本文は [`src/content/docs/`](src/content/docs) の Markdown）。このREADMEは動かし方と繋ぎ方、`/maxwell/docs` は使い方。
 
@@ -44,7 +46,9 @@ npm run dev
 npm run dev       # 開発サーバー起動
 npm run build     # プロダクションビルド
 npm run lint      # ESLint実行
-npm test          # Domain層ユニットテスト (Jest)
+npm test          # ユニットテスト（Jest。続けてメールの Vitest も走る）
+npm run test:mail # メールのテストだけ（Vitest。MAIL_DATABASE_URL_TEST があれば実DBでも）
+npm run check:mail-bundle  # build 後：クライアントJSにメールの秘密情報が入っていないか
 npm run test:e2e  # E2Eテスト (Playwright, 要 npx playwright install)
 npm run cli       # CLI (`npm run cli -- help`)
 npm run mcp       # MCPサーバー (stdio; ホストから起動されるのが普通)
@@ -90,6 +94,11 @@ OAuth 2.1 (Dynamic Client Registration → ブラウザでログイン/確認 �
 
 エンドポイント一覧とCLIの全コマンドは [`cli/README.md`](cli/README.md)、
 MCPのツール一覧は [`mcp/README.md`](mcp/README.md)。
+
+MCP にはメールのツールもある（`search_emails` / `get_thread` / `draft_reply` / `save_draft`）。
+メールは Maxwell のログインに紐づくので、トークンは蔵書と同じもの。**送信のツールは無い**
+（下書き保存まで。送信はメールの画面で人が確認して行う）。メール本文は外部からの信頼できない
+データとして、注意書きを付けて返す。
 
 ## CSV インポート（ベータ）
 
@@ -166,6 +175,10 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_d58qpmAWFzKePtYi-5Ga8Q_qq1ja
 ```
 
 通知を使うなら、上の VAPID 3つも同じ画面で設定する。
+
+メールを使うなら、`.env.example` の「Mail」の値も設定する（手順は [`docs/mail.md`](docs/mail.md)）。
+未設定のあいだ `/mail` は「まだ使えません」と表示するだけで、他の画面には影響しない。
+定期ジョブは `vercel.json` の Cron（`CRON_SECRET` 必須）。
 
 Service Role Key はクライアントに公開してはならないため使用しない
 （仕様 Section 105 準拠）。

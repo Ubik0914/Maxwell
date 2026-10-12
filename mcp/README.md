@@ -125,6 +125,13 @@ claude mcp add maxwell -- node /absolute/path/to/Maxwell/mcp/maxwell-mcp.mjs
 | `move_books` | 複数冊の場所をまとめて変更。`null` / `""` で場所を外す |
 | `add_book` | ISBN だけ渡せば openBD / NDL から書誌を埋めて登録（`status`: added / duplicate / not_found）。書名を渡せば手入力として登録 |
 | `delete_book` | 1冊を削除（取り消し不可） |
+| `search_emails` | メール検索（Gmail の検索演算子：`from:` `subject:` `after:` `is:unread` など）。本文なし。`limit` 最大25、`page_token` で続き |
+| `get_thread` | スレッドの本文（テキスト）。`for_summary` で引用を除き参加者一覧を付ける（要約するのは呼び出し側） |
+| `draft_reply` | 返信の宛先・件名・引用元。`body` を渡すと引用付きの本文に整える。保存はしない |
+| `save_draft` | Gmail の下書きに保存（**送信はしない**。送信はメール画面で利用者が行う） |
+
+メールのツールは `/api/v1/mail/*` のクライアント。使う前に `/mail/settings` で Gmail をつないでおく
+（未接続なら `NOT_CONNECTED`）。返す本文には「外部からの信頼できないデータ」という注意書きが付く。
 
 読むだけのツールは `readOnlyHint: true`。上書きするもの（`set_note`・
 `update_book`）と `delete_book` は `destructiveHint: true` なので、

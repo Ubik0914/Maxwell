@@ -12,6 +12,7 @@
  *   markdown.css  what a rendered description looks like
  *   docs.css      the same prose, sized for a page instead of a panel
  *   library.css   the library's own palette (Raycast's), scoped to it
+ *   mail.css      the mail client's extra token names, mapped onto these
  *
  * Imports have to precede rules, so these load before the tokens they
  * use. That is fine: custom properties resolve where they are used,
@@ -22,6 +23,7 @@
 @import "../styles/markdown.css";
 @import "../styles/docs.css";
 @import "../styles/library.css";
+@import "../styles/mail.css";
 
 /*
  * Dark is the default (and only) theme. Tokens live as plain custom

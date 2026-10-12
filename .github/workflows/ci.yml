@@ -1,0 +1,40 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      # The mail's repository tests run against a real Postgres
+      # (src/mail/database/postgres.test.ts); without one they skip.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mail
+          POSTGRES_PASSWORD: mail
+          POSTGRES_DB: mail_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mail" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      MAIL_DATABASE_URL_TEST: postgres://mail:mail@localhost:5432/mail_test
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Build-time placeholders: nothing is contacted during the build.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx jest
+      - run: npx vitest run
+      - run: npm run build
+      - run: npx tsc --noEmit -p .
+      - run: npm run check:mail-bundle

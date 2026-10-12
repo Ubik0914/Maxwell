@@ -18,9 +18,9 @@ type Tool = {
   name: string;
   description: string;
   /*
-   * /mail is another Next.js app (mail/, Synedge) that this one only
-   * rewrites to, so a client-side <Link> would look for a route that is
-   * not here. It has to be a full page load.
+   * A full page load rather than a client-side <Link>: the mail screens
+   * carry their own CSP (next.config.ts), which only a document request
+   * picks up.
    */
   external?: boolean;
 };
@@ -43,7 +43,7 @@ const TOOLS: Tool[] = [
   {
     href: "/mail",
     name: "メール",
-    description: "Gmail を読む・書く・送る。",
+    description: "Gmail を読む・書く・送る。新着は Android に通知。",
     external: true,
   },
 ];
@@ -99,17 +99,13 @@ export default async function DashboardPage() {
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-medium text-text">AI クライアントから使う</h2>
           <p className="text-sm text-text-muted">
-            蔵書は MCP サーバーとしても使える。claude.ai のカスタムコネクタにこの URL を入れる。
+            蔵書とメールは MCP サーバーとしても使える。claude.ai のカスタムコネクタにこの URL を入れる（ログインは Maxwell のアカウント）。
           </p>
           <code className="block overflow-x-auto rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-text">
             {origin}/api/mcp
           </code>
           <p className="text-sm text-text-muted">
-            メールの MCP は別サーバー。トークンは
-            <a href="/mail/settings" className="mx-1 text-text underline">
-              メールの設定
-            </a>
-            で発行する。
+            メールは読む・下書きを保存するところまで。送信はメールの画面で自分で行う。
           </p>
         </section>
       </div>
