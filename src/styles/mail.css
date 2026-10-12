@@ -1,0 +1,26 @@
+/*
+ * The mail client's few extra names.
+ *
+ * Mail (src/mail, formerly Synedge) wears the library's palette — its
+ * screens sit inside .theme-raycast — and uses the same token names
+ * where the two agree (bg, surface, border, text, accent, danger, …).
+ * These are the ones it had that the rest of the app has no word for,
+ * mapped onto the nearest existing token so that nothing here picks a
+ * colour of its own.
+ */
+@theme inline {
+  --color-surface-2: var(--surface-hover);
+  --color-muted: var(--text-muted);
+  --color-accent-fg: var(--inverse);
+  --color-unread: var(--accent);
+  --color-selected: var(--accent-soft);
+
+  --spacing-pane-list: 22rem;
+  --spacing-pane-nav: 13rem;
+  --spacing-touch: 44px;
+}
+
+/* Mail bodies are read, and copied from: undo the app's chrome rule. */
+.mail-root {
+  user-select: text;
+}

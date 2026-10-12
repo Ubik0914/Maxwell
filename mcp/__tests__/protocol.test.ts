@@ -96,18 +96,27 @@ describe("tools/list", () => {
     }
   });
 
-  it("offers the library's readers and editors, nothing else", () => {
+  it("offers the library's readers and editors and the mail readers, nothing else", () => {
     expect(TOOLS.map((tool) => tool.name).sort()).toEqual([
       "add_book",
       "append_note",
       "delete_book",
+      "draft_reply",
       "get_book",
+      "get_thread",
       "move_books",
+      "save_draft",
       "search_books",
+      "search_emails",
       "set_note",
       "update_book",
       "whoami",
     ]);
+  });
+
+  it("cannot send mail — drafts only", () => {
+    const names = TOOLS.map((tool) => tool.name);
+    expect(names.some((name) => /send/.test(name))).toBe(false);
   });
 
   it("marks the readers read-only and what overwrites or removes as destructive", () => {
@@ -130,6 +139,10 @@ describe("tools/list", () => {
       set_note: [false, true],
       update_book: [false, true],
       delete_book: [false, true],
+      search_emails: [true, false],
+      get_thread: [true, false],
+      draft_reply: [true, false],
+      save_draft: [false, false],
     });
   });
 });
@@ -341,6 +354,19 @@ describe("the editing tools", () => {
   }
 
   const id = "00000000-0000-4000-8000-000000000001";
+
+  it("the mail tools ask /api/v1/mail and nothing sends", async () => {
+    const search = await run("search_emails", { query: "from:alice is:unread", limit: 5 });
+    expect(search.asked).toEqual([
+      { path: "/api/v1/mail/search?query=from%3Aalice+is%3Aunread&limit=5", method: "GET", body: undefined },
+    ]);
+    const thread = await run("get_thread", { thread_id: "18c2a3f", for_summary: true });
+    expect(thread.asked[0]!.path).toBe("/api/v1/mail/threads/18c2a3f?for_summary=1");
+    const reply = await run("draft_reply", { message_id: "m1", body: "ok" });
+    expect(reply.asked[0]).toEqual({ path: "/api/v1/mail/messages/m1/reply", method: "POST", body: { mode: undefined, body: "ok" } });
+    const draft = await run("save_draft", { to: ["a@example.com"], body: "hi" });
+    expect(draft.asked[0]).toEqual({ path: "/api/v1/mail/drafts", method: "POST", body: { to: ["a@example.com"], body: "hi" } });
+  });
 
   it("append_note reads the note and writes it back with a line added", async () => {
     const { asked } = await run(

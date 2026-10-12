@@ -1,23 +1,41 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV !== "production";
+
+/*
+ * The mail screens' CSP (carried over from Synedge). A message body is
+ * shown in a sandboxed srcdoc iframe with a meta CSP of its own; that
+ * iframe inherits this one too, which is why img-src allows https for
+ * "show images". connect-src keeps Supabase for the session refresh the
+ * rest of the app does from the browser.
+ */
+const mailCsp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https: http:",
+  "font-src 'self' data:",
+  `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}`.trim(),
+  "frame-src 'self' about:",
+  "frame-ancestors 'none'",
+  "form-action 'self' https://accounts.google.com",
+  "base-uri 'self'",
+  "object-src 'none'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   /* config options here */
   agentRules: false,
+
+  // The mail's database driver (src/mail/database) is server-only and
+  // talks Postgres directly; it stays out of the bundle.
+  serverExternalPackages: ["postgres"],
 
   /*
    * No redirects from Maxwell's old root paths (/stories, /docs, …).
    * They would tell anyone who guessed a common path that /maxwell
    * exists, and Maxwell is not meant to be findable from the library.
-   */
-
-  /*
-   * The guide is Markdown read off disk. The pages are prerendered, so
-   * that read happens at build time and never on a request — but a
-   * route that is statically generated today can stop being one after
-   * an unrelated edit, and the failure would be a 500 in production
-   * only. Naming the files here costs nothing and takes that away.
-   */
-  /*
+   *
    * The library moved from "/" to "/book" when the root became the tool
    * dashboard. Its old paths are the library's own, not Maxwell's, so
    * sending them on gives nothing away. (/Book → /book is in proxy.ts:
@@ -30,22 +48,33 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  /*
-   * /mail is Synedge (mail/), a Next.js app of its own deployed as its
-   * own Vercel project with basePath "/mail". This app only forwards to
-   * it, so the two share an origin without sharing a build. MAIL_ORIGIN
-   * is that deployment's origin; unset (local dev without mail running),
-   * /mail is a 404 like any other missing page.
-   */
-  async rewrites() {
-    const mail = process.env.MAIL_ORIGIN?.replace(/\/+$/, "");
-    if (!mail) return [];
+  async headers() {
     return [
-      { source: "/mail", destination: `${mail}/mail` },
-      { source: "/mail/:path*", destination: `${mail}/mail/:path*` },
+      {
+        // ":path*" matches zero segments too, so this covers /mail itself.
+        source: "/mail/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: mailCsp },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      {
+        source: "/mail/api/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
+      },
     ];
   },
 
+  /*
+   * The guide is Markdown read off disk. The pages are prerendered, so
+   * that read happens at build time and never on a request — but a
+   * route that is statically generated today can stop being one after
+   * an unrelated edit, and the failure would be a 500 in production
+   * only. Naming the files here costs nothing and takes that away.
+   */
   outputFileTracingIncludes: {
     "/maxwell/docs": ["./src/content/docs/**/*.md"],
     "/maxwell/docs/[slug]": ["./src/content/docs/**/*.md"],
