@@ -107,8 +107,9 @@ begin
   foreach r in array array['anon', 'authenticated'] loop
     if exists (select 1 from pg_roles where rolname = r) then
       execute format(
-        'revoke all on all tables in schema mail from %I; revoke usage on schema mail from %I',
-        r, r
+        -- 後から増えるテーブルにも公開ロールの権限が付かないようにする
+        'revoke all on all tables in schema mail from %I; revoke usage on schema mail from %I; alter default privileges in schema mail revoke all on tables from %I',
+        r, r, r
       );
     end if;
   end loop;

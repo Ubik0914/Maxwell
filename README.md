@@ -19,7 +19,7 @@ DAGベースのタスク管理システム。StoryのStartとGoalを先に定義
 
 Maxwell の旧パス（`/stories/...` など）の転送は置かない（`/maxwell` の存在を推測させないため）。古いブックマークは 404 になる。
 蔵書は `dag.books`（`supabase/migrations/20260929090000_create_dag_books.sql`）に持ち、RLS で本人の行だけが見える。
-メールは `mail` スキーマ（`supabase/migrations/20261012090000_create_mail_schema.sql`）。Gmail の暗号化トークン・同期カーソル・通知端末などだけを持ち、本文・件名・送信者は保存しない。公開 API からは読めず（RLS・権限剥奪）、サーバーが `MAIL_DATABASE_URL` で直接つなぐ。
+メールは `mail` スキーマ（`supabase/migrations/20261012090000_create_mail_schema.sql`、本番へ適用済み）。Gmail の暗号化トークン・同期カーソル・通知端末などだけを持ち、本文・件名・送信者は保存しない。公開 API からは読めず（RLS・権限剥奪）、サーバーが `MAIL_DATABASE_URL` で直接つなぐ。
 
 使い方のガイドはアプリ自身の `/maxwell/docs` にある（本文は [`src/content/docs/`](src/content/docs) の Markdown）。このREADMEは動かし方と繋ぎ方、`/maxwell/docs` は使い方。
 

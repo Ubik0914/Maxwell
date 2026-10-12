@@ -72,7 +72,9 @@ Maxwell（Vercel・Next.js）
 
 #### 2. Supabase（DB）
 
-1. マイグレーションを適用する：`supabase db push`（`supabase/migrations/20261012090000_create_mail_schema.sql` を含む）
+1. マイグレーション `supabase/migrations/20261012090000_create_mail_schema.sql` を適用する
+   - **適用済み**（2026-10-12、Supabase コネクタで navy＝`zdzbcfkhqkvbgrqzzshc` へ。リモートの記録名は `20261012100032_create_mail_schema`）
+   - 適用後に確かめたこと：6テーブルすべて RLS 有効・ポリシー無し、`anon` / `authenticated` は select もスキーマの usage もできない
 2. 接続文字列（Transaction pooler、ポート 6543）を `MAIL_DATABASE_URL` に入れる。`prepare: false` で接続するので pooler で動く
 3. `mail` スキーマは全テーブル RLS 有効・ポリシー無し、`anon` / `authenticated` から権限を剥奪済み。公開 API（publishable key）からは読めない。Service Role Key は使わない
 4. 保存するもの
