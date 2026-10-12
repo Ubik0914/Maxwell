@@ -1,5 +1,5 @@
 // ブラウザ側の API クライアント。秘密情報は扱わず、サーバーの共通エラー形式を解釈する。
-import { USER_MESSAGES, type ApiErrorBody, type ErrorCode } from "@synedge/mail-core";
+import { USER_MESSAGES, webPath, type ApiErrorBody, type ErrorCode } from "@synedge/mail-core";
 
 export class ApiError extends Error {
   constructor(
@@ -19,10 +19,11 @@ export interface ApiOptions {
   signal?: AbortSignal;
 }
 
+/** path はアプリ内パス（"/api/..."）。basePath はここで付ける */
 export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(webPath(path), {
       method: opts.method ?? "GET",
       credentials: "same-origin",
       headers: opts.body !== undefined ? { "content-type": "application/json" } : undefined,
@@ -40,7 +41,7 @@ export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
   const err = new ApiError(code, body?.error?.message ?? USER_MESSAGES[code], res.status, body?.error?.correlationId);
   if (code === "UNAUTHENTICATED" && typeof window !== "undefined") {
     const next = window.location.pathname + window.location.search;
-    window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+    window.location.assign(webPath(`/login?next=${encodeURIComponent(next)}`));
   }
   return Promise.reject(err);
 }

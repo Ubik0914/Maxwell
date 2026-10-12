@@ -3,6 +3,7 @@
 // - FCM トークンの登録・更新
 // - 通知タップ → 対象スレッドを開く
 // - 外部ブラウザでのログイン結果（synedge://auth?code=...）の受け取り
+import { webPath } from "@synedge/mail-core";
 import { api } from "./api";
 
 export const NOTIFICATION_CHANNEL_ID = "new_mail";
@@ -40,10 +41,10 @@ export async function enablePush(): Promise<PushPermission> {
   return "granted";
 }
 
-/** 通知データから開くべきURLを決める（最小限の識別子のみ使う） */
+/** 通知データから開くべきアプリ内パスを決める（最小限の識別子のみ使う）。router.push に渡すので basePath は付けない */
 export function urlForNotification(data: Record<string, unknown> | undefined): string {
   const threadId = typeof data?.threadId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(data.threadId) ? data.threadId : null;
-  return threadId ? `/mail?thread=${encodeURIComponent(threadId)}` : "/mail";
+  return threadId ? `/?thread=${encodeURIComponent(threadId)}` : "/";
 }
 
 /** 外部ブラウザからのディープリンクを解釈する */
@@ -53,7 +54,7 @@ export function handoffUrlFromDeepLink(url: string): string | null {
     if (u.host !== "auth" && u.pathname.replace(/^\/+/, "") !== "auth") return null;
     const code = u.searchParams.get("code");
     if (!code || !/^[A-Za-z0-9_-]{20,100}$/.test(code)) return null;
-    return `/api/auth/handoff?code=${encodeURIComponent(code)}`;
+    return webPath(`/api/auth/handoff?code=${encodeURIComponent(code)}`);
   } catch {
     return null;
   }
@@ -97,15 +98,15 @@ export async function initNativeBridge(navigate: (url: string) => void): Promise
 
   // 権限が既にあれば起動のたびに登録し、トークン更新をサーバーへ反映する
   const p = await PushNotifications.checkPermissions();
-  if (p.receive === "granted" && window.location.pathname !== "/login") await PushNotifications.register();
+  if (p.receive === "granted" && window.location.pathname !== webPath("/login")) await PushNotifications.register();
 }
 
 /** ログインを外部ブラウザで開く（GoogleはWebView内のOAuthを拒否するため） */
 export async function startLogin(next: string): Promise<void> {
   if (await isNative()) {
     const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url: `${window.location.origin}/api/auth/google/start?platform=android&next=${encodeURIComponent(next)}` });
+    await Browser.open({ url: `${window.location.origin}${webPath("/api/auth/google/start")}?platform=android&next=${encodeURIComponent(next)}` });
     return;
   }
-  window.location.assign(`/api/auth/google/start?platform=web&next=${encodeURIComponent(next)}`);
+  window.location.assign(webPath(`/api/auth/google/start?platform=web&next=${encodeURIComponent(next)}`));
 }

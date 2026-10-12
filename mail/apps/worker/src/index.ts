@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { createPgRepositories, createSql } from "@synedge/database";
+import { webUrl } from "@synedge/mail-core";
 import { createCoreServices, createLogger } from "@synedge/mail-core/server";
 import { z } from "zod";
 import { createHandler } from "./app";
@@ -34,7 +35,7 @@ const core = createCoreServices(
     oauth: {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
-      redirectUri: new URL("/api/auth/google/callback", env.APP_ORIGIN).toString(),
+      redirectUri: webUrl("/api/auth/google/callback", env.APP_ORIGIN).toString(),
     },
     tokenEncryptionKeys: env.TOKEN_ENCRYPTION_KEYS,
     pubsubTopic: env.GMAIL_PUBSUB_TOPIC,

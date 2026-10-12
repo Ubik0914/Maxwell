@@ -2,6 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 // アプリは本番 Web（Next.js）を WebView で開く。UI はサーバー側でデプロイすれば更新される。
 // SYNEDGE_WEB_URL は `cap sync` 実行時に読み込まれ、android/app/src/main/assets/capacitor.config.json に書き込まれる。
+// Web は Maxwell の /mail 配下にあるので、URL は https://<Maxwell のドメイン>/mail の形にする。
 const url = process.env.SYNEDGE_WEB_URL ?? "https://synedge.example.com";
 
 const config: CapacitorConfig = {

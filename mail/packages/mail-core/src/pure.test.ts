@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatAddress, parseAddressList, uniqueAddresses } from "./address";
 import { splitQuotedText, stripQuoted, quoteForReply } from "./quote";
 import { sendInputSchema, searchQuerySchema } from "./schemas";
+import { webPath, webUrl } from "./paths";
 
 describe("アドレス解析", () => {
   it("引用符・カンマ・日本語表示名を扱う", () => {
@@ -72,5 +73,16 @@ describe("入力検証", () => {
     expect(searchQuerySchema.safeParse({ q: "from:a@example.com" }).success).toBe(true);
     expect(searchQuerySchema.safeParse({ q: "x".repeat(501) }).success).toBe(false);
     expect(searchQuerySchema.safeParse({ q: "a", limit: 999 }).success).toBe(false);
+  });
+});
+
+describe("webPath / webUrl", () => {
+  it("Web の basePath（/mail）を付ける", () => {
+    expect(webPath("/")).toBe("/mail");
+    expect(webPath("/settings")).toBe("/mail/settings");
+    expect(webPath("/api/mail/threads?limit=1")).toBe("/mail/api/mail/threads?limit=1");
+    expect(webUrl("/api/auth/google/callback", "https://app.example.com").toString()).toBe(
+      "https://app.example.com/mail/api/auth/google/callback",
+    );
   });
 });

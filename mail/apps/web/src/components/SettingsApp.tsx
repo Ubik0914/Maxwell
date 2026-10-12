@@ -1,5 +1,5 @@
 "use client";
-import type { AccountInfo, UserSettings } from "@synedge/mail-core";
+import { webPath, type AccountInfo, type UserSettings } from "@synedge/mail-core";
 import { Banner, Button, IconBack, Spinner, Toggle, formatFullDate } from "@synedge/ui";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, errorMessage } from "@/features/api";
@@ -123,7 +123,7 @@ export function SettingsApp() {
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => window.location.assign("/api/auth/google/start?platform=web&next=/settings")}>再接続</Button>
+              <Button onClick={() => window.location.assign(webPath(`/api/auth/google/start?platform=web&next=${encodeURIComponent(webPath("/settings"))}`))}>再接続</Button>
               <Button
                 loading={busy === "sync"}
                 onClick={() =>
@@ -265,7 +265,7 @@ export function SettingsApp() {
             onClick={() =>
               run("logout", async () => {
                 await api("/api/auth/logout", { method: "POST" });
-                window.location.assign("/login");
+                window.location.assign(webPath("/login"));
               })
             }
           >
@@ -278,7 +278,7 @@ export function SettingsApp() {
               if (!window.confirm("Gmailとの接続を解除します。保存済みのトークン・端末登録・同期情報を削除します（Gmailのメールは削除されません）。よろしいですか？")) return;
               void run("disconnect", async () => {
                 await api("/api/account/disconnect", { method: "POST" });
-                window.location.assign("/login");
+                window.location.assign(webPath("/login"));
               });
             }}
           >
@@ -294,7 +294,7 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-bg">
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-surface px-2 py-1">
-        <a href="/mail" aria-label="メールに戻る" className="inline-flex size-touch items-center justify-center rounded-md hover:bg-surface-2">
+        <a href={webPath("/")} aria-label="メールに戻る" className="inline-flex size-touch items-center justify-center rounded-md hover:bg-surface-2">
           <IconBack />
         </a>
         <h1 className="text-base font-semibold text-text">設定</h1>

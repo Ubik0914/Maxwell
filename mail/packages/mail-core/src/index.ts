@@ -4,3 +4,4 @@ export * from "./errors";
 export * from "./schemas";
 export * from "./address";
 export * from "./quote";
+export * from "./paths";

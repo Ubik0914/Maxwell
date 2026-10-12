@@ -1,7 +1,10 @@
 import type { MetadataRoute } from "next";
 
 /**
- * The site's manifest — the library's, since "/" is the library.
+ * The site's manifest — the library's. "/" is the tool dashboard now
+ * and the library is at "/book", so the icon opens straight onto the
+ * shelf; scope stays "/" so the dashboard and /mail open in the same
+ * window instead of a browser tab.
  *
  * Installing is not decoration: a web push subscription on iOS exists
  * only for a site added to the home screen, and on Android and desktop
@@ -19,7 +22,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "蔵書",
     short_name: "蔵書",
     description: "みんなの本棚の目録。",
-    start_url: "/",
+    start_url: "/book",
     scope: "/",
     display: "standalone",
     // The library's palette (styles/library.css), not Maxwell's.

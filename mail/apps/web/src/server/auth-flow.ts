@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { MailError } from "@synedge/mail-core";
+import { MailError, webPath } from "@synedge/mail-core";
 import {
   buildAuthUrl,
   createPkcePair,
@@ -30,7 +30,7 @@ interface OAuthState {
   next: string;
 }
 
-/** オープンリダイレクトを防ぐ：自サイト内の相対パスのみ */
+/** オープンリダイレクトを防ぐ：自サイト内の相対パスのみ。next は basePath 込みのブラウザ上のパス */
 export function safeNext(next: string | null | undefined): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return "/mail";
   return next.slice(0, 512);
@@ -55,7 +55,7 @@ export async function startOAuth(c: Container, platform: Platform, next: string)
         httpOnly: true,
         secure: isSecureOrigin(c.env),
         sameSite: "lax" as const,
-        path: "/api/auth/google",
+        path: webPath("/api/auth/google"),
         maxAge: OAUTH_TTL_SECONDS,
       },
     },

@@ -287,11 +287,11 @@ export function SideMenu({
             )}
           </div>
 
-          {/* The library at "/" shares the sign-in and nothing else, so
+          {/* The library at "/book" shares the sign-in and nothing else, so
               it is a way out of Maxwell rather than a part of it. */}
           <div className="flex flex-col gap-1.5 px-1.5">
             <Link
-              href="/"
+              href="/book"
               onClick={() => onOpenChange(false)}
               className="flex items-center gap-2.5 rounded-lg px-1.5 py-2 text-sm text-text transition-colors hover:bg-surface-hover"
             >

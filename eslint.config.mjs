@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Synedge (mail/) is its own pnpm workspace with its own lint config.
+    "mail/**",
   ]),
 ]);
 

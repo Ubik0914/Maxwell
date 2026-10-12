@@ -17,7 +17,7 @@ export default function ScanLoading() {
       <ScanShellMark />
       <WindowBar>
         <Link
-          href="/"
+          href="/book"
           aria-label="蔵書に戻る"
           title="蔵書に戻る"
           className="-ml-1 flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text sm:h-auto sm:w-auto sm:p-1.5"

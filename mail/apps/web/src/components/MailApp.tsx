@@ -1,6 +1,6 @@
 "use client";
 // メール画面の組み立て。データ取得は features/、見た目は @synedge/ui に分け、ここは配線だけを行う。
-import type { SendResult } from "@synedge/mail-core";
+import { webPath, type SendResult } from "@synedge/mail-core";
 import {
   Banner,
   ComposeFab,
@@ -57,7 +57,8 @@ export function MailApp({ accountEmail }: { accountEmail: string }) {
       if (f === "search" && q) sp.set("q", q);
       const t = next.thread === undefined ? threadId : next.thread;
       if (t) sp.set("thread", t);
-      const url = `/mail${sp.size ? `?${sp}` : ""}`;
+      // router は basePath（/mail）を自動で付ける
+      const url = `/${sp.size ? `?${sp}` : ""}`;
       if (mode === "push") router.push(url, { scroll: false });
       else router.replace(url, { scroll: false });
     },
@@ -190,7 +191,7 @@ export function MailApp({ accountEmail }: { accountEmail: string }) {
         <IconButton label="更新" onClick={() => (view === "drafts" ? drafts.refresh() : list.refresh())}>
           {list.refreshing || drafts.refreshing ? <Spinner size={18} /> : <IconRefresh />}
         </IconButton>
-        <a href="/settings" aria-label="設定" title="設定" className="inline-flex size-touch items-center justify-center rounded-md text-text hover:bg-surface-2 lg:hidden">
+        <a href={webPath("/settings")} aria-label="設定" title="設定" className="inline-flex size-touch items-center justify-center rounded-md text-text hover:bg-surface-2 lg:hidden">
           <IconSettings />
         </a>
       </div>
@@ -242,7 +243,7 @@ export function MailApp({ accountEmail }: { accountEmail: string }) {
       {listHeader}
       {!online && <Banner kind="offline">オフラインです。接続が戻ると自動で更新します。</Banner>}
       {reauth && (
-        <Banner kind="warning" action={{ label: "再接続", onClick: () => window.location.assign("/settings") }}>
+        <Banner kind="warning" action={{ label: "再接続", onClick: () => window.location.assign(webPath("/settings")) }}>
           {list.error}
         </Banner>
       )}
@@ -379,7 +380,7 @@ export function MailApp({ accountEmail }: { accountEmail: string }) {
               go({ f, q: "", thread: null });
             }}
             onCompose={() => void compose.start({ kind: "new" })}
-            settingsHref="/settings"
+            settingsHref={webPath("/settings")}
             accountEmail={accountEmail}
           />
         }

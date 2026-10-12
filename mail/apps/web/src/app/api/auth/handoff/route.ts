@@ -1,3 +1,4 @@
+import { webUrl } from "@synedge/mail-core";
 import { NextResponse, type NextRequest } from "next/server";
 import { consumeHandoffCode } from "@/server/auth-flow";
 import { getContainer } from "@/server/container";
@@ -11,11 +12,11 @@ export async function GET(req: NextRequest) {
   const userId = await consumeHandoffCode(c, req.nextUrl.searchParams.get("code") ?? "");
   const user = userId ? await c.repos.users.findById(userId) : null;
   if (!user) {
-    const url = new URL("/login", c.env.APP_ORIGIN);
+    const url = webUrl("/login", c.env.APP_ORIGIN);
     url.searchParams.set("error", "ログインの受け渡しに失敗しました。もう一度ログインしてください。");
     return NextResponse.redirect(url);
   }
-  const res = NextResponse.redirect(new URL("/mail", c.env.APP_ORIGIN));
+  const res = NextResponse.redirect(webUrl("/", c.env.APP_ORIGIN));
   res.cookies.set(SESSION_COOKIE, await createSessionToken(c, user.id, user.sessionVersion), sessionCookieOptions(c));
   return res;
 }

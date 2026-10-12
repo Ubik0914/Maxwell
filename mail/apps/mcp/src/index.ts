@@ -5,6 +5,7 @@
 import { createServer } from "node:http";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createPgRepositories, createSql } from "@synedge/database";
+import { webUrl } from "@synedge/mail-core";
 import { createCoreServices, createLogger } from "@synedge/mail-core/server";
 import { z } from "zod";
 import { McpAuthenticator } from "./auth";
@@ -36,7 +37,7 @@ const core = createCoreServices(
     oauth: {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
-      redirectUri: new URL("/api/auth/google/callback", env.APP_ORIGIN).toString(),
+      redirectUri: webUrl("/api/auth/google/callback", env.APP_ORIGIN).toString(),
     },
     tokenEncryptionKeys: env.TOKEN_ENCRYPTION_KEYS,
     // MCP は watch / 通知を扱わない

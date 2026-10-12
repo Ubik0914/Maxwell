@@ -1,5 +1,6 @@
 import "server-only";
 import { createPgRepositories, createSql, type AppRepositories } from "@synedge/database";
+import { webUrl } from "@synedge/mail-core";
 import {
   createCoreServices,
   createLogger,
@@ -42,7 +43,7 @@ export function getContainer(): Container {
   const oauth = {
     clientId: env.GOOGLE_CLIENT_ID,
     clientSecret: env.GOOGLE_CLIENT_SECRET,
-    redirectUri: new URL("/api/auth/google/callback", env.APP_ORIGIN).toString(),
+    redirectUri: webUrl("/api/auth/google/callback", env.APP_ORIGIN).toString(),
   };
   const core = createCoreServices(
     repos,

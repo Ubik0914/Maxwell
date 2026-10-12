@@ -4,6 +4,10 @@
 
 仕様の基準: Life リポジトリ `Inbox/2026-10-10_Spark風メールクライアント設計.md`。
 
+> **置き場所（2026-10-12〜）**: 元は独立リポジトリ `Synedge`。いまは Maxwell リポジトリの `mail/` に履歴ごと取り込み、Web は Maxwell と同じオリジンの **`/mail` 配下**で動く（Next.js の `basePath: "/mail"`。Maxwell 側の `rewrites` が `/mail/*` をこのアプリの Vercel プロジェクトへ転送する）。pnpm ワークスペースは `mail/` で独立しており、以下のコマンドはすべて `mail/` で実行する。CI はリポジトリ直下の `.github/workflows/mail-ci.yml`。
+>
+> パスの決まり: ブラウザから見たパスは `/mail/...`（一覧 `/mail`、設定 `/mail/settings`、API `/mail/api/...`、OAuth コールバック `/mail/api/auth/google/callback`）。コード内で fetch・`<a href>`・`location`・サーバーの絶対URLを作るときは `@synedge/mail-core` の `webPath()` / `webUrl()` で basePath を付ける（`redirect()` と `router` は Next が自動で付ける）。セッション Cookie の path も `/mail` に絞り、Maxwell へは送らない。
+
 > **状態（2026-10-10）**: コード・自動テスト・ビルドは完了。Google / Firebase / Supabase / Vercel / Android 実機への**実接続は未検証**。実接続に必要な手動設定は [12. 人間が行う設定](#12-人間が行う設定チェックリスト) に、未検証項目は [14. 未実装・未検証・制約](#14-未実装未検証制約) にまとめた。
 
 ---
@@ -120,10 +124,10 @@ pnpm check                    # 上記をまとめて実行
 
 ```bash
 DATABASE_URL=postgres://... pnpm db:migrate
-cd apps/web && set -a && . ../../.env.local && set +a && pnpm dev   # APP_ORIGIN=http://localhost:3000
+cd apps/web && set -a && . ../../.env.local && set +a && pnpm dev   # APP_ORIGIN=http://localhost:3000、画面は http://localhost:3000/mail
 ```
 
-OAuth クライアントに `http://localhost:3000/api/auth/google/callback` をリダイレクトURIとして追加する。
+OAuth クライアントに `http://localhost:3000/mail/api/auth/google/callback` をリダイレクトURIとして追加する。
 
 ### テストの範囲
 
@@ -153,7 +157,7 @@ Gmail API は `packages/mail-core/src/testing/fake-gmail.ts`（Gmail REST の形
    - スコープ: `openid`、`email`、`https://www.googleapis.com/auth/gmail.modify`
    - テストユーザーに自分の Gmail を追加。
 4. **OAuth クライアント ID**（種類: ウェブアプリケーション）
-   - 承認済みリダイレクト URI: `https://<APP_ORIGIN>/api/auth/google/callback`（ローカル用に `http://localhost:3000/api/auth/google/callback` も可）
+   - 承認済みリダイレクト URI: `https://<APP_ORIGIN>/mail/api/auth/google/callback`（ローカル用に `http://localhost:3000/mail/api/auth/google/callback` も可）
    - クライアントID / シークレットを `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` に設定。
 
 ### スコープの選定
@@ -190,9 +194,11 @@ Gmail API は `packages/mail-core/src/testing/fake-gmail.ts`（Gmail REST の形
 
 ## 6. Vercel（Web）
 
-1. Vercel にリポジトリを接続し、Root Directory を `apps/web` に設定（Framework: Next.js、Install Command は既定の pnpm で可）。
+1. Vercel に Maxwell リポジトリを**別プロジェクトとして**接続し、Root Directory を `mail/apps/web` に設定（Framework: Next.js、Install Command は既定の pnpm で可）。
+   - Maxwell 本体の Vercel プロジェクトに `MAIL_ORIGIN`（このプロジェクトの本番 URL。例 `https://synedge-xxxx.vercel.app`）を設定して再デプロイする。rewrites はビルド時に決まるため、値を変えたら Maxwell も再ビルドが要る。
+   - 利用者が開くのは Maxwell 側の `https://maxwell-bay.vercel.app/mail`。このプロジェクトの URL を直接開いても動くが、Cookie と OAuth は `APP_ORIGIN` 側で揃える。
 2. 環境変数（Production）: `APP_ORIGIN`、`SESSION_SECRET`、`ALLOWED_EMAILS`、`GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`TOKEN_ENCRYPTION_KEYS`、`DATABASE_URL`、`GMAIL_PUBSUB_TOPIC`、`FCM_SERVICE_ACCOUNT_JSON`（設定画面のテスト通知用。base64 可）、`ANDROID_APP_SCHEME`。
-3. デプロイ後、`APP_ORIGIN` が実際のドメインと一致していることを確認（Origin 検証・Cookie・OAuth リダイレクトに使う）。
+3. `APP_ORIGIN` は **Maxwell のオリジン**（例 `https://maxwell-bay.vercel.app`、`/mail` は付けない）。Origin 検証・Cookie・OAuth リダイレクトに使う。
 4. Web は Gmail watch の開始（ログイン直後）と UI 操作を担う。Pub/Sub の受信は行わない。
 
 レート制限はプロセス内のトークンバケット（サーバーレスではインスタンス単位）。本人専用の誤操作・暴走防止が目的で、分散攻撃対策ではない。
@@ -219,7 +225,7 @@ gcloud projects add-iam-policy-binding $PROJECT \
   --member=serviceAccount:synedge-worker@$PROJECT.iam.gserviceaccount.com \
   --role=roles/firebasecloudmessaging.admin
 
-# 3) worker をビルドしてデプロイ（リポジトリのルートで実行）
+# 3) worker をビルドしてデプロイ（mail/ で実行）
 gcloud artifacts repositories create synedge --repository-format=docker --location=$REGION
 IMAGE=$REGION-docker.pkg.dev/$PROJECT/synedge/worker
 gcloud builds submit --config cloudbuild.yaml --substitutions=_APP=worker,_IMAGE=$IMAGE .
@@ -229,7 +235,7 @@ gcloud builds submit --config cloudbuild.yaml --substitutions=_APP=worker,_IMAGE
 gcloud run deploy synedge-worker --image $IMAGE --region $REGION \
   --no-allow-unauthenticated \
   --service-account synedge-worker@$PROJECT.iam.gserviceaccount.com \
-  --set-env-vars "GMAIL_PUBSUB_TOPIC=projects/$PROJECT/topics/synedge-gmail,FCM_PROJECT_ID=$PROJECT,APP_ORIGIN=https://synedge.example.com" \
+  --set-env-vars "GMAIL_PUBSUB_TOPIC=projects/$PROJECT/topics/synedge-gmail,FCM_PROJECT_ID=$PROJECT,APP_ORIGIN=https://maxwell-bay.vercel.app" \
   --set-secrets "DATABASE_URL=synedge-database-url:latest,TOKEN_ENCRYPTION_KEYS=synedge-token-keys:latest,GOOGLE_CLIENT_ID=synedge-google-client-id:latest,GOOGLE_CLIENT_SECRET=synedge-google-client-secret:latest"
 ```
 
@@ -298,7 +304,7 @@ gcloud scheduler jobs create http synedge-reconcile --location $REGION \
 ```bash
 pnpm install
 cd apps/mobile
-SYNEDGE_WEB_URL=https://synedge.example.com pnpm sync   # capacitor.config.json に URL を書き込み、プラグインを同期
+SYNEDGE_WEB_URL=https://maxwell-bay.vercel.app/mail pnpm sync   # capacitor.config.json に URL を書き込み、プラグインを同期
 pnpm open                                               # Android Studio で開く
 # もしくは
 cd android && ./gradlew assembleDebug                   # app/build/outputs/apk/debug/app-debug.apk
@@ -363,7 +369,7 @@ Gmail の watch 通知は 1 ユーザーあたり毎秒 1 件程度に間引か�
 pnpm --filter @synedge/mcp build
 # HTTP（Streamable HTTP、POST /mcp、ステートレス）
 PORT=8787 DATABASE_URL=... TOKEN_ENCRYPTION_KEYS=... GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... \
-  APP_ORIGIN=https://synedge.example.com ALLOWED_EMAILS=you@gmail.com node apps/mcp/dist/index.js
+  APP_ORIGIN=https://maxwell-bay.vercel.app ALLOWED_EMAILS=you@gmail.com node apps/mcp/dist/index.js
 # stdio（ローカルのAIクライアントがプロセスとして起動）
 SYNEDGE_MCP_TOKEN=syn_... ... node apps/mcp/dist/index.js --stdio
 ```
@@ -388,7 +394,7 @@ Claude Desktop（`claude_desktop_config.json`、stdio）:
         "TOKEN_ENCRYPTION_KEYS": "k1:...",
         "GOOGLE_CLIENT_ID": "...",
         "GOOGLE_CLIENT_SECRET": "...",
-        "APP_ORIGIN": "https://synedge.example.com",
+        "APP_ORIGIN": "https://maxwell-bay.vercel.app",
         "ALLOWED_EMAILS": "you@gmail.com"
       }
     }

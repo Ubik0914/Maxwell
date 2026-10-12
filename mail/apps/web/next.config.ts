@@ -19,6 +19,8 @@ const csp = [
 ].join("; ");
 
 const config: NextConfig = {
+  // Maxwell と同じオリジンの /mail 配下で動く（Maxwell 側の rewrites から転送される）
+  basePath: "/mail",
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ["@synedge/mail-core", "@synedge/ui", "@synedge/database"],

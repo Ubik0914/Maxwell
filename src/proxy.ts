@@ -1,7 +1,17 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
 export async function proxy(request: NextRequest) {
+  // /Book is what gets typed for the library at /book. Routes are
+  // case-sensitive, and next.config redirects are not, so the one
+  // spelling is caught here.
+  const { pathname } = request.nextUrl;
+  if (pathname === "/Book" || pathname.startsWith("/Book/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/book" + pathname.slice("/Book".length);
+    return NextResponse.redirect(url, 308);
+  }
+
   return updateSession(request);
 }
 
@@ -15,6 +25,10 @@ export const config = {
     // fetched on every load to check for an update, belonging to
     // nobody, and readable before anyone has signed in. Refreshing a
     // session to hand back a static file is a round trip for nothing.
-    "/((?!_next/static|_next/image|favicon.ico|api/health|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    //
+    // /mail is forwarded to the mail app (next.config.ts rewrites),
+    // which keeps its own Google sign-in; a Supabase session refresh
+    // there is a round trip for somebody else's page.
+    "/((?!_next/static|_next/image|favicon.ico|api/health|sw.js|manifest.webmanifest|mail$|mail/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

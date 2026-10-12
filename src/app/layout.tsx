@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
  * The whole site speaks as the library. Maxwell lives at /maxwell for
  * the people who already know it is there, and its own layout carries
  * its own name, manifest and icons; nothing a library user can reach
- * from "/" — tab titles, the install prompt, the home screen label —
+ * from "/" (the tool dashboard) or "/book" — tab titles, the install prompt, the home screen label —
  * says it exists.
  */
 export const metadata: Metadata = {

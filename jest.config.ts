@@ -9,6 +9,11 @@ const config: Config = {
     "<rootDir>/.next/",
     "<rootDir>/node_modules/",
     "<rootDir>/e2e/",
+    // mail/ runs its own tests (vitest) from its own workspace.
+    "<rootDir>/mail/",
+  ],
+  modulePathIgnorePatterns: [
+    "<rootDir>/mail/",
   ],
 };
 

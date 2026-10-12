@@ -1,4 +1,5 @@
 import "server-only";
+import { webPath } from "@synedge/mail-core";
 import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 import type { Container } from "./container";
@@ -31,7 +32,8 @@ export function sessionCookieOptions(c: Container) {
     httpOnly: true,
     secure: isSecureOrigin(c.env),
     sameSite: "lax" as const,
-    path: "/",
+    // 同じオリジンの Maxwell へ送らない
+    path: webPath("/"),
     maxAge: SESSION_TTL_SECONDS,
   };
 }

@@ -1,5 +1,5 @@
 /**
- * Set by the library just before it opens /scan, so the scan screen
+ * Set by the library just before it opens /book/scan, so the scan screen
  * knows that leaving can be a step back in history rather than a new
  * page. Session storage: it only has to survive the one navigation.
  */
