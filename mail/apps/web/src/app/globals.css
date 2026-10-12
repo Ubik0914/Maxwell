@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "@synedge/ui/tokens.css";
+@source "../../../../packages/ui/src";
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
