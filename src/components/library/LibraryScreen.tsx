@@ -138,7 +138,7 @@ function typingElsewhere(target: EventTarget | null, search: Element | null) {
  *
  * Adding is still scan-first — the footer's first button, the empty
  * shelf's only button, and the top of ⌘K's 追加 section all go to
- * /scan. Typing a book in by hand is an action in the panel, not a peer
+ * /book/scan. Typing a book in by hand is an action in the panel, not a peer
  * of the scanner.
  *
  * The books arrive rendered from the server and are kept here after
@@ -361,14 +361,14 @@ export function LibraryScreen({
     } catch {
       // Without storage the scan screen simply replaces itself on leave.
     }
-    router.push("/scan");
+    router.push("/book/scan");
   }, [router]);
 
   // Scanning is the button this screen is mostly opened for; have the
-  // scan screen's shell (app/scan/loading.tsx) ready before it is
+  // scan screen's shell (app/book/scan/loading.tsx) ready before it is
   // pressed, so the sheet opens on the tap and the camera starts in it.
   useEffect(() => {
-    router.prefetch("/scan");
+    router.prefetch("/book/scan");
   }, [router]);
 
   // The shelf-wide re-fetch: progress while it runs, null when idle.

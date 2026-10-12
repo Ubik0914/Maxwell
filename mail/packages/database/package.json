@@ -1,0 +1,24 @@
+{
+  "name": "@synedge/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./memory": "./src/memory.ts",
+    "./migrate": "./src/migrate.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "migrate": "tsx src/migrate-cli.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@synedge/mail-core": "workspace:*",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "@synedge/config": "workspace:*",
+    "tsx": "^4.20.6"
+  }
+}

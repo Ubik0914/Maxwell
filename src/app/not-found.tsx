@@ -13,7 +13,7 @@ export default function NotFound() {
         href="/"
         className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-inverse hover:bg-accent-hover"
       >
-        蔵書に戻る
+        トップに戻る
       </Link>
     </div>
   );

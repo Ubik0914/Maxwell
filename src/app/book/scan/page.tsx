@@ -19,7 +19,7 @@ export default async function ScanPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login?next=/scan");
+  if (!user) redirect("/login?next=/book/scan");
 
   return <ScanScreen />;
 }

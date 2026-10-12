@@ -6,13 +6,17 @@ DAGベースのタスク管理システム。StoryのStartとGoalを先に定義
 
 | パス | 中身 |
 | --- | --- |
-| `/` | **蔵書管理**（書名・著者・出版社・発売日・価格・ISBN・場所）。複数人で使う前提なので読書状況も貸出も持たない。本の追加はスキャンが主、手入力は副。書誌は openBD を主に、欠けた項目（特に価格）は国立国会図書館サーチ OpenSearch で補完する |
-| `/scan` | 蔵書の**連続スキャン**。カメラ（Android Chrome は BarcodeDetector、iPhone Safari などは ZXing）かバーコードリーダーで ISBN を読むたびに openBD で書誌を引いて即登録する。登録済み・書誌なしは一覧に残り、取消・手入力・再試行ができる |
+| `/` | **ツールのダッシュボード**。蔵書・連続スキャン・メールへの入口と、蔵書 MCP の接続先を並べる。ログイン不要（各ツールが自分でサインインを求める）。`/maxwell` は載せない |
+| `/book` | **蔵書管理**（書名・著者・出版社・発売日・価格・ISBN・場所）。複数人で使う前提なので読書状況も貸出も持たない。本の追加はスキャンが主、手入力は副。書誌は openBD を主に、欠けた項目（特に価格）は国立国会図書館サーチ OpenSearch で補完する |
+| `/book/scan` | 蔵書の**連続スキャン**。カメラ（Android Chrome は BarcodeDetector、iPhone Safari などは ZXing）かバーコードリーダーで ISBN を読むたびに openBD で書誌を引いて即登録する。登録済み・書誌なしは一覧に残り、取消・手入力・再試行ができる |
+| `/mail` | **メール**（Synedge）。リポジトリの [`mail/`](mail) にある別の Next.js アプリ（pnpm ワークスペース、`basePath: "/mail"`）を別の Vercel プロジェクトとしてデプロイし、`next.config.ts` の `rewrites` で転送する。転送先は環境変数 `MAIL_ORIGIN`（ビルド時に読む。未設定なら `/mail` は 404）。サインインは Maxwell と別（Google） |
 | `/maxwell` | Maxwell 本体（`/maxwell/stories`・`/maxwell/workspaces`・`/maxwell/routines`・`/maxwell/docs`）。**蔵書側からの導線は無い**（リンク・タイトル・PWA 名・MCP 名のどこにも出さない）。docs を含め全体が要ログインで、独自の manifest（id `/maxwell`）を持つ |
 | `/login`・`/signup` | 両方で共通のサインイン。`?next=/path` でサインイン後の戻り先を指定できる |
 | `/api/*`・`/oauth/*` | Maxwell の REST API / MCP / OAuth。外部クライアントの接続先を変えないためルートのまま |
 
-旧パス（`/stories/...` など）の転送は置かない（`/maxwell` の存在を推測させないため）。古いブックマークは 404 になる。
+蔵書の旧パス `/scan` は `/book/scan` へ、打ち間違えやすい `/Book` は `/book` へ 308 で転送する（`/Book` は `src/proxy.ts`。next.config の redirects は大文字小文字を区別しないため）。旧 `/` に入っていた蔵書のブックマークはダッシュボードに着く。PWA（manifest id `/`）の起動先は `/book`。
+
+Maxwell の旧パス（`/stories/...` など）の転送は置かない（`/maxwell` の存在を推測させないため）。古いブックマークは 404 になる。
 蔵書は `dag.books`（`supabase/migrations/20260929090000_create_dag_books.sql`）に持ち、RLS で本人の行だけが見える。
 
 使い方のガイドはアプリ自身の `/maxwell/docs` にある（本文は [`src/content/docs/`](src/content/docs) の Markdown）。このREADMEは動かし方と繋ぎ方、`/maxwell/docs` は使い方。

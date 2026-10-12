@@ -111,7 +111,7 @@ export function ScanScreen() {
    * Back to the library. When the library is where we came from, that
    * is a history step back rather than a new entry, so leaving scan
    * after scan does not stack up copies of the library behind it; when
-   * /scan was opened directly, there is nothing to go back to and it
+   * /book/scan was opened directly, there is nothing to go back to and it
    * replaces itself with the library instead.
    */
   const leave = useCallback(() => {
@@ -123,7 +123,7 @@ export function ScanScreen() {
       // Storage refused (private mode): take the safe route below.
     }
     if (fromLibrary) router.back();
-    else router.replace("/");
+    else router.replace("/book");
   }, [router]);
 
   // On a phone the screen is a sheet, and pulled down it goes.

@@ -13,7 +13,7 @@
  * than closing over one, so there is one catalogue and one `handle`,
  * and a tool cannot behave differently depending on how it was reached.
  *
- * What it offers is the library at "/": searching the signed-in
+ * What it offers is the library at "/book": searching the signed-in
  * user's books and reading one, and editing them — adding a book by
  * its ISBN, changing its fields, writing its note, moving books to a
  * place, removing one. Maxwell's own graph tools were withdrawn from

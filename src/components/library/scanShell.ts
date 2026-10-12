@@ -3,7 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 /*
- * Whether the scan screen's loading shell (app/scan/loading.tsx) is
+ * Whether the scan screen's loading shell (app/book/scan/loading.tsx) is
  * what the person has been looking at. The shell slides the sheet up;
  * the screen that replaces it must not slide up a second time.
  */
@@ -21,7 +21,7 @@ const noSubscribe = () => () => {};
 
 /**
  * True when the shell came first. Read through useSyncExternalStore so
- * hydrating a directly loaded /scan uses the server's answer (false) and
+ * hydrating a directly loaded /book/scan uses the server's answer (false) and
  * does not mismatch; the flag is cleared when the screen goes, so the
  * next open is judged afresh.
  */
