@@ -1,4 +1,10 @@
 ## メール（/mail）の設定と運用
+- クライアント ID
+
+  179446186940-3iqchnpbhvri4npsc1rvtqgkd46fbmu7.apps.googleusercontent.com
+  
+
+
 
 Maxwell の中で動く本人用の Gmail クライアント（旧 Synedge。2026-10-12 に Maxwell へ統合）。
 仕様の基準は Life リポジトリ `Inbox/2026-10-10_Spark風メールクライアント設計.md`。
